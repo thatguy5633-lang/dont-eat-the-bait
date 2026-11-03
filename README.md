@@ -20,7 +20,8 @@ Click **Host online room** and share the 4-letter code. Friends click **Join roo
 ## Extra fun (and challenge)
 - **Difficulty:** Chill, Normal, Hard or Insane (title screen or pause menu). Harder modes mean tougher fights, snappier lines, a shorter hook window, more chaos and rarer BOSS fish, but more cash and XP.
 - **Boss fish** (👹): rare, huge, angry fish worth 5x.
-- **Fin's quests**, **sea treasure chests**, a **cannon** and **bounce pads** on the beach, **emotes** (V), **combos**, and more chaos events (meteors, low gravity, party time).
+- **Buried treasure:** buy a Shovel ($250, Bait tab), follow the hot/cold hint and press N on sand to dig up chests.
+- **Fin's quests**, a **cannon** and **bounce pads** on the beach, **emotes** (V), **combos**, and more chaos events (meteors, low gravity, party time).
 
 ## Phones and tablets
 The game detects touch screens automatically: left thumb stick to move, drag the view to look, big 🎣 button to cast or hold to reel, plus jump, eat, kick, shove, Mega, boost and menu buttons. Tap the bottom bar to pick your rod or a fish. Landscape works best.
