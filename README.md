@@ -10,11 +10,11 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 - Dress your character in the Closet (`C`).
 
 ## Play
-- **Locally:** double-click `index.html`. It needs internet because Three.js and PeerJS load from CDNs.
+- **Locally:** double-click `index.html`. It needs internet because Three.js and the MQTT client load from CDNs.
 - **GitHub Pages:** push this folder to a repo, then Settings → Pages → deploy from the `main` branch root.
 
 ## Online rooms
-Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are peer-to-peer (WebRTC through PeerJS's free matchmaking server). Strict corporate or school networks may block peer connections.
+Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are relayed through free public MQTT brokers over secure WebSockets (EMQX / HiveMQ), so they work on home, school and most office networks without any WebRTC. Pause (Esc) → Main menu → Leave room to exit a room.
 
 ## Controls
 | Input | Action |

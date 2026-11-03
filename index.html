@@ -82,7 +82,7 @@
   @media(max-width:860px){#closetwrap{flex-direction:column}}
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
-<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://unpkg.com/mqtt@5.10.1/dist/mqtt.min.js"></script>
 <script src="simple_guy_b64.js"></script>
 <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}</script>
 </head>
@@ -119,7 +119,11 @@
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
-<div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub">The fish will wait. (Online players keep fishing!)</div><div><button id="btnResume">Resume</button></div><div><button id="btnDict" class="sec">📖 Fish Dictionary</button></div><div><button id="btnStable" class="sec">🐋 Mega Stable</button></div><div><button id="btnSkills" class="sec">⭐ Skills</button></div><div style="margin-top:10px"><button id="btnMenu" class="sec">🏠 Main menu</button></div></div></div>
+<div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub" id="pauseSub">The fish will wait. (Online players keep fishing!)</div>
+<div id="pauseMain"><div><button id="btnResume">Resume</button></div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button id="btnDict" class="sec">📖 Fish Dictionary</button><button id="btnStable" class="sec">🐋 Mega Stable</button><button id="btnSkills" class="sec">⭐ Skills</button><button id="btnMenu" class="sec">🏠 Main menu</button></div></div>
+<div id="menuAsk" style="display:none"><div class="sub" id="menuAskTxt"></div><div><button id="btnLeave" style="background:#ff6b6b;box-shadow:0 4px 0 #c92a2a">🚪 Leave room &amp; go to main menu</button></div><div style="margin-top:8px"><button id="btnStay" class="sec">Stay in the room</button></div></div>
+</div></div>
 
 <div class="ov" id="market"><div class="box" style="width:min(780px,96vw)">
   <h2>🐟 Fin's Fish Market</h2>
@@ -1391,19 +1395,66 @@ function netEvent(ev) {
 }
 function allStates() { const out = {}; out[NET.myId] = localState(); for (const [id, rp] of remotes) if (rp.st) out[id] = rp.st; return out; }
 function netTick(dt) {
-  if (NET.role === 'solo') return; NET.acc += dt; if (NET.acc < .1) return; NET.acc = 0;
+  if (NET.role === 'solo') return; NET.acc += dt; if (NET.acc < .12) return; NET.acc = 0;
   if (NET.role === 'host') { const snap = allStates(); for (const c of Object.values(NET.conns)) { try { c.send({ t: 'snap', p: snap }); } catch (e) { } } }
   else if (NET.hostConn && NET.hostConn.open) { try { NET.hostConn.send({ t: 'st', s: localState() }); } catch (e) { } }
 }
+/* =========================================================
+   ROOMS: relayed through public MQTT brokers over WebSockets (works where WebRTC / peer-to-peer is blocked).
+   MPeer / MConn imitate the small part of PeerJS the game uses, so the room logic below is unchanged.
+   The first letter of a room code says which broker the room lives on, so everybody meets in the same place.
+========================================================= */
+const BROKERS = ['wss://broker.emqx.io:8084/mqtt', 'wss://broker.hivemq.com:8884/mqtt'];
+const CODE_LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+const randCodeFor = bi => { const pool = CODE_LETTERS.split('').filter((_, i) => i % BROKERS.length === bi); let c = pool[(Math.random() * pool.length) | 0]; for (let i = 0; i < 3; i++) c += CODE_LETTERS[(Math.random() * CODE_LETTERS.length) | 0]; return c; };
+const brokerOfCode = code => Math.max(0, CODE_LETTERS.indexOf(code[0])) % BROKERS.length;
+class MConn {
+  constructor(owner, remoteId) { this.owner = owner; this.peer = remoteId; this.open = false; this.h = {}; this.last = Date.now(); this.closed = false; }
+  on(e, f) { (this.h[e] = this.h[e] || []).push(f); }
+  emit(e, d) { (this.h[e] || []).forEach(f => { try { f(d); } catch (err) { console.error(err); } }); }
+  send(d) { if (!this.closed) this.owner._pub(this.peer, { t: 'd', from: this.owner.id, d }); }
+  _gone() { if (this.closed) return; this.closed = true; this.open = false; clearInterval(this.hs); this.owner.conns.delete(this.peer); this.emit('close'); }
+  close() { if (this.closed) return; this.owner._pub(this.peer, { t: 'bye', from: this.owner.id }); this._gone(); }
+}
+class MPeer {
+  constructor(id, bi) { this.id = id || ('c' + Math.random().toString(36).slice(2, 9)); this.bi = bi; this.h = {}; this.open = false; this.conns = new Map(); this._start(); }
+  on(e, f) { (this.h[e] = this.h[e] || []).push(f); }
+  emit(e, d) { (this.h[e] || []).forEach(f => { try { f(d); } catch (err) { console.error(err); } }); }
+  _start() {
+    const cl = this.cl = mqtt.connect(BROKERS[this.bi], { clientId: 'deb_' + this.id + '_' + Math.random().toString(36).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 20, clean: true }); let opened = false;
+    cl.on('connect', () => { cl.subscribe('debait1/in/' + this.id, { qos: 0 }, err => { if (err) { this.emit('error', { type: 'network' }); return; } if (!opened) { opened = true; this.open = true; this.emit('open', this.id); } }); });
+    cl.on('message', (t, p) => this._msg(p));
+    cl.on('error', () => { if (!opened) this.emit('error', { type: 'network' }); });
+    this._hb = setInterval(() => { const now = Date.now(); for (const c of [...this.conns.values()]) { if (!c.open) continue; this._pub(c.peer, { t: 'ping', from: this.id }); if (now - c.last > 40000) c._gone(); } }, 3000);
+  }
+  _pub(to, obj) { if (this.cl && this.cl.connected) this.cl.publish('debait1/in/' + to, JSON.stringify(obj), { qos: 0 }); }
+  _msg(payload) {
+    let m; try { m = JSON.parse(payload.toString()); } catch (e) { return; } const c = this.conns.get(m.from), now = Date.now();
+    if (m.t === 'hs') { let k = c; if (!k) { k = new MConn(this, m.from); this.conns.set(m.from, k); k.open = true; this._pub(m.from, { t: 'ack', from: this.id }); this.emit('connection', k); } else { k.open = true; k.last = now; this._pub(m.from, { t: 'ack', from: this.id }); } }
+    else if (m.t === 'ack') { if (c && !c.open) { c.open = true; c.last = now; clearInterval(c.hs); c.emit('open'); } }
+    else if (m.t === 'd') { if (c) { c.last = now; c.emit('data', m.d); } }
+    else if (m.t === 'ping') { if (c) c.last = now; }
+    else if (m.t === 'bye') { if (c) c._gone(); }
+  }
+  connect(id) {
+    const c = new MConn(this, id); this.conns.set(id, c); const t0 = Date.now();
+    c.hs = setInterval(() => { if (c.open) { clearInterval(c.hs); return; } if (Date.now() - t0 > 9000) { clearInterval(c.hs); this.conns.delete(id); this.emit('error', { type: 'peer-unavailable' }); return; } this._pub(id, { t: 'hs', from: this.id }); }, 1500);
+    this._pub(id, { t: 'hs', from: this.id }); return c;
+  }
+  destroy() { for (const c of [...this.conns.values()]) c.close(); clearInterval(this._hb); setTimeout(() => { try { this.cl.end(true); } catch (e) { } }, 300); }
+}
+function leaveWithNotice(msg) { try { sessionStorage.setItem('deb_notice', msg); } catch (e) { } location.reload(); }
 function setStatus(t) { $('menuStatus').textContent = t; }
+try { const n = sessionStorage.getItem('deb_notice'); if (n) { setStatus(n); sessionStorage.removeItem('deb_notice'); } } catch (e) { }
 function randCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let c = ''; for (let i = 0; i < 4; i++) c += a[(Math.random() * a.length) | 0]; return c; }
-function hostRoom(retry = 0) {
-  if (!window.Peer) { setStatus('Online play needs internet (PeerJS failed to load).'); return; }
-  const code = randCode(); setStatus('Creating room…'); let peer;
-  try { peer = new Peer('deb-' + code); } catch (e) { setStatus('Could not start networking: ' + e); return; }
-  const to = setTimeout(() => { setStatus('Could not reach the matchmaking server. Try again or play solo.'); }, 12000);
+function hostRoom(bi = 0) {
+  if (!window.mqtt) { setStatus('Online play needs internet (the room service failed to load).'); return; }
+  const code = randCodeFor(bi); setStatus('Creating room…'); let settled = false, peer;
+  const fallback = why => { if (settled || NET.role !== 'solo') return; settled = true; clearTimeout(to); try { peer.destroy(); } catch (e) { } if (bi + 1 < BROKERS.length) hostRoom(bi + 1); else setStatus('Could not reach the room service (' + why + '). Check your internet or play solo.'); };
+  try { peer = new MPeer('deb-' + code, bi); } catch (e) { setStatus('Could not start online play: ' + e); return; }
+  const to = setTimeout(() => fallback('timeout'), 10000);
   peer.on('open', id => {
-    clearTimeout(to); NET.role = 'host'; NET.peer = peer; NET.myId = id; NET.room = code; me.id = id; NET.players.set(id, { name: me.name, ap: save.ap });
+    if (settled) return; settled = true; clearTimeout(to); NET.role = 'host'; NET.peer = peer; NET.myId = id; NET.room = code; me.id = id; NET.players.set(id, { name: me.name, ap: save.ap });
     $('room').textContent = `ROOM CODE: ${code}  (share it!)`; enterWorld();
   });
   peer.on('connection', conn => {
@@ -1420,17 +1471,17 @@ function hostRoom(retry = 0) {
     });
     conn.on('close', () => { const rp = remotes.get(conn.peer); const nm = rp && rp.name; delete NET.conns[conn.peer]; removeRemote(conn.peer); handleEventLocalLeft(conn.peer, nm); });
   });
-  peer.on('error', e => { clearTimeout(to); if (e.type === 'unavailable-id' && retry < 5) { hostRoom(retry + 1); } else if (NET.role === 'solo') setStatus('Network error: ' + e.type); });
+  peer.on('error', e => fallback(e.type));
 }
 function handleEventLocalLeft(id, name) { feed(`${name || 'A player'} left.`, '#ccc'); for (const c of Object.values(NET.conns)) { try { c.send({ t: 'ev', ev: { k: 'left', id, name } }); } catch (e) { } } }
 function netEventExcept(ev, exceptId) { for (const [id, c] of Object.entries(NET.conns)) if (id !== exceptId) { try { c.send({ t: 'ev', ev, from: exceptId }); } catch (e) { } } }
 function joinRoom() {
   const code = $('codeIn').value.trim().toUpperCase(); if (code.length !== 4) { setStatus('Enter the 4-letter room code.'); return; }
-  if (!window.Peer) { setStatus('Online play needs internet (PeerJS failed to load).'); return; }
-  setStatus('Connecting…'); const peer = new Peer(); let done = false;
-  const to = setTimeout(() => { if (!done) { setStatus('Could not connect. Check the code (or the host\'s network).'); try { peer.destroy(); } catch (e) { } } }, 14000);
+  if (!window.mqtt) { setStatus('Online play needs internet (the room service failed to load).'); return; }
+  setStatus('Connecting…'); const peer = new MPeer(null, brokerOfCode(code)); let done = false;
+  const to = setTimeout(() => { if (!done) { done = true; setStatus('Could not connect. Check the code and your internet.'); try { peer.destroy(); } catch (e) { } } }, 16000);
   peer.on('open', id => {
-    const conn = peer.connect('deb-' + code, { reliable: true });
+    const conn = peer.connect('deb-' + code);
     conn.on('open', () => { conn.send({ t: 'hello', name: me.name, ap: save.ap }); });
     conn.on('data', d => {
       if (d.t === 'welcome') { done = true; clearTimeout(to); NET.role = 'client'; NET.peer = peer; NET.hostConn = conn; NET.myId = d.id; me.id = d.id; NET.room = code; for (const [pid, info] of Object.entries(d.players)) NET.players.set(pid, info); $('room').textContent = `ROOM: ${code}`; enterWorld(); }
@@ -1440,10 +1491,9 @@ function joinRoom() {
         for (const id of [...remotes.keys()]) if (!seen.has(id)) removeRemote(id);
       } else if (d.t === 'ev') { if (d.ev.k === 'ap' && d.ev.id === NET.myId) return; handleEvent(d.ev, d.from); }
     });
-    conn.on('close', () => { if (started) { alert('The host left the room.'); location.reload(); } });
-    conn.on('error', () => setStatus('Connection error.'));
+    conn.on('close', () => { if (started && NET.role === 'client' && !NET.leaving) leaveWithNotice('The host left the room.'); });
   });
-  peer.on('error', e => { if (!done) { clearTimeout(to); setStatus(e.type === 'peer-unavailable' ? 'No room with that code.' : 'Network error: ' + e.type); } });
+  peer.on('error', e => { if (!done) { done = true; clearTimeout(to); setStatus(e.type === 'peer-unavailable' ? 'No room with that code.' : 'Network error: ' + e.type); try { peer.destroy(); } catch (x) { } } });
 }
 
 /* =========================================================
@@ -1457,6 +1507,7 @@ function setUI(s) {
   ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills' };
   for (const k of Object.values(ov)) $(k).style.display = 'none';
   if (ov[s]) $(ov[s]).style.display = 'flex';
+  if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; }
   $('hud').style.display = started ? 'block' : 'none';
   document.documentElement.style.cursor = s === 'play' ? 'none' : ''; canvas.style.cursor = s === 'play' ? 'none' : '';
   if (s !== 'play') { try { document.exitPointerLock(); } catch (e) { } mouse.down = false; }
@@ -1603,12 +1654,14 @@ function closeSkills() { if (skillsFrom === 'pause') { skillsFrom = null; setUI(
 $('btnSkills').onclick = () => { skillsFrom = 'pause'; openSkills(); };
 $('skClose').onclick = closeSkills;
 /* Main menu: save, leave any online room, and return to the title screen (Solo / Host / Join) */
+function goMainMenu() { NET.leaving = true; persist(); try { if (NET.peer) NET.peer.destroy(); } catch (e) { } try { document.exitPointerLock(); } catch (e) { } setTimeout(() => location.reload(), NET.peer ? 450 : 0); }
 $('btnMenu').onclick = () => {
-  if (NET.role !== 'solo' && !confirm('Leave this room and go back to the main menu?')) return;
-  persist(); try { if (NET.peer) NET.peer.destroy(); } catch (e) { }
-  try { document.exitPointerLock(); } catch (e) { }
-  location.reload();
+  if (NET.role === 'solo') { goMainMenu(); return; }
+  $('menuAskTxt').textContent = NET.role === 'host' ? `You are hosting room ${NET.room}. If you leave, everyone else is kicked out.` : `You are in room ${NET.room}.`;
+  $('pauseMain').style.display = 'none'; $('menuAsk').style.display = '';
 };
+$('btnLeave').onclick = goMainMenu;
+$('btnStay').onclick = () => { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; };
 $('nmOk').onclick = confirmMegaName;
 $('nmInput').addEventListener('keydown', e => { if (e.key === 'Enter') confirmMegaName(); });
 
