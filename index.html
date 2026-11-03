@@ -1467,7 +1467,7 @@ function handleEvent(ev, fromId) {
     case 'honk': sfx.honk(); break;
     case 'chat': if (ev.text) { addChat(String(ev.name || '?').slice(0, 16), String(ev.text).slice(0, 120)); sfx.tick(); } break;
     case 'toffer': case 'tacc': case 'tdec': case 'tgive': case 'tack': tradeEvent(ev); break;
-    case 'chaos': runChaos(ev.t, ev.seed); break;
+    case 'chaos': runChaos(ev.t, ev.seed, ev.x, ev.z); break;
     case 'ck': { sfx.squeak(); if (NET.role === 'host') { const c = plaza.crabs[ev.i]; if (c && !c.fly && !(c.dead > 0)) { c.fly = { vx: ev.vx, vy: ev.vy, vz: ev.vz, spin: ev.spin }; c.stun = 0; } } break; }
     case 'bk': if (NET.role === 'host') fun.ballV.set(ev.vx, ev.vy, ev.vz); sfx.thunk(); break;
     case 'shove': if (ev.to === NET.myId && !me.riding && !me.passenger) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
@@ -2132,7 +2132,10 @@ function dismountMega() {
   if (w && w.d < 20) { me.x = w.x; me.z = w.z; } else { me.x = 0; me.z = -32; toast('Too far from land. You swim back to the dock.', 2200, '#ffd43b'); }
   splash(me.x, Y0, me.z, 18, 4); toast(`Dismounted. Press G to call ${MEGA.rec ? MEGA.rec.name : 'your Mega'} again.`, 2200);
 }
+let rainCool = 0;
+function megaLeapRain() { if (rainCool > 0 || Math.random() > .1) return; rainCool = 45; const seed = (Math.random() * 1e9) | 0; netEvent({ k: 'chaos', t: 'rain', seed, x: MEGA.x, z: MEGA.z }); runChaos('rain', seed, MEGA.x, MEGA.z); }
 function updateRide(dt) {
+  rainCool -= dt;
   const rec = MEGA.rec; if (!rec || !MEGA.obj) { me.riding = false; return; }
   let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0); if (ui !== 'play') { ix = 0; iz = 0; }
   if (has('invert')) { ix = -ix; iz = -iz; }
@@ -2147,7 +2150,7 @@ function updateRide(dt) {
   for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + 1.4; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
   for (const w of walkRects) { const pad = 1.6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), r = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, r, t, b); if (m === l) nx -= l; else if (m === r) nx += r; else if (m === t) nz -= t; else nz += b; } }
   if (terrainH(nx, nz) > -.3) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -228, 228); nz = clamp(nz, -250, 128); MEGA.x = nx; MEGA.z = nz;
-  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = 10 + (boost ? 3 : 0); sfx.boing(); splash(MEGA.x, .1, MEGA.z, 22, 5); }
+  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = 10 + (boost ? 3 : 0); sfx.boing(); splash(MEGA.x, .1, MEGA.z, 22, 5); megaLeapRain(); }
   MEGA.vy -= 24 * dt; MEGA.y += MEGA.vy * dt; if (MEGA.y < 0) { if (MEGA.vy < -6) { splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); sfx.splashS(); } MEGA.y = 0; MEGA.vy = 0; }
   const sc = megaScaleOf(rec.sp, rec.level), U = MEGA.obj.userData, surf = waveH(MEGA.x, MEGA.z, time) + .1;
   me.x = MEGA.x + Math.sin(MEGA.yaw) * U.seatZ * sc; me.z = MEGA.z + Math.cos(MEGA.yaw) * U.seatZ * sc; me.y = surf + MEGA.y + U.seatY * sc; me.vx = MEGA.vx; me.vz = MEGA.vz; me.spd = sp; me.vy = 0; me.grounded = false;
@@ -2504,13 +2507,13 @@ function doKick() {
    CHAOS: random events (the host picks one and tells everybody, each screen plays it)
 ========================================================= */
 const chaos = { t: 30, fx: [] };
-const CHAOS_TYPES = ['rain', 'wave', 'barrels', 'gull', 'crabs'];
+const CHAOS_TYPES = ['wave', 'barrels', 'gull', 'crabs'];
 function knockMe(dx, dz, pw) { if (me.riding || me.passenger) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = 1.3; }
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
-function runChaos(type, seed) {
+function runChaos(type, seed, cx = 0, cz = -5) {
   const R = rng(seed || 1); sfx.honk();
   if (type === 'rain') { toast('🐟 FISH RAIN! Grab them before they flop away!', 3600, '#6fe8ff');
-    for (let i = 0; i < 26; i++) { const sp = FISH.filter(q => q.shape !== 4 && q.r < 3); const idx = FISH.indexOf(sp[(R() * sp.length) | 0]), m = makeFish3D(FISH[idx]); m.scale.setScalar(1.1); m.position.set(R() * 16 - 8, 24 + R() * 22, R() * 70 - 40); scene.add(m); chaos.fx.push({ k: 'fish', m, idx, kg: +(FISH[idx].min + (FISH[idx].max - FISH[idx].min) * R() * .6).toFixed(1), vy: 0, vx: (R() - .5) * 2, vz: (R() - .5) * 2, life: 16, st: 0, spin: R() * 6 }); } }
+    for (let i = 0; i < 18; i++) { const sp = FISH.filter(q => q.shape !== 4 && q.r < 3); const idx = FISH.indexOf(sp[(R() * sp.length) | 0]), m = makeFish3D(FISH[idx]); m.scale.setScalar(1.1); m.position.set(cx + R() * 22 - 11, 24 + R() * 22, cz + R() * 22 - 11); scene.add(m); chaos.fx.push({ k: 'fish', m, idx, kg: +(FISH[idx].min + (FISH[idx].max - FISH[idx].min) * R() * .6).toFixed(1), vy: 0, vx: (R() - .5) * 2, vz: (R() - .5) * 2, life: 16, st: 0, spin: R() * 6 }); } }
   else if (type === 'wave') { toast('🌊 ROGUE WAVE! Hold on to something!', 3600, '#4dabf7'); const w = new THREE.Mesh(new THREE.BoxGeometry(160, 4.5, 2.2), new THREE.MeshToonMaterial({ color: 0x74d8ff, transparent: true, opacity: .8, gradientMap: toonGrad })); w.position.set(0, 1.2, -170); scene.add(w); const foam = new THREE.Mesh(new THREE.BoxGeometry(160, .6, 2.6), new THREE.MeshBasicMaterial({ color: 0xffffff })); foam.position.y = 2.3; w.add(foam); chaos.fx.push({ k: 'wave', m: w, hit: false }); }
   else if (type === 'barrels') { toast('🛢️ BARREL BOMBS! Jump or get bowled over!', 3600, '#ff8a3d'); for (let i = 0; i < 9; i++) { const b = new THREE.Group(); mk(cylGeo, mat(0xc0392b), [0, 0, 0], [.55, .85, .55], b); mk(cylGeo, mat(0x333333), [0, .3, 0], [.57, .06, .57], b); mk(cylGeo, mat(0x333333), [0, -.3, 0], [.57, .06, .57], b); mk(sphGeo, mat(0xffd43b), [0, 0, .56], [.18, .18, .03], b); b.rotation.z = Math.PI / 2; const g = new THREE.Group(); g.add(b); g.position.set(R() * 7 - 3.5, Y0 + .9, -38 - i * 5); scene.add(g); chaos.fx.push({ k: 'barrel', m: g, b, vz: 9 + R() * 3, vy: 0, vx: (R() - .5) * 1.4 }); } }
   else if (type === 'gull' && save) { const it = bucket.length ? bucket.splice((R() * bucket.length) | 0, 1)[0] : null; selSlot = clamp(selSlot, 0, Math.max(0, bucket.length - 1)); lastHudKey = ''; toast(it ? `🐦 A SEAGULL STOLE YOUR ${FISH[it.idx].n.toUpperCase()}!` : '🐦 A seagull swooped in... and left empty-handed.', 3400, '#ff8a8a'); const src = plaza.gulls[0]; if (src) { const g = src.g.clone(true); g.scale.setScalar(2.2); g.position.set(me.x, me.y + 14, me.z + 12); scene.add(g); chaos.fx.push({ k: 'gull', m: g, t: 0 }); sfx.squeak(); } }
@@ -2523,8 +2526,14 @@ function updateChaos(dt) {
   for (let i = chaos.fx.length - 1; i >= 0; i--) {
     const f = chaos.fx[i]; let dead = false;
     if (f.k === 'fish') {
-      f.life -= dt; if (f.st === 0) { f.vy -= 24 * dt; f.m.position.y += f.vy * dt; f.m.position.x += f.vx * dt; f.m.position.z += f.vz * dt; f.m.rotation.z += f.spin * dt; const g = Math.max(terrainH(f.m.position.x, f.m.position.z) + .25, Y0 + .25 * (onLandPad(f.m.position.x, f.m.position.z, 0) ? 1 : -9)); if (f.m.position.y <= (onLandPad(f.m.position.x, f.m.position.z, 0) ? Y0 + .3 : Math.max(.2, terrainH(f.m.position.x, f.m.position.z) + .3))) { f.m.position.y = onLandPad(f.m.position.x, f.m.position.z, 0) ? Y0 + .3 : Math.max(.2, terrainH(f.m.position.x, f.m.position.z) + .3); f.st = terrainH(f.m.position.x, f.m.position.z) > 0 || onLandPad(f.m.position.x, f.m.position.z, 0) ? 1 : 2; if (f.st === 2) { splash(f.m.position.x, .1, f.m.position.z, 8, 2); ripple(f.m.position.x, f.m.position.z); dead = true; } } }
-      else { f.m.rotation.z = Math.sin(time * 18 + f.spin) * .5; f.m.position.y += Math.abs(Math.sin(time * 9 + f.spin)) * dt * .8 - dt * .4; if (Math.hypot(f.m.position.x - me.x, f.m.position.z - me.z) < 1.6 && Math.abs(f.m.position.y - me.y) < 3 && !me.swim && !me.riding) { if (bucket.length >= bucketCap()) { if (Math.random() < .02) toast('Bucket full!', 900, '#ffd43b'); } else { addToBucket(f.idx, f.kg); dead = true; sfx.good(); } } }
+      f.life -= dt; const P = f.m.position;
+      if (f.st === 0) {
+        f.vy -= 24 * dt; P.y += f.vy * dt; P.x += f.vx * dt; P.z += f.vz * dt; f.m.rotation.z += f.spin * dt;
+        const pad = onLandPad(P.x, P.z, 0), gy = pad ? Y0 + .3 : Math.max(.2, terrainH(P.x, P.z) + .3), onLand = pad || terrainH(P.x, P.z) > .3;
+        if (onLand) { if (P.y <= gy) { P.y = gy; f.st = 1; } } else { const w = waveH(P.x, P.z, time) + .2; if (P.y <= w) { P.y = w; f.st = 3; splash(P.x, .1, P.z, 8, 2); ripple(P.x, P.z); } }
+      } else if (f.st === 1) { f.m.rotation.z = Math.sin(time * 18 + f.spin) * .5; }
+      else { P.y = waveH(P.x, P.z, time) + .25; f.m.rotation.z = Math.sin(time * 3 + f.spin) * .15; }
+      if (f.st) { const dd = Math.hypot(P.x - me.x, P.z - me.z); if (dd < (f.st === 3 ? 3 : 1.6) && Math.abs(P.y - me.y) < 4) { if (bucket.length >= bucketCap()) { if (Math.random() < .02) toast('Bucket full!', 900, '#ffd43b'); } else { addToBucket(f.idx, f.kg); dead = true; sfx.good(); } } }
       if (f.life <= 0) dead = true; if (dead) scene.remove(f.m);
     } else if (f.k === 'wave') {
       f.m.position.z += 46 * dt; if (!f.hit && Math.abs(me.z - f.m.position.z) < 3 && me.y < 5 && !me.riding) { f.hit = true; knockMe(0, 1, 17); me.wob = 1.5; splash(me.x, me.y, me.z, 40, 7); sfx.splashS(); toast('SPLASH!', 1200, '#4dabf7'); }
