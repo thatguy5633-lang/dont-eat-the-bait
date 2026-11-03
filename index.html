@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <title>Don't Eat the Bait!</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
@@ -115,7 +115,7 @@
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
   <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button></div>
-  <div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
+  <div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
@@ -1417,41 +1417,48 @@ class MConn {
   close() { if (this.closed) return; this.owner._pub(this.peer, { t: 'bye', from: this.owner.id }); this._gone(); }
 }
 class MPeer {
-  constructor(id, bi) { this.id = id || ('c' + Math.random().toString(36).slice(2, 9)); this.bi = bi; this.h = {}; this.open = false; this.conns = new Map(); this._start(); }
+  /* connects to EVERY broker, so a host and a joiner meet even if one of the servers is blocked on someone's network */
+  constructor(id) { this.id = id || ('c' + Math.random().toString(36).slice(2, 9)); this.h = {}; this.open = false; this.conns = new Map(); this.route = {}; this.cls = []; this.fails = 0; this._start(); }
   on(e, f) { (this.h[e] = this.h[e] || []).push(f); }
   emit(e, d) { (this.h[e] || []).forEach(f => { try { f(d); } catch (err) { console.error(err); } }); }
   _start() {
-    const cl = this.cl = mqtt.connect(BROKERS[this.bi], { clientId: 'deb_' + this.id + '_' + Math.random().toString(36).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 20, clean: true }); let opened = false;
-    cl.on('connect', () => { cl.subscribe('debait1/in/' + this.id, { qos: 0 }, err => { if (err) { this.emit('error', { type: 'network' }); return; } if (!opened) { opened = true; this.open = true; this.emit('open', this.id); } }); });
-    cl.on('message', (t, p) => this._msg(p));
-    cl.on('error', () => { if (!opened) this.emit('error', { type: 'network' }); });
+    BROKERS.forEach((url, bi) => {
+      const cl = mqtt.connect(url, { clientId: 'deb_' + this.id + '_' + Math.random().toString(36).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 2000, keepalive: 20, clean: true }); this.cls[bi] = cl; let up = false;
+      cl.on('connect', () => cl.subscribe('debait1/in/' + this.id, { qos: 0 }, err => { if (err) return; if (!up) { up = true; } if (!this.open) { this.open = true; this.emit('open', this.id); } }));
+      cl.on('message', (t, p) => this._msg(p, bi));
+      cl.on('error', () => { if (!up && ++this.fails >= BROKERS.length && !this.open) this.emit('error', { type: 'network' }); });
+    });
     this._hb = setInterval(() => { const now = Date.now(); for (const c of [...this.conns.values()]) { if (!c.open) continue; this._pub(c.peer, { t: 'ping', from: this.id }); if (now - c.last > 40000) c._gone(); } }, 3000);
   }
-  _pub(to, obj) { if (this.cl && this.cl.connected) this.cl.publish('debait1/in/' + to, JSON.stringify(obj), { qos: 0 }); }
-  _msg(payload) {
+  _pub(to, obj, only) {
+    const msg = JSON.stringify(obj), r = only != null ? only : this.route[to];
+    this.cls.forEach((cl, bi) => { if (cl && cl.connected && (r == null || r === bi)) cl.publish('debait1/in/' + to, msg, { qos: 0 }); });
+  }
+  _msg(payload, bi) {
     let m; try { m = JSON.parse(payload.toString()); } catch (e) { return; } const c = this.conns.get(m.from), now = Date.now();
-    if (m.t === 'hs') { let k = c; if (!k) { k = new MConn(this, m.from); this.conns.set(m.from, k); k.open = true; this._pub(m.from, { t: 'ack', from: this.id }); this.emit('connection', k); } else { k.open = true; k.last = now; this._pub(m.from, { t: 'ack', from: this.id }); } }
-    else if (m.t === 'ack') { if (c && !c.open) { c.open = true; c.last = now; clearInterval(c.hs); c.emit('open'); } }
+    if (m.t === 'hs') { if (this.route[m.from] == null) this.route[m.from] = bi; let k = c; if (!k) { k = new MConn(this, m.from); this.conns.set(m.from, k); k.open = true; this._pub(m.from, { t: 'ack', from: this.id }, bi); this.emit('connection', k); } else { k.open = true; k.last = now; this._pub(m.from, { t: 'ack', from: this.id }, bi); } }
+    else if (m.t === 'ack') { if (c && !c.open) { this.route[m.from] = bi; c.open = true; c.last = now; clearInterval(c.hs); c.emit('open'); } }
     else if (m.t === 'd') { if (c) { c.last = now; c.emit('data', m.d); } }
     else if (m.t === 'ping') { if (c) c.last = now; }
     else if (m.t === 'bye') { if (c) c._gone(); }
   }
   connect(id) {
     const c = new MConn(this, id); this.conns.set(id, c); const t0 = Date.now();
-    c.hs = setInterval(() => { if (c.open) { clearInterval(c.hs); return; } if (Date.now() - t0 > 9000) { clearInterval(c.hs); this.conns.delete(id); this.emit('error', { type: 'peer-unavailable' }); return; } this._pub(id, { t: 'hs', from: this.id }); }, 1500);
+    c.hs = setInterval(() => { if (c.open) { clearInterval(c.hs); return; } if (Date.now() - t0 > 12000) { clearInterval(c.hs); this.conns.delete(id); this.emit('error', { type: 'peer-unavailable' }); return; } this._pub(id, { t: 'hs', from: this.id }); }, 1200);
     this._pub(id, { t: 'hs', from: this.id }); return c;
   }
-  destroy() { for (const c of [...this.conns.values()]) c.close(); clearInterval(this._hb); setTimeout(() => { try { this.cl.end(true); } catch (e) { } }, 300); }
+  destroy() { for (const c of [...this.conns.values()]) c.close(); clearInterval(this._hb); setTimeout(() => { this.cls.forEach(cl => { try { cl.end(true); } catch (e) { } }); }, 400); }
 }
 function leaveWithNotice(msg) { try { sessionStorage.setItem('deb_notice', msg); } catch (e) { } location.reload(); }
-function setStatus(t) { $('menuStatus').textContent = t; }
+const BUILD = 'online v2'; function setStatus(t) { $('menuStatus').textContent = t; }
 try { const n = sessionStorage.getItem('deb_notice'); if (n) { setStatus(n); sessionStorage.removeItem('deb_notice'); } } catch (e) { }
 function randCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let c = ''; for (let i = 0; i < 4; i++) c += a[(Math.random() * a.length) | 0]; return c; }
-function hostRoom(bi = 0) {
+function hostRoom() {
+  const bi = 0;
   if (!window.mqtt) { setStatus('Online play needs internet (the room service failed to load).'); return; }
-  const code = randCodeFor(bi); setStatus('Creating room…'); let settled = false, peer;
-  const fallback = why => { if (settled || NET.role !== 'solo') return; settled = true; clearTimeout(to); try { peer.destroy(); } catch (e) { } if (bi + 1 < BROKERS.length) hostRoom(bi + 1); else setStatus('Could not reach the room service (' + why + '). Check your internet or play solo.'); };
-  try { peer = new MPeer('deb-' + code, bi); } catch (e) { setStatus('Could not start online play: ' + e); return; }
+  const code = randCode(); setStatus('Creating room…'); let settled = false, peer;
+  const fallback = why => { if (settled || NET.role !== 'solo') return; settled = true; clearTimeout(to); try { peer.destroy(); } catch (e) { } setStatus('Could not reach the room service (' + why + '). Check your internet or play solo.'); };
+  try { peer = new MPeer('deb-' + code); } catch (e) { setStatus('Could not start online play: ' + e); return; }
   const to = setTimeout(() => fallback('timeout'), 10000);
   peer.on('open', id => {
     if (settled) return; settled = true; clearTimeout(to); NET.role = 'host'; NET.peer = peer; NET.myId = id; NET.room = code; me.id = id; NET.players.set(id, { name: me.name, ap: save.ap });
@@ -1478,8 +1485,8 @@ function netEventExcept(ev, exceptId) { for (const [id, c] of Object.entries(NET
 function joinRoom() {
   const code = $('codeIn').value.trim().toUpperCase(); if (code.length !== 4) { setStatus('Enter the 4-letter room code.'); return; }
   if (!window.mqtt) { setStatus('Online play needs internet (the room service failed to load).'); return; }
-  setStatus('Connecting…'); const peer = new MPeer(null, brokerOfCode(code)); let done = false;
-  const to = setTimeout(() => { if (!done) { done = true; setStatus('Could not connect. Check the code and your internet.'); try { peer.destroy(); } catch (e) { } } }, 16000);
+  setStatus('Connecting…'); const peer = new MPeer(null); let done = false;
+  const to = setTimeout(() => { if (!done) { done = true; setStatus('Could not connect. Check the code and your internet.'); try { peer.destroy(); } catch (e) { } } }, 30000);
   peer.on('open', id => {
     const conn = peer.connect('deb-' + code);
     conn.on('open', () => { conn.send({ t: 'hello', name: me.name, ap: save.ap }); });
