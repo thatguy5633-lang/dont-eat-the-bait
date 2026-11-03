@@ -14,7 +14,7 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 - **GitHub Pages:** push this folder to a repo, then Settings → Pages → deploy from the `main` branch root.
 
 ## Online rooms
-Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are relayed through free public MQTT brokers over secure WebSockets (EMQX / HiveMQ), so they work on home, school and most office networks without any WebRTC. Pause (Esc) → Main menu → Leave room to exit a room.
+Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are relayed through free public MQTT brokers over secure WebSockets (EMQX / HiveMQ), so they work on home, school and most office networks without any WebRTC. Crabs, the beach ball, kicks and shoves are shared with everyone in the room. Pause (Esc) → Main menu → Leave room to exit a room.
 
 ## Controls
 | Input | Action |
@@ -24,6 +24,7 @@ Click **Host online room** and share the 4-letter code. Friends click **Join roo
 | RMB | reel in |
 | E | eat the selected fish (not the bait!) |
 | Q / wheel | pick a fish in your bucket |
+| H | hold the selected fish up in both hands (everyone in the room sees it) |
 | R | switch bait |
 | F | market (near the stall) |
 | B | Fish Dictionary and skills |

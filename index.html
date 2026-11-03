@@ -749,6 +749,7 @@ function genPoseOld(P) {
   if (P.mode === 'charge') { L[HNR] = [.3, 1.3, -.25]; L[ELR] = [.42, 1.05, -.12]; }
   if (P.mode === 'fight') { L[HNR] = [.24, .85, .5]; L[HNL] = [-.2, .8, .46]; L[ELR] = [.38, .78, .26]; L[ELL] = [-.34, .74, .24]; }
   if (P.mode === 'eat') { const b = Math.sin(ph * 6) * .05; L[HNR] = [.12, 1.18 + b, .36]; L[ELR] = [.38, .95, .2]; L[HNL] = [-.12, 1.16 - b, .34]; L[ELL] = [-.36, .93, .2]; }
+  if (P.mode === 'show') { L[HNR] = [.2, 1.1, .5]; L[ELR] = [.4, .95, .25]; L[HNL] = [-.2, 1.1, .5]; L[ELL] = [-.4, .95, .25]; }
   if (P.mode === 'dance') { const w = Math.sin(ph * 3); L[HNL] = [-.5, 1.5 + w * .2, 0]; L[ELL] = [-.5, 1.15, 0]; L[HNR] = [.5, 1.5 - w * .2, 0]; L[ELR] = [.5, 1.15, 0]; L[FTL][2] = w * .2; L[FTR][2] = -w * .2; for (const i of [HEAD, NECK, SHL, SHR, ELL, ELR, HNL, HNR]) L[i][0] += w * .1; }
   if (P.mode === 'sleep') { for (const i of [HEAD]) rotAbout(L[i], [0, .62, 0], .55); }
   else if (P.lean) for (const i of [HEAD, NECK, SHL, SHR, ELL, ELR, HNL, HNR]) rotAbout(L[i], [0, .62, 0], P.lean);
@@ -876,6 +877,7 @@ function genPoseGuy(P) {
   else if (mode === 'charge') { hR = [.25, 1.45, -.3]; hL = [-.15, 1.1, .1]; }
   else if (mode === 'fight') { hR = [.12, .95, .42]; hL = [-.12, .9, .38]; }
   else if (mode === 'eat') { const b = Math.sin(ph * 6) * .04; hR = [.06, 1.4 + b, .22]; hL = [-.2, 1.2 - b, .2]; }
+  else if (mode === 'show') { const b = Math.sin(ph * 5) * .02; hR = [.2, 1.08 + b, .5]; hL = [-.2, 1.08 - b, .5]; }
   else if (mode === 'dance') { const w = Math.sin(ph * 3); hR = [.5, 1.6 - w * .2, 0]; hL = [-.5, 1.6 + w * .2, 0]; }
   else if (mode === 'sleep') { hR = [.3, .6, .08]; hL = [-.3, .6, .08]; }
   else if (ride) { hR = [.16, .78, .4]; hL = [-.16, .78, .4]; }
@@ -1010,6 +1012,14 @@ function setMyRod() { scene.remove(myRod); myRod = makeRod(RODS[save.rod].col); 
 const myBobber = makeBobber(); scene.add(myBobber); myBobber.visible = false;
 const myLine = makeLine(); myLine.visible = false;
 const heldFish = new THREE.Group(); scene.add(heldFish); heldFish.visible = false;
+const heldSlot = { g: heldFish, key: '' }; let curHold = null;
+/* a fish actually held in both hands (shown to everyone in the room) */
+function setHeld(slot, item, ch, yaw, sc) {
+  if (!item || !ch) { slot.g.visible = false; return; }
+  const key = item.idx + '|' + Math.round(item.kg * 10);
+  if (slot.key !== key) { slot.key = key; slot.g.clear(); const fm = makeFish3D(FISH[item.idx]); fm.scale.setScalar(Math.min(1.5, .7 + Math.log(1 + item.kg) * .25)); slot.g.add(fm); }
+  const a = ch.p[HNR], b = ch.p[HNL]; slot.g.visible = true; slot.g.position.set((a.x + b.x) / 2, (a.y + b.y) / 2 + .06 * sc, (a.z + b.z) / 2); slot.g.rotation.set(0, yaw, Math.sin(time * 9) * .12); slot.g.scale.setScalar(sc);
+}
 let fightFish = null;
 
 /* =========================================================
@@ -1181,12 +1191,12 @@ function updateFishing(dt) {
       F.flyT += dt; const u = Math.min(1, F.flyT / .8); _w.set(me.x, me.y + 1.3 * me.sc, me.z);
       F.bx = lerp(F.bx, _w.x, u * u); F.bz = lerp(F.bz, _w.z, u * u); F.by = lerp(F.by, _w.y, u * u) + Math.sin(u * Math.PI) * 1.2;
       if (u >= 1) {
-        const c = F.lastCatch; if (c.mega) { resetFishing(); F.state = 'idle'; showMegaCatch(c.mega.sp); break; } resetFishing(); F.state = 'show'; F.showT = 1.6; myBobber.visible = false; myLine.visible = false;
-        heldFish.clear(); const sp = FISH[c.idx], fm = makeFish3D(sp); fm.scale.setScalar(.7 + Math.log(1 + c.kg) * .25); fm.rotation.y = Math.PI / 2 - .5; heldFish.add(fm); heldFish.visible = true; addToBucket(c.idx, c.kg);
+        const c = F.lastCatch; if (c.mega) { resetFishing(); F.state = 'idle'; showMegaCatch(c.mega.sp); break; } resetFishing(); F.state = 'show'; F.showT = 2.8; myBobber.visible = false; myLine.visible = false;
+        const sp = FISH[c.idx]; addToBucket(c.idx, c.kg);
       }
       break;
     }
-    case 'show': F.showT -= dt; heldFish.rotation.z = Math.sin(time * 10) * .15; heldFish.position.set(me.x + Math.sin(me.bodyYaw) * .7 * me.sc, me.y + 2.5 * me.sc + Math.sin(time * 6) * .05, me.z + Math.cos(me.bodyYaw) * .7 * me.sc); if (F.showT <= 0) { heldFish.visible = false; F.state = 'idle'; } break;
+    case 'show': F.showT -= dt; if (F.showT <= 0) F.state = 'idle'; break;
   }
   if (F.state === 'wait' || F.state === 'bite') { F.dip = Math.max(0, (F.dip || 0) - dt); }
   // visuals
@@ -1215,7 +1225,7 @@ function applyFx(id, silent) {
   return id;
 }
 function eatSelected() {
-  if (eatT > 0 || F.state !== 'idle' && F.state !== 'show') return;
+  if (eatT > 0 || F.state !== 'idle' && F.state !== 'show') return; me.showing = false;
   if (!bucket.length) { toast('You ate the BAIT! Blech. 🪱', 2200, '#ff8a8a'); nausea = 4; eatT = 1; eatFx = null; sfx.eat(); sfx.bad(); netEvent({ k: 'ate', name: me.name, what: 'the bait' }); return; }
   const it = bucket.splice(selSlot, 1)[0]; selSlot = clamp(selSlot, 0, bucket.length - 1); eatT = 1.1; eatFx = it; sfx.eat();
 }
@@ -1321,7 +1331,7 @@ function tagSprite(text) {
 }
 function makeRemote(id, name, ap) {
   const rp = { id, name, ap, st: null, x: 0, y: Y0, z: 0, yaw: 0, sc: 1, tx: 0, ty: Y0, tz: 0, tyaw: 0, tsc: 1, walk: 0, ch: null, tag: null, rod: null, bob: makeBobber(), line: makeLine(), score: 0, lvl: 1, fs: 'idle', fx: [], init: false };
-  rp.bob.visible = false; scene.add(rp.bob); rp.line.visible = false; buildRemoteBody(rp); return rp;
+  rp.held = { g: new THREE.Group(), key: '' }; scene.add(rp.held.g); rp.bob.visible = false; scene.add(rp.bob); rp.line.visible = false; buildRemoteBody(rp); return rp;
 }
 function buildRemoteBody(rp) {
   if (rp.ch) { rp.ch.destroy(); scene.remove(rp.tag); scene.remove(rp.rod); }
@@ -1330,7 +1340,7 @@ function buildRemoteBody(rp) {
 function localState() {
   return { x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.bodyYaw.toFixed(2), sc: +me.sc.toFixed(2), spd: +me.spd.toFixed(1), fs: eatT > 0 ? 'eat' : sleepLock > 0 ? 'sleep' : F.state, bx: +(F.bx || 0).toFixed(1), by: +(F.by || 0).toFixed(2), bz: +(F.bz || 0).toFixed(1), bend: +(F.bend || 0).toFixed(2),
     fx: Object.keys(effects), lvl: save.level, score: save.score, rt: save.rod, pw: +F.power.toFixed(2), name: me.name,
-    sw: me.swim ? 1 : 0, mg: MEGA.summoned && MEGA.rec ? { s: MEGA.rec.sp, c: MEGA.rec.c1, g: MEGA.rec.glow, n: MEGA.rec.name, l: MEGA.rec.level, t: MEGA.rec.trail, x: +MEGA.x.toFixed(1), z: +MEGA.z.toFixed(1), y: +MEGA.y.toFixed(2), a: +MEGA.yaw.toFixed(2), r: me.riding ? 1 : 0 } : null };
+    sw: me.swim ? 1 : 0, hf: curHold ? [curHold.idx, +curHold.kg.toFixed(1)] : 0, kn: me.kickN | 0, sn: me.shoveN | 0, mg: MEGA.summoned && MEGA.rec ? { s: MEGA.rec.sp, c: MEGA.rec.c1, g: MEGA.rec.glow, n: MEGA.rec.name, l: MEGA.rec.level, t: MEGA.rec.trail, x: +MEGA.x.toFixed(1), z: +MEGA.z.toFixed(1), y: +MEGA.y.toFixed(2), a: +MEGA.yaw.toFixed(2), r: me.riding ? 1 : 0 } : null };
 }
 function applyRemoteState(id, s) {
   let rp = remotes.get(id);
@@ -1349,21 +1359,26 @@ function updateRemoteMega(rp, dt) {
   o.position.set(rp.mx, surf + .15 + mg.y + Math.sin(time * 2) * .08, rp.mz); o.rotation.set(0, rp.ma, 0); o.scale.setScalar(sc); animateMega(o, time); rp.megaTag.position.set(rp.mx, surf + 3.4 * sc + mg.y, rp.mz);
   if (mg.r && Math.random() < .5) emitTrail(rp.mx - Math.sin(rp.ma) * 1.8 * sc, surf + .2 + mg.y, rp.mz - Math.cos(rp.ma) * 1.8 * sc, mg.t || 'sparkle', mg.g);
 }
-function removeRemote(id) { const rp = remotes.get(id); if (!rp) return; if (rp.megaObj) { scene.remove(rp.megaObj); scene.remove(rp.megaTag); } rp.ch.destroy(); scene.remove(rp.tag); scene.remove(rp.rod); scene.remove(rp.bob); scene.remove(rp.line); remotes.delete(id); NET.players.delete(id); }
+function removeRemote(id) { const rp = remotes.get(id); if (!rp) return; if (rp.megaObj) { scene.remove(rp.megaObj); scene.remove(rp.megaTag); } rp.ch.destroy(); scene.remove(rp.tag); scene.remove(rp.rod); scene.remove(rp.held.g); scene.remove(rp.bob); scene.remove(rp.line); remotes.delete(id); NET.players.delete(id); }
 function updateRemotes(dt) {
   for (const rp of remotes.values()) {
     if (!rp.init) continue; const k = Math.min(1, 12 * dt);
     rp.x += (rp.tx - rp.x) * k; rp.y += (rp.ty - rp.y) * k; rp.z += (rp.tz - rp.z) * k; rp.yaw = lerpAngle(rp.yaw, rp.tyaw, k); rp.sc += (rp.tsc - rp.sc) * k;
-    const ghost = rp.fx.includes('ghost'); rp.ch.group.visible = !ghost; rp.tag.visible = !ghost || false; rp.rod.visible = !ghost && !(rp.st && rp.st.sw);
+    const ghost = rp.fx.includes('ghost'); rp.ch.group.visible = !ghost; rp.tag.visible = !ghost || false; rp.rod.visible = !ghost && !(rp.st && (rp.st.sw || rp.st.hf));
     const moving = rp.spd > .3; rp.walk += (rp.spd || 0) * dt * 1.2;
     let mode = 'hold'; const fs = rp.fs;
     if (fs === 'charge') mode = 'charge'; else if (fs === 'cast') mode = 'cast'; else if (fs === 'fight') mode = 'fight'; else if (fs === 'eat') mode = 'eat'; else if (fs === 'sleep') mode = 'sleep'; else if (rp.mg && rp.mg.r) mode = 'ride'; else if (rp.st && rp.st.sw) mode = 'swim'; else if (rp.fx.includes('disco')) mode = 'dance';
+    const hfv = rp.st && rp.st.hf; if (hfv && mode === 'hold') mode = 'show';
+    const st0 = rp.st || {}; if (rp.kn === undefined) { rp.kn = st0.kn | 0; rp.sn = st0.sn | 0; }
+    if ((st0.kn | 0) !== rp.kn) { rp.kn = st0.kn | 0; rp.kk = 0; } if ((st0.sn | 0) !== rp.sn) { rp.sn = st0.sn | 0; rp.sk = 0; }
+    if (rp.kk != null) { rp.kk += dt / .4; if (rp.kk >= 1) rp.kk = null; } if (rp.sk != null) { rp.sk += dt / .35; if (rp.sk >= 1) rp.sk = null; }
     updateRemoteMega(rp, dt);
     const wobR = (mode === 'fight' ? .6 : 0) + (rp.fx.includes('jelly') || rp.fx.includes('dizzy') ? .75 : 0), mvR = moving ? Math.min(1, rp.spd / 4) : 0;
     const leanR = mode === 'fight' ? -.25 : clamp((rp.spd || 0) * .045, 0, .3) + Math.sin(time * 9 + rp.walk) * .1 * wobR;
     const swayR = Math.sin(time * 13 + rp.walk) * (.04 + .2 * wobR) + Math.sin(rp.walk * 2.2) * .09 * mvR;
-    const L = genPose({ amp: mvR, phase: rp.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: .8, lean: leanR, sway: swayR });
+    const L = genPose({ amp: mvR, phase: rp.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: .8, lean: leanR, sway: swayR, kick: rp.kk || 0, shove: rp.sk || 0 });
     rp.ch.setTargets(L, { x: rp.x, y: rp.y, z: rp.z }, rp.yaw, rp.sc); rp.ch.follow(true); rp.ch.sync(time);
+    setHeld(rp.held, hfv && !ghost ? { idx: hfv[0], kg: hfv[1] } : null, rp.ch, rp.yaw, rp.sc);
     // rod in right hand
     const hand = rp.ch.guy ? rp.ch.handPos(_hp) : rp.ch.p[HNR]; rp.rod.position.copy(hand); rp.rod.scale.setScalar(rp.sc); const pitchUp = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? .5 : .9;
     rp.rod.rotation.set(-pitchUp, rp.yaw, 0, 'YXZ'); bendRod(rp.rod, mode === 'fight' ? .9 : 0);
@@ -1381,6 +1396,8 @@ function handleEvent(ev, fromId) {
     case 'catch': { const col = R_COL[ev.r] || '#fff'; if (ev.r >= 2 || Math.random() < .5) feed(`${ev.name} caught a ${ev.fish} (${ev.kg}kg)!`, col); break; }
     case 'ate': { const f = ev.fx ? FX[ev.fx] : null; feed(`${ev.name} ate ${ev.what}${f ? ` → ${f.e} ${f.n}!` : '!'}`, f ? (f.g === false ? '#ff8a8a' : '#8ce99a') : '#ffd43b'); break; }
     case 'honk': sfx.honk(); break;
+    case 'ck': { sfx.squeak(); if (NET.role === 'host') { const c = plaza.crabs[ev.i]; if (c && !c.fly && !(c.dead > 0)) { c.fly = { vx: ev.vx, vy: ev.vy, vz: ev.vz, spin: ev.spin }; c.stun = 0; } } break; }
+    case 'bk': if (NET.role === 'host') fun.ballV.set(ev.vx, ev.vy, ev.vz); sfx.thunk(); break;
     case 'shove': if (ev.to === NET.myId && !me.riding) { me.kx = ev.dx * 11; me.kz = ev.dz * 11; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
     case 'mega': feed(`${ev.name} caught a MEGA ${ev.sp} and named it ${ev.mega}!`, '#6fe8ff'); sfx.lvl(); break;
     case 'splash': { ripple(ev.x, ev.z); splash(ev.x, .1, ev.z, 8, 2); break; }
@@ -1393,10 +1410,13 @@ function netEvent(ev) {
   if (NET.role === 'host') { for (const c of Object.values(NET.conns)) { try { c.send({ t: 'ev', ev, from: NET.myId }); } catch (e) { } } }
   else if (NET.hostConn && NET.hostConn.open) { try { NET.hostConn.send({ t: 'ev', ev }); } catch (e) { } }
 }
+const r2 = v => Math.round(v * 100) / 100;
+function worldSnap() { const b = fun.ball.position; return { c: plaza.crabs.map(c => [r2(c.g.position.x), r2(c.g.position.y), r2(c.g.position.z), r2(c.g.rotation.y), c.g.visible ? 1 : 0, r2(c.g.rotation.x), r2(c.g.rotation.z)]), b: [r2(b.x), r2(b.y), r2(b.z)] }; }
+function applyWorld(w) { w.c.forEach((a, i) => { const c = plaza.crabs[i]; if (c) c.net = a; }); fun.ballNet = w.b; }
 function allStates() { const out = {}; out[NET.myId] = localState(); for (const [id, rp] of remotes) if (rp.st) out[id] = rp.st; return out; }
 function netTick(dt) {
   if (NET.role === 'solo') return; NET.acc += dt; if (NET.acc < .12) return; NET.acc = 0;
-  if (NET.role === 'host') { const snap = allStates(); for (const c of Object.values(NET.conns)) { try { c.send({ t: 'snap', p: snap }); } catch (e) { } } }
+  if (NET.role === 'host') { const snap = allStates(); const w = worldSnap(); for (const c of Object.values(NET.conns)) { try { c.send({ t: 'snap', p: snap, w }); } catch (e) { } } }
   else if (NET.hostConn && NET.hostConn.open) { try { NET.hostConn.send({ t: 'st', s: localState() }); } catch (e) { } }
 }
 /* =========================================================
@@ -1494,6 +1514,7 @@ function joinRoom() {
       if (d.t === 'welcome') { done = true; clearTimeout(to); NET.role = 'client'; NET.peer = peer; NET.hostConn = conn; NET.myId = d.id; me.id = d.id; NET.room = code; for (const [pid, info] of Object.entries(d.players)) NET.players.set(pid, info); $('room').textContent = `ROOM: ${code}`; enterWorld(); }
       else if (d.t === 'full') { done = true; clearTimeout(to); setStatus('That room is full (8/8).'); try { peer.destroy(); } catch (e) { } }
       else if (d.t === 'snap') {
+        if (d.w) applyWorld(d.w);
         const seen = new Set(); for (const [pid, s] of Object.entries(d.p)) { if (pid === NET.myId) continue; seen.add(pid); applyRemoteState(pid, s); }
         for (const id of [...remotes.keys()]) if (!seen.has(id)) removeRemote(id);
       } else if (d.t === 'ev') { if (d.ev.k === 'ap' && d.ev.id === NET.myId) return; handleEvent(d.ev, d.from); }
@@ -1681,6 +1702,7 @@ addEventListener('keydown', e => {
   if (!e.repeat) pressedQ.push(e.code); keys[e.code] = true; if (ui === 'play' && !document.pointerLockElement) lockPointer(); if (e.repeat) return;
   if (ui === 'play') {
     if (e.code === 'KeyE') eatSelected();
+    if (e.code === 'KeyH') { if (me.showing) me.showing = false; else if (F.state !== 'idle') { } else if (bucket.length) { me.showing = true; toast(`Holding up your ${FISH[bucket[selSlot].idx].n}. Press H to put it away.`, 1800, '#ffd43b'); } else toast('Catch a fish first!', 1200); }
     if (e.code === 'KeyQ') { if (bucket.length) { selSlot = (selSlot + 1) % bucket.length; sfx.tick(); } }
     if (e.code === 'KeyR') { const order = ['worm', 'shrimp', 'glitter', 'mega'].filter(k => k === 'worm' || save.bait[k] > 0); save.baitSel = order[(order.indexOf(save.baitSel) + 1) % order.length] || 'worm'; sfx.tick(); persist(); }
     if (e.code === 'KeyF') openMarket();
@@ -1767,7 +1789,7 @@ function buildDetail() {
   const N = 650, pos = new Float32Array(N * 3), col = new Float32Array(N * 3); detail.sparkPhase = new Float32Array(N);
   for (let i = 0; i < N; i++) { pos[i * 3] = rnd(-110, 110); pos[i * 3 + 2] = rnd(-170, 40); detail.sparkPhase[i] = Math.random() * 20; }
   const sg = new THREE.BufferGeometry(); sg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); sg.setAttribute('color', new THREE.BufferAttribute(col, 3));
-  detail.sparkle = new THREE.Points(sg, new THREE.PointsMaterial({ size: 1.1, map: glintTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); detail.sparkle.frustumCulled = false; scene.add(detail.sparkle);
+  detail.sparkle = new THREE.Points(sg, new THREE.PointsMaterial({ size: .6, map: glintTex, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending })); detail.sparkle.frustumCulled = false; scene.add(detail.sparkle);
   // arch sign at pier entrance
   if (false) { const archTex = canvasTex(1024, 220, g => { const gr = g.createLinearGradient(0, 0, 1024, 0); ['#ff4d6d', '#ffd23a', '#57e36a', '#3dd6ff', '#c77dff'].forEach((c, i) => gr.addColorStop(i / 4, c)); g.fillStyle = '#5b3a1a'; g.fillRect(0, 0, 1024, 220); g.fillStyle = '#f2b25f'; g.fillRect(14, 14, 996, 192); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = '900 104px Fredoka,"Trebuchet MS",sans-serif'; g.lineWidth = 16; g.strokeStyle = '#14213d'; g.strokeText("DON'T EAT THE BAIT!", 512, 118); g.fillStyle = gr; g.fillText("DON'T EAT THE BAIT!", 512, 118); });
     for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(9.4, 2.0), new THREE.MeshBasicMaterial({ map: archTex })); p.position.set(0, Y0 + 4.6, 7 + s * .12); if (s < 0) p.rotation.y = Math.PI; scene.add(p); }
@@ -1792,7 +1814,7 @@ function buildDetail() {
 function updateDetail(dt) {
   for (const f of detail.foam) { f.t.offset.x += dt * f.s; f.m.material.opacity = .75 + Math.sin(time * 1.5 + f.s * 90) * .18; }
   for (const r of detail.rings) { const u = ((time * .55 + r.p) % 1); r.m.scale.setScalar(.8 + u * 1.2); r.m.material.opacity = (1 - u) * .8; }
-  const sp = detail.sparkle; if (sp) { const pos = sp.geometry.attributes.position, col = sp.geometry.attributes.color; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), z = pos.getZ(i); pos.setY(i, waveH(x, z, time) + .1); const k = Math.pow(Math.max(0, Math.sin(time * 2.4 + detail.sparkPhase[i])), 8) * 3.2; col.setXYZ(i, k, k * .92, k * .7); } pos.needsUpdate = true; col.needsUpdate = true; }
+  const sp = detail.sparkle; if (sp) { const pos = sp.geometry.attributes.position, col = sp.geometry.attributes.color; for (let i = 0; i < pos.count; i++) { const x = pos.getX(i), z = pos.getZ(i); pos.setY(i, waveH(x, z, time) + .1); const k = Math.pow(Math.max(0, Math.sin(time * 2.4 + detail.sparkPhase[i])), 8) * 3.2; col.setXYZ(i, k * .55, k * .72, k * .85); } pos.needsUpdate = true; col.needsUpdate = true; }
   sun.position.set(me.x - 50, 42, me.z - 70); sun.target.position.set(me.x, Y0, me.z); sun.target.updateMatrixWorld();
 }
 
@@ -2094,9 +2116,9 @@ function updatePlaza(dt) {
   if (plaza.beam) plaza.beam.rotation.y = time * 1.1;
   if (plaza.fish) { plaza.fish.rotation.y += dt * .5; plaza.fish.position.y = Y0 + 2.8 + Math.sin(time * 2) * .08; plaza.sprayT -= dt; if (plaza.sprayT <= 0) { plaza.sprayT = .07; splash(plaza.fish.position.x + Math.sin(plaza.fish.rotation.y) * .5, Y0 + 3.9, plaza.fish.position.z, 2, 1.3); } }
   for (const c of plaza.crabs) {
-    if (c.fly || c.dead > 0 || c.stun > 0) continue;
-    const p = c.g.position, d = Math.hypot(me.x - p.x, me.z - p.z); c.t -= dt;
-    if (c.cur && d < 10 && d > 2.2 && !me.riding && !me.swim) { c.dx = (me.x - p.x) / d; c.dz = (me.z - p.z) / d; c.sp = 1.7; c.t = .5; } else if (c.t <= 0) { const a = rnd(0, TAU); c.dx = Math.cos(a); c.dz = Math.sin(a); c.sp = Math.random() < .45 ? 0 : 1.3; c.t = rnd(.8, 2.6); }
+    if (NET.role === 'client' || c.fly || c.dead > 0 || c.stun > 0) continue;
+    const p = c.g.position; let tx = me.x, tz = me.z, d = Math.hypot(tx - p.x, tz - p.z); for (const rp of remotes.values()) { if (!rp.init) continue; const dd = Math.hypot(rp.x - p.x, rp.z - p.z); if (dd < d) { d = dd; tx = rp.x; tz = rp.z; } } c.t -= dt;
+    if (c.cur && d < 10 && d > 2.2 && !me.riding && !me.swim) { c.dx = (tx - p.x) / d; c.dz = (tz - p.z) / d; c.sp = 1.7; c.t = .5; } else if (c.t <= 0) { const a = rnd(0, TAU); c.dx = Math.cos(a); c.dz = Math.sin(a); c.sp = Math.random() < .45 ? 0 : 1.3; c.t = rnd(.8, 2.6); }
     let nx = p.x + c.dx * c.sp * dt, nz = p.z + c.dz * c.sp * dt;
     if (nx < -30 || nx > 30) { c.dx *= -1; nx = clamp(nx, -30, 30); } if (nz < 14 || nz > 42) { c.dz *= -1; nz = clamp(nz, 14, 42); }
     if ((nx > 9 && nx < 19.5 && nz > 10.5 && nz < 15.5) || Math.hypot(nx, nz - 28) < 4.2) { c.dx *= -1; c.dz *= -1; nx = p.x; nz = p.z; }
@@ -2193,20 +2215,20 @@ function addFun() {
   }
   enableShadows(scene);
 }
-function shoveAction() { if (me.riding || me.swim || ui !== 'play' || me.shoveT > 0 || F.state === 'fight') return; me.shoveT = .35; me.shoveHit = true; sfx.whoosh(); }
+function shoveAction() { if (me.riding || me.swim || ui !== 'play' || me.shoveT > 0 || F.state === 'fight') return; me.shoveT = .35; me.shoveHit = true; me.shoveN = (me.shoveN | 0) + 1; sfx.whoosh(); }
 function doShove() {
   const fx = Math.sin(me.bodyYaw), fz = Math.cos(me.bodyYaw); let hit = 0;
   for (const rp of remotes.values()) { if (!rp.init) continue; const dx = rp.x - me.x, dz = rp.z - me.z, d = Math.hypot(dx, dz); if (d < 2.8 && (dx * fx + dz * fz) / (d || 1) > .15 && Math.abs(rp.y - me.y) < 2) { netEvent({ k: 'shove', to: rp.id, dx: fx, dz: fz, who: me.name }); hit++; toast(`You shove ${rp.name}!`, 1600, '#ffd43b'); } }
   if (Math.hypot(FIN_AT.x - me.x, FIN_AT.z - me.z) < 3) { finSay('HEY! I sell fish, not hugs!'); hit++; }
   if (!hit && Math.random() < .5) toast('You shove the air. It does not push back.', 1500);
 }
-function kickAction() { if (me.riding || me.swim || ui !== 'play' || me.kickT > 0 || F.state === 'fight') return; me.kickT = .4; me.kickHit = true; sfx.whoosh(); }
+function kickAction() { if (me.riding || me.swim || ui !== 'play' || me.kickT > 0 || F.state === 'fight') return; me.kickT = .4; me.kickHit = true; me.kickN = (me.kickN | 0) + 1; sfx.whoosh(); }
 const KICK_LINES = ['BOINK!', 'CRAB PUNT!', 'GOAL!!', 'Sorry crab!', 'Crab-a-pult!', 'That crab has a sponsor now.', 'Crab: "I was walking here!"', 'Left foot, no regrets.'];
 function doKick() {
   const fx = Math.sin(me.bodyYaw), fz = Math.cos(me.bodyYaw); let hit = 0;
-  for (const c of plaza.crabs) { if (c.fly || c.dead > 0) continue; const dx = c.g.position.x - me.x, dz = c.g.position.z - me.z, d = Math.hypot(dx, dz); if (d < 2.7 && (dx * fx + dz * fz) / (d || 1) > .1) { const p = rnd(7, 12); c.fly = { vx: fx * p + rnd(-1.5, 1.5), vy: rnd(6, 9), vz: fz * p + rnd(-1.5, 1.5), spin: rnd(8, 16) }; c.stun = 0; save.crabs = (save.crabs || 0) + 1; hit++; sfx.squeak(); }
+  for (const [ci, c] of plaza.crabs.entries()) { if (c.fly || c.dead > 0) continue; const dx = c.g.position.x - me.x, dz = c.g.position.z - me.z, d = Math.hypot(dx, dz); if (d < 2.7 && (dx * fx + dz * fz) / (d || 1) > .1) { const p = rnd(7, 12); c.fly = { vx: fx * p + rnd(-1.5, 1.5), vy: rnd(6, 9), vz: fz * p + rnd(-1.5, 1.5), spin: rnd(8, 16) }; c.stun = 0; save.crabs = (save.crabs || 0) + 1; hit++; sfx.squeak(); netEvent({ k: 'ck', i: ci, vx: c.fly.vx, vy: c.fly.vy, vz: c.fly.vz, spin: c.fly.spin }); }
   }
-  const b = fun.ball, bd = Math.hypot(b.position.x - me.x, b.position.z - me.z); if (bd < 3 && b.position.y < Y0 + 1.5) { fun.ballV.set(fx * 11 + rnd(-1, 1), 6.5, fz * 11 + rnd(-1, 1)); hit++; sfx.thunk(); }
+  const b = fun.ball, bd = Math.hypot(b.position.x - me.x, b.position.z - me.z); if (bd < 3 && b.position.y < Y0 + 1.5) { fun.ballV.set(fx * 11 + rnd(-1, 1), 6.5, fz * 11 + rnd(-1, 1)); hit++; sfx.thunk(); netEvent({ k: 'bk', vx: fun.ballV.x, vy: fun.ballV.y, vz: fun.ballV.z }); }
   if (hit) { const n = save.crabs || 0; toast(pick(KICK_LINES), 1400, '#ffd43b'); if (n && n % 5 === 0) toast(`${n} crabs kicked! The crabs have noticed you.`, 2800, '#ff8a8a'); persist(); }
   else if (Math.random() < .5) toast('You kick the air. Dramatic.', 1200);
 }
@@ -2216,6 +2238,7 @@ function updateFun(dt) {
   if (me.shoveT > 0) { me.shoveT -= dt; if (me.shoveHit && me.shoveT < .2) { me.shoveHit = false; doShove(); } }
   // crabs in flight / respawn (works with the crab list from the plaza)
   for (const c of plaza.crabs) {
+    if (NET.role === 'client' && !c.fly && c.net) { const a = c.net, q = c.g.position, k = Math.min(1, 14 * dt); if (a[4] && !c.g.visible) q.set(a[0], a[1], a[2]); c.g.visible = !!a[4]; if (a[4]) c.dead = 0; q.x += (a[0] - q.x) * k; q.y += (a[1] - q.y) * k; q.z += (a[2] - q.z) * k; c.g.rotation.set(a[5], a[3], a[6]); continue; }
     if (c.dead > 0) { c.dead -= dt; if (c.dead <= 0) { c.g.visible = true; c.g.position.set(rnd(-24, 24), Y0 + .12, rnd(16, 38)); c.g.rotation.set(0, 0, 0); c.sp = 0; toast('A crab pops back up, offended.', 1600); } continue; }
     if (c.fly) {
       const f = c.fly, p = c.g.position; f.vy -= 20 * dt; p.x += f.vx * dt; p.y += f.vy * dt; p.z += f.vz * dt; c.g.rotation.x += f.spin * dt; c.g.rotation.z += f.spin * .6 * dt;
@@ -2230,6 +2253,7 @@ function updateFun(dt) {
   }
   // beach ball (rolls downhill, floats in the sea)
   const b = fun.ball, v = fun.ballV, bp = b.position, gy = terrainH(bp.x, bp.z) + .45, onB = gy > .6;
+  if (NET.role === 'client' && fun.ballNet) { const n = fun.ballNet, k = Math.min(1, 12 * dt), dx = n[0] - bp.x, dz = n[2] - bp.z; if (Math.hypot(dx, dz) > 6) bp.set(n[0], n[1], n[2]); else { bp.x += dx * k; bp.y += (n[1] - bp.y) * k; bp.z += dz * k; } b.rotation.x += dz * 2; b.rotation.z -= dx * 2; } else {
   const pd = Math.hypot(bp.x - me.x, bp.z - me.z); if (pd < .95 && me.spd > .5 && Math.abs(me.y - (bp.y - .45)) < 1.5 && !me.riding && !me.swim) { v.x += (bp.x - me.x) / (pd || 1) * me.spd * 1.1 * dt * 12; v.z += (bp.z - me.z) / (pd || 1) * me.spd * 1.1 * dt * 12; }
   v.y -= 22 * dt; bp.addScaledVector(v, dt);
   if (onB) { fun.ballWater = 0; fun.splashed = false;
@@ -2237,6 +2261,7 @@ function updateFun(dt) {
     if (bp.x > 8.6 && bp.x < 19.4 && bp.z > 10.6 && bp.z < 15.6) { if (Math.abs(bp.x - 14) > 4.6) v.x *= -.7; else v.z *= -.7; bp.x -= v.x * dt * 2; bp.z -= v.z * dt * 2; } }
   else { const w = waveH(bp.x, bp.z, time) + .3; if (bp.y < w) { bp.y = w; v.y = Math.max(v.y, 0) * .1; v.x *= .96; v.z *= .96; if (!fun.splashed) { splash(bp.x, .1, bp.z, 10, 3); fun.splashed = true; } } fun.ballWater += dt; if (fun.ballWater > 14) { fun.ballWater = 0; fun.splashed = false; bp.set(9, Y0 + 4, 21); v.set(0, 0, 0); toast('The beach ball paddled back to shore.', 2000); } }
   b.rotation.x += v.z * dt * 2; b.rotation.z -= v.x * dt * 2;
+  }
   // rubber ducks: bob, drift, quack when you get close
   for (const d of fun.ducks) { d.a += dt * d.sp; const x = d.cx + Math.cos(d.a) * d.r, z = d.cz + Math.sin(d.a * .8) * d.r; d.g.position.set(x, waveH(x, z, time) + .02, z); d.g.rotation.set(Math.sin(time * 2 + d.a) * .08, -d.a, Math.cos(time * 1.6 + d.a) * .08); d.q -= dt; if (d.q <= 0 && Math.hypot(x - me.x, z - me.z) < 5 && !me.riding) { d.q = rnd(5, 9); sfx.quack(); if (Math.random() < .4) toast('Quack.', 900, '#ffe066'); } }
   // a seagull occasionally "sends regards"
@@ -2259,7 +2284,9 @@ function updateMeAvatar(dt) {
   else if (fishing) me.bodyYaw = lerpAngle(me.bodyYaw, me.yaw, 10 * dt);
   else if (me.spd > .3) me.bodyYaw = lerpAngle(me.bodyYaw, Math.atan2(me.vx, me.vz), 12 * dt);
   let mode = 'hold'; const st = F.state;
-  if (me.riding) mode = 'ride'; else if (me.swim) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (has('disco')) mode = 'dance';
+  if (me.showing && (F.state !== 'idle' || !bucket.length || me.riding || me.swim)) me.showing = false;
+  curHold = (me.riding || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : me.showing && bucket[selSlot] ? bucket[selSlot] : null;
+  if (me.riding) mode = 'ride'; else if (me.swim) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (has('disco')) mode = 'dance';
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
   me.wob = clamp((me.wob || 0) + Math.min(.1, Math.abs(dsp) * .003) - 2.5 * dt, 0, 1.2);
@@ -2272,7 +2299,7 @@ function updateMeAvatar(dt) {
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
   const up = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? lerp(1.5, .5, clamp(F.t / .25, 0, 1)) : .9;
-  myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !me.riding && !me.swim;
+  myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !me.riding && !me.swim && !curHold; setHeld(heldSlot, curHold, meChar, me.bodyYaw, me.sc);
 }
 function update(dt) {
   time += dt;
