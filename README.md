@@ -7,6 +7,7 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 - Level up, buy rods, bait and skills at Fin's Fish Market, and complete the dictionary.
 - **Megas:** 34 kinds (every map has its own exclusive Megas), incredibly rare (a starter rod almost never hooks one). Some are fishing Megas (cast while riding) and some seat two riders giant sea creatures (about 1 in a few hundred bites in deep water; Mega Lure bait makes them ~30x likelier). Name them, feed them, level them up, recolor them, pick a swim trail, and ride them across the sea (`G`). Manage them in the Mega Stable (`M`).
 - **Lava World ($100,000) and Lightning World ($500,000):** buy them at the market, then step on the glowing portal at the end of the pier to warp there. Lava World has a volcano and fire fish; Lightning World has a permanent thunderstorm, an electric sea and the best fish in the game, including Mythic ones.
+- **Four late-game worlds, each unlocked only after the one before:** Frost World ($1,500,000, after Lightning World), Toxic World ($4,000,000), Cosmic World ($10,000,000) and The Abyss ($25,000,000). Each has its own look, 6 super-hard fish, 3 Megas and a portal at the dock of the previous world. Fish there bite slower. Catch every fish in the game to become a Master Angler.
 - **Map expansion:** buy new areas at the market's Map tab (Outer Dock, Treasure Island, Mega Cove). Some can only be reached on a Mega.
 - Dress your character in the Closet (`C`).
 
