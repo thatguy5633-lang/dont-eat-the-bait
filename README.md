@@ -16,6 +16,9 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 ## Online rooms
 Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are relayed through free public MQTT brokers over secure WebSockets (EMQX / HiveMQ), so they work on home, school and most office networks without any WebRTC. Crabs, the beach ball, kicks and shoves are shared with everyone in the room. Pause (Esc) → Main menu → Leave room to exit a room.
 
+## Phones and tablets
+The game detects touch screens automatically: left thumb stick to move, drag the view to look, big 🎣 button to cast or hold to reel, plus jump, eat, kick, shove, Mega, boost and menu buttons. Tap the bottom bar to pick your rod or a fish. Landscape works best.
+
 ## Controls
 | Input | Action |
 |---|---|

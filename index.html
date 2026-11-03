@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"><meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
 <title>Don't Eat the Bait!</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <style>
   *{box-sizing:border-box}
   html,body{margin:0;height:100%;overflow:hidden;background:#79c8f0;font-family:"Fredoka","Baloo 2","Trebuchet MS",sans-serif;color:#fff;user-select:none}
@@ -38,6 +38,24 @@
   #chat .m{background:rgba(20,33,61,.45);border-radius:8px;padding:2px 8px;color:#fff;word-break:break-word;transition:opacity .6s}
   #chat .m b{color:#ffd43b}
   #chatIn{position:fixed;left:12px;bottom:112px;width:min(380px,60vw);display:none;z-index:7;border:3px solid #ffd43b;border-radius:10px;padding:6px 10px;font-size:15px;font-weight:800;background:rgba(20,33,61,.92);color:#fff}
+  #bucket{pointer-events:auto}
+  #touch{display:none;position:fixed;inset:0;z-index:8;pointer-events:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:none}
+  body.touch.playing #touch{display:block}
+  body.touch #help{display:none!important}
+  body.touch canvas{touch-action:none}
+  #tStick{position:absolute;left:max(18px,env(safe-area-inset-left));bottom:max(22px,env(safe-area-inset-bottom));width:132px;height:132px;border-radius:50%;background:rgba(20,33,61,.35);border:3px solid rgba(255,255,255,.5);pointer-events:auto;touch-action:none}
+  #tKnob{position:absolute;left:41px;top:41px;width:50px;height:50px;border-radius:50%;background:rgba(255,255,255,.75);border:3px solid #14213d}
+  #touch .tb{position:absolute;pointer-events:auto;touch-action:none;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(43,99,230,.72);border:3px solid #ffd43b;color:#fff;font-weight:900;font-size:22px;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+  #touch .tb:active,#touch .tb.on{background:#ffd43b;color:#14213d}
+  #touch .tb small{display:block;font-size:10px;line-height:1}
+  #touch .tt{width:42px;height:42px;font-size:19px;border-width:2px;background:rgba(20,33,61,.7)}
+  body.touch #bucket{left:50%;bottom:8px;max-width:44vw;transform:translateX(-50%)}
+  body.touch .slot{width:42px;height:34px}
+  body.touch .slot img{width:36px;height:24px}
+  body.touch #chat{bottom:170px;font-size:13px;width:min(300px,42vw)}
+  body.touch #chatIn{bottom:130px}
+  body.touch #prompt{top:44%;font-size:17px}
+  @media (max-height:520px){ #card{display:none!important} #bait{bottom:84px!important} .box{padding:10px 16px!important} .box h1,#menu h1{font-size:30px!important;margin:2px 0!important} .box h2{font-size:20px!important;margin:2px 0!important} .box .sub{font-size:13px!important;margin:4px 0!important} .box button{padding:6px 12px!important;font-size:15px!important} }
   #bait{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);font-size:14px;font-weight:800}
   #fx{position:absolute;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .chip{font-size:15px;font-weight:800;padding:4px 10px;border-radius:20px;border:3px solid #14213d}
@@ -1058,6 +1076,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
+const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
 let started = false, ui = 'menu', time = 0, sleepLock = 0, sleepTimer = 5, burpTimer = 4, honkTimer = 3, nausea = 0, xpBoost = false, eatT = 0, eatFx = null, wheelQ = 0, discoDir = 0;
@@ -1622,16 +1641,17 @@ function setUI(s) {
   if (ov[s]) $(ov[s]).style.display = 'flex';
   if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; }
   $('hud').style.display = started ? 'block' : 'none';
-  document.documentElement.style.cursor = s === 'play' ? 'none' : ''; canvas.style.cursor = s === 'play' ? 'none' : '';
+  document.body.classList.toggle('playing', s === 'play' && started);
+  document.documentElement.style.cursor = s === 'play' && !TOUCH ? 'none' : ''; canvas.style.cursor = s === 'play' ? 'none' : '';
   if (s !== 'play') { try { document.exitPointerLock(); } catch (e) { } mouse.down = false; }
 }
-function lockPointer() { try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } }
+function lockPointer() { if (TOUCH) return; try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } }
 function enterWorld() { started = true; me.name = save.name || 'Player'; setUI('play'); lockPointer(); try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); } catch (e) { } $('help').style.display = 'block'; setTimeout(() => $('help').style.display = 'none', 20000); toast('Walk out to the end of the pier. Hold click to cast!', 4500, '#ffd43b'); updateBucketUI(); }
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement === canvas) wasLocked = true; else if (wasLocked && ui === 'play') { wasLocked = false; setUI('pause'); } });
 function updateBucketUI() {
   const b = $('bucket'); b.innerHTML = '';
-  const tile = (html, on, n, title) => { const d = document.createElement('div'); d.className = 'slot' + (on ? ' sel' : ''); d.innerHTML = `<span class="hk">${n}</span>${html}`; if (title) d.title = title; b.appendChild(d); return d; };
+  const tile = (html, on, n, title) => { const d = document.createElement('div'); const hi = b.children.length; d.onclick = () => hotSelect(hi); d.className = 'slot' + (on ? ' sel' : ''); d.innerHTML = `<span class="hk">${n}</span>${html}`; if (title) d.title = title; b.appendChild(d); return d; };
   tile('<span style="font-size:24px">🎣</span>', rodOut, 1, 'Fishing rod');
   bucket.forEach((it, i) => tile(`<img src="${ICON[it.idx]}">`, !rodOut && i === selSlot, i + 2 <= 9 ? i + 2 : '', FISH[it.idx].n));
   for (let i = bucket.length; i < bucketCap(); i++) { const d = document.createElement('div'); d.className = 'slot'; d.style.opacity = .35; b.appendChild(d); }
@@ -1836,6 +1856,50 @@ function stickLook(dt) {
   if (nx < e) me.yaw += 3 * dt * (1 - nx / e); else if (nx > 1 - e) me.yaw -= 3 * dt * ((nx - (1 - e)) / e);
 }
 addEventListener('wheel', e => { if (ui === 'play' && F.state === 'idle') hotCycle(e.deltaY > 0 ? 1 : -1); }, { passive: true });
+
+/* =========================================================
+   TOUCH CONTROLS (phones / tablets): stick to move, drag to look, big cast button + action buttons
+========================================================= */
+if (TOUCH) {
+  document.body.classList.add('touch');
+  const root = document.createElement('div'); root.id = 'touch'; document.body.appendChild(root);
+  const key = (code, down) => { window.dispatchEvent(new KeyboardEvent(down ? 'keydown' : 'keyup', { code, bubbles: true })); };
+  const mkBtn = (label, sub, css, onDown, onUp, cls = '') => { const b = document.createElement('div'); b.className = 'tb ' + cls; b.style.cssText = css; b.innerHTML = label + (sub ? `<small>${sub}</small>` : ''); b.style.flexDirection = 'column';
+    const dn = e => { e.preventDefault(); e.stopPropagation(); b.classList.add('on'); onDown && onDown(); }, up = e => { e.preventDefault(); e.stopPropagation(); b.classList.remove('on'); onUp && onUp(); };
+    b.addEventListener('touchstart', dn, { passive: false }); b.addEventListener('touchend', up, { passive: false }); b.addEventListener('touchcancel', up, { passive: false }); root.appendChild(b); return b; };
+  const tap = code => () => { key(code, true); key(code, false); };
+  // movement stick
+  const st = document.createElement('div'); st.id = 'tStick'; st.innerHTML = '<i id="tKnob"></i>'; root.appendChild(st); const knob = st.firstChild; let stId = null;
+  const setDir = (x, y) => { const on = { KeyW: y < -.35, KeyS: y > .35, KeyA: x < -.35, KeyD: x > .35 }; for (const k in on) { if (on[k] && !keys[k]) pressedQ.push(k); keys[k] = on[k]; } };
+  const stickMove = t => { const r = st.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2; let dx = t.clientX - cx, dy = t.clientY - cy; const m = r.width / 2, d = Math.hypot(dx, dy); if (d > m) { dx *= m / d; dy *= m / d; } knob.style.transform = `translate(${dx}px,${dy}px)`; setDir(dx / m, dy / m); };
+  const stickEnd = () => { stId = null; knob.style.transform = ''; setDir(0, 0); };
+  st.addEventListener('touchstart', e => { e.preventDefault(); const t = e.changedTouches[0]; stId = t.identifier; stickMove(t); }, { passive: false });
+  st.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === stId) stickMove(t); }, { passive: false });
+  st.addEventListener('touchend', e => { for (const t of e.changedTouches) if (t.identifier === stId) stickEnd(); }, { passive: false }); st.addEventListener('touchcancel', stickEnd, { passive: false });
+  // look: drag anywhere on the game view
+  let lkId = null, lx = 0, ly = 0;
+  canvas.addEventListener('touchstart', e => { if (ui !== 'play') return; e.preventDefault(); if (lkId === null) { const t = e.changedTouches[0]; lkId = t.identifier; lx = t.clientX; ly = t.clientY; } }, { passive: false });
+  canvas.addEventListener('touchmove', e => { e.preventDefault(); for (const t of e.changedTouches) if (t.identifier === lkId && ui === 'play') { me.yaw -= (t.clientX - lx) * .006; me.pitch = clamp(me.pitch - (t.clientY - ly) * .006, -.55, .8); lx = t.clientX; ly = t.clientY; } }, { passive: false });
+  const lkEnd = e => { for (const t of e.changedTouches) if (t.identifier === lkId) lkId = null; };
+  canvas.addEventListener('touchend', lkEnd, { passive: false }); canvas.addEventListener('touchcancel', lkEnd, { passive: false });
+  // action buttons (right side)
+  mkBtn('🎣', 'CAST', 'right:max(18px,env(safe-area-inset-right));bottom:max(22px,env(safe-area-inset-bottom));width:92px;height:92px;font-size:34px', () => { mouse.down = true; mouse.pressed = true; }, () => { mouse.down = false; mouse.released = true; });
+  mkBtn('⬆', 'JUMP', 'right:128px;bottom:34px;width:66px;height:66px;font-size:24px', () => key('Space', true), () => key('Space', false));
+  mkBtn('🪢', 'REEL', 'right:30px;bottom:128px;width:62px;height:62px;font-size:22px', () => { mouse.rdown = true; mouse.rpressed = true; }, () => { mouse.rdown = false; });
+  mkBtn('🍴', 'EAT', 'right:104px;bottom:112px;width:56px;height:56px;font-size:20px', tap('KeyE'));
+  mkBtn('🐋', 'MEGA', 'right:172px;bottom:96px;width:56px;height:56px;font-size:20px', tap('KeyG'));
+  mkBtn('🦶', 'KICK', 'right:236px;bottom:42px;width:52px;height:52px;font-size:19px', tap('KeyK'));
+  mkBtn('✋', 'SHOVE', 'right:236px;bottom:100px;width:52px;height:52px;font-size:19px', tap('KeyX'));
+  mkBtn('⚡', 'BOOST', 'left:158px;bottom:108px;width:52px;height:52px;font-size:19px', () => { keys.ShiftLeft = true; }, () => { keys.ShiftLeft = false; });
+  mkBtn('🪱', 'BAIT', 'left:158px;bottom:48px;width:48px;height:48px;font-size:18px', tap('KeyR'));
+  // top row
+  const top = [['⏸', 'Escape'], ['🛒', 'KeyF'], ['📖', 'KeyB'], ['👕', 'KeyC'], ['⭐', 'KeyT'], ['🏠', 'KeyM'], ['💬', 'Enter']]; top.forEach(([e, c], i) => mkBtn(e, '', `left:calc(50% - 168px + ${i * 48}px);top:8px;`, tap(c), null, 'tt'));
+  // first tap unlocks audio
+  addEventListener('touchstart', () => { try { if (AC) AC.resume(); } catch (e) { } }, { once: true, passive: true });
+  // phones held upright: nudge to landscape
+  const rot = document.createElement('div'); rot.id = 'tRot'; rot.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:60;background:#ffd43b;color:#14213d;font-weight:900;text-align:center;padding:6px;font-size:14px;display:none'; rot.textContent = '📱 Turn your phone sideways for the best view'; document.body.appendChild(rot);
+  const chkRot = () => { rot.style.display = innerHeight > innerWidth ? 'block' : 'none'; }; addEventListener('resize', chkRot); chkRot();
+}
 
 /* =========================================================
    LOOP
