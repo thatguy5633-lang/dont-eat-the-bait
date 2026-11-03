@@ -34,6 +34,10 @@
   .slot.sel{border-color:#ffd43b;transform:translateY(-6px);background:rgba(60,80,130,.85)}
   .slot .hk{position:absolute;left:3px;top:0;font-size:10px;font-weight:900;color:#ffd43b}
   .slot img{width:46px;height:30px}
+  #chat{position:fixed;left:12px;bottom:150px;width:min(380px,60vw);display:flex;flex-direction:column;gap:3px;pointer-events:none;z-index:6;font-size:15px;font-weight:800;text-shadow:-1px -1px 0 #14213d,1px -1px 0 #14213d,-1px 1px 0 #14213d,1px 1px 0 #14213d,0 2px 0 #14213d}
+  #chat .m{background:rgba(20,33,61,.45);border-radius:8px;padding:2px 8px;color:#fff;word-break:break-word;transition:opacity .6s}
+  #chat .m b{color:#ffd43b}
+  #chatIn{position:fixed;left:12px;bottom:112px;width:min(380px,60vw);display:none;z-index:7;border:3px solid #ffd43b;border-radius:10px;padding:6px 10px;font-size:15px;font-weight:800;background:rgba(20,33,61,.92);color:#fff}
   #bait{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);font-size:14px;font-weight:800}
   #fx{position:absolute;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .chip{font-size:15px;font-weight:800;padding:4px 10px;border-radius:20px;border:3px solid #14213d}
@@ -106,7 +110,8 @@
   <div id="card" class="panel"></div>
   <div id="bucket"></div>
   <div id="fx"></div>
-  <div id="help" class="stroke">WASD move · Mouse look · Hold LMB cast / reel · RMB reel in · E eat · 1-9/Q/wheel rod &amp; fish · R bait<br>F market · B fish dictionary &amp; skills · C closet · G call/ride Mega · M Mega stable · K kick · X shove · T skills · Space jump · Esc pause</div>
+  <div id="chat"></div><input id="chatIn" type="text" maxlength="120" placeholder="Say something… (Enter to send, Esc to cancel)" autocomplete="off">
+  <div id="help" class="stroke">WASD move · Mouse look · Hold LMB cast / reel · RMB reel in · E eat · 1-9/Q/wheel rod &amp; fish · R bait<br>F market · B fish dictionary &amp; skills · C closet · G call/ride Mega · M Mega stable · K kick · X shove · T skills · Space jump · Enter chat · Esc pause</div>
 </div>
 <div id="lids"></div><div id="tint"></div>
 
@@ -261,7 +266,7 @@ const RODS = [
   { n: 'Golden Rod', cast: 62, bite: .45, luck: .28, line: 2.1, reel: 1.7, price: 3500, col: '#ffd43b', d: 'Shiny, strong, and far-reaching.' },
   { n: 'Kraken-Slayer', cast: 72, bite: .35, luck: .4, line: 2.6, reel: 2.0, price: 9000, col: '#f03e3e', d: 'The ultimate rod.' }
 ];
-const BAITS = { mega: { n: 'Mega Lure', e: '🐋', d: 'Glowing and irresistible: ~30x higher chance of hooking a MEGA.', pack: 3, price: 600 }, worm: { n: 'Worm', e: '🪱', d: 'Free. Mostly common fish.' }, shrimp: { n: 'Shrimp', e: '🦐', d: 'Better odds for uncommon+ fish.', pack: 10, price: 50 }, glitter: { n: 'Glitter Lure', e: '✨', d: 'Epic and legendary fish love it.', pack: 5, price: 160 } };
+const BAITS = { mega: { n: 'Mega Lure', e: '🐋', d: 'Glowing and irresistible: ~6x higher chance of hooking a MEGA (still super rare, and a weak rod makes it nearly impossible).', pack: 3, price: 600 }, worm: { n: 'Worm', e: '🪱', d: 'Free. Mostly common fish.' }, shrimp: { n: 'Shrimp', e: '🦐', d: 'Better odds for uncommon+ fish.', pack: 10, price: 50 }, glitter: { n: 'Glitter Lure', e: '✨', d: 'Epic and legendary fish love it.', pack: 5, price: 160 } };
 const SKILLS = [
   { id: 'arms', n: 'Strong Arms', e: '💪', d: '+10% reel power per level', max: 5 },
   { id: 'lucky', n: 'Lucky Charm', e: '🍀', d: '+8% rare-fish luck per level', max: 5 },
@@ -1118,8 +1123,8 @@ function landBobber() {
 }
 function startFight() {
   const st = stats(); let sp; F.mega = null;
-  const zz = zoneOf(F.dist); let mc = (zz === 'f' ? .0045 : zz === 'm' ? .0015 : .0004) * (1 + st.luck * 3) * (F.bait === 'mega' ? 30 : 1) * areaBonus().mega;
-  if (Math.random() < mc) { const mi = (Math.random() * MEGAS.length) | 0; F.mega = { sp: mi }; F.idx = -1; F.kg = 0; sp = { n: MEGAS[mi].n, style: pick(['tension', 'direction', 'rhythm']), diff: .94 }; toast('SOMETHING HUGE is on the line!!', 2800, '#ff5a8a'); sfx.lvl(); }
+  const zz = zoneOf(F.dist); const ROD_MEGA = [.04, .12, .3, .6, 1, 1.4]; let mc = (zz === 'f' ? .0006 : zz === 'm' ? .0002 : .00005) * (1 + st.luck * 3) * (F.bait === 'mega' ? 6 : 1) * areaBonus().mega * ROD_MEGA[Math.min(5, save.rod)];
+  if (Math.random() < mc) { const mi = pickMegaSp(); F.mega = { sp: mi }; F.idx = -1; F.kg = 0; sp = { n: MEGAS[mi].n, style: pick(['tension', 'direction', 'rhythm']), diff: .94 }; toast('SOMETHING HUGE is on the line!!', 2800, '#ff5a8a'); sfx.lvl(); }
   else { F.idx = pickFish(zz, F.bait, st.luck); sp = FISH[F.idx]; F.kg = rollKg(sp, st.luck); }
   const G = { style: sp.style, diff: sp.diff, prog: .0, strikes: 0, maxStrikes: 3 + (save.rod >= 3 ? 1 : 0), t: .4, stress: 0, time: 0 };
   const rodEase = .75 + .25 * st.line, reel = st.reel;
@@ -1204,7 +1209,8 @@ function addToBucket(idx, kg) {
   netEvent({ k: 'catch', name: me.name, fish: sp.n, kg, r: sp.r }); persist();
 }
 function updateFishing(dt) {
-  if (me.riding || me.swim) { if (F.state !== 'idle') resetFishing(); mouse.pressed = false; mouse.rpressed = false; return; }
+  const onFishMega = (me.riding || me.passenger) && megaCanFish(megaMountDef());
+  if (((me.riding || me.passenger) && !onFishMega) || me.swim) { if (F.state !== 'idle') resetFishing(); mouse.pressed = false; mouse.rpressed = false; return; }
   const canAct = ui === 'play' && sleepLock <= 0 && rodOut;
   if (!canAct) { F.power = 0; }
   switch (F.state) {
@@ -1319,6 +1325,7 @@ function updateEffects(dt) {
 function enterSwim() { me.swim = true; me.grounded = false; me.vy = 0; me.vx *= .5; me.vz *= .5; splash(me.x, .1, me.z, 36, 5); ripple(me.x, me.z); sfx.splashS(); if (!me.swimToast) { me.swimToast = true; toast('Splash! You are swimming. Press Space near a dock to climb out.', 3200, '#6fe8ff'); } }
 function updatePlayer(dt) {
   if (me.riding) { updateRide(dt); return; }
+  if (me.passenger) { updatePassenger(dt); return; }
   me.knockT = Math.max(0, (me.knockT || 0) - dt); me.kx = (me.kx || 0) * Math.exp(-4 * dt); me.kz = (me.kz || 0) * Math.exp(-4 * dt);
   const canMove = ui === 'play' && F.state !== 'fight' && sleepLock <= 0 && eatT <= 0;
   let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
@@ -1375,7 +1382,7 @@ function updateCamera(dt) {
   if (has('zoomies')) fov += 14; if (has('tiny')) fov -= 4; if (nausea > 0) { roll += Math.sin(time * 3) * .1; }
   if (F.state === 'fight' && F.G) { pitch += (Math.random() - .5) * .01 * F.G.stress * 4; }
   const cy_ = me.yaw + yawOff, cp = Math.cos(pitch), sp = Math.sin(pitch);
-  const cx = tx - Math.sin(cy_) * cp * dist, cz = tz - Math.cos(cy_) * cp * dist, cyy = Math.max((me.riding || me.swim) ? .6 : Y0 + .4, ty - sp * dist + .6 * sc);
+  const cx = tx - Math.sin(cy_) * cp * dist, cz = tz - Math.cos(cy_) * cp * dist, cyy = Math.max((me.riding || me.passenger || me.swim) ? .6 : Y0 + .4, ty - sp * dist + .6 * sc);
   if (!camSm.init) { camSm.v.set(cx, cyy, cz); camSm.init = true; } else camSm.v.lerp(_v.set(cx, cyy, cz), 1 - Math.exp(-24 * Math.min(dt, .05)));
   camera.position.copy(camSm.v);
   camera.lookAt(tx + Math.sin(cy_) * 3, ty + sp * 3 + .15, tz + Math.cos(cy_) * 3); if (roll) camera.rotateZ(roll);
@@ -1402,7 +1409,7 @@ function buildRemoteBody(rp) {
 function localState() {
   return { x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.bodyYaw.toFixed(2), sc: +me.sc.toFixed(2), spd: +me.spd.toFixed(1), fs: eatT > 0 ? 'eat' : sleepLock > 0 ? 'sleep' : F.state, bx: +(F.bx || 0).toFixed(1), by: +(F.by || 0).toFixed(2), bz: +(F.bz || 0).toFixed(1), bend: +(F.bend || 0).toFixed(2),
     fx: Object.keys(effects), lvl: save.level, score: save.score, rt: save.rod, pw: +F.power.toFixed(2), name: me.name,
-    sw: me.swim ? 1 : 0, hf: curHold ? [curHold.idx, +curHold.kg.toFixed(1)] : 0, kn: me.kickN | 0, sn: me.shoveN | 0, mg: MEGA.summoned && MEGA.rec ? { s: MEGA.rec.sp, c: MEGA.rec.c1, g: MEGA.rec.glow, n: MEGA.rec.name, l: MEGA.rec.level, t: MEGA.rec.trail, x: +MEGA.x.toFixed(1), z: +MEGA.z.toFixed(1), y: +MEGA.y.toFixed(2), a: +MEGA.yaw.toFixed(2), r: me.riding ? 1 : 0 } : null };
+    sw: me.swim ? 1 : 0, pg: me.passenger || 0, hf: curHold ? [curHold.idx, +curHold.kg.toFixed(1)] : 0, kn: me.kickN | 0, sn: me.shoveN | 0, mg: MEGA.summoned && MEGA.rec ? { s: MEGA.rec.sp, c: MEGA.rec.c1, g: MEGA.rec.glow, n: MEGA.rec.name, l: MEGA.rec.level, t: MEGA.rec.trail, x: +MEGA.x.toFixed(1), z: +MEGA.z.toFixed(1), y: +MEGA.y.toFixed(2), a: +MEGA.yaw.toFixed(2), r: me.riding ? 1 : 0 } : null };
 }
 function applyRemoteState(id, s) {
   let rp = remotes.get(id);
@@ -1429,7 +1436,7 @@ function updateRemotes(dt) {
     const ghost = rp.fx.includes('ghost'); rp.ch.group.visible = !ghost; rp.tag.visible = !ghost || false; rp.rod.visible = !ghost && !(rp.st && (rp.st.sw || rp.st.hf));
     const moving = rp.spd > .3; rp.walk += (rp.spd || 0) * dt * 1.2;
     let mode = 'hold'; const fs = rp.fs;
-    if (fs === 'charge') mode = 'charge'; else if (fs === 'cast') mode = 'cast'; else if (fs === 'fight') mode = 'fight'; else if (fs === 'eat') mode = 'eat'; else if (fs === 'sleep') mode = 'sleep'; else if (rp.mg && rp.mg.r) mode = 'ride'; else if (rp.st && rp.st.sw) mode = 'swim'; else if (rp.fx.includes('disco')) mode = 'dance';
+    if (fs === 'charge') mode = 'charge'; else if (fs === 'cast') mode = 'cast'; else if (fs === 'fight') mode = 'fight'; else if (fs === 'eat') mode = 'eat'; else if (fs === 'sleep') mode = 'sleep'; else if ((rp.mg && rp.mg.r) || (rp.st && rp.st.pg)) mode = 'ride'; else if (rp.st && rp.st.sw) mode = 'swim'; else if (rp.fx.includes('disco')) mode = 'dance';
     const hfv = rp.st && rp.st.hf; if (hfv && mode === 'hold') mode = 'show';
     const st0 = rp.st || {}; if (rp.kn === undefined) { rp.kn = st0.kn | 0; rp.sn = st0.sn | 0; }
     if ((st0.kn | 0) !== rp.kn) { rp.kn = st0.kn | 0; rp.kk = 0; } if ((st0.sn | 0) !== rp.sn) { rp.sn = st0.sn | 0; rp.sk = 0; }
@@ -1458,17 +1465,31 @@ function handleEvent(ev, fromId) {
     case 'catch': { const col = R_COL[ev.r] || '#fff'; if (ev.r >= 2 || Math.random() < .5) feed(`${ev.name} caught a ${ev.fish} (${lbs(ev.kg)} lbs)!`, col); break; }
     case 'ate': { const f = ev.fx ? FX[ev.fx] : null; feed(`${ev.name} ate ${ev.what}${f ? ` → ${f.e} ${f.n}!` : '!'}`, f ? (f.g === false ? '#ff8a8a' : '#8ce99a') : '#ffd43b'); break; }
     case 'honk': sfx.honk(); break;
+    case 'chat': if (ev.text) { addChat(String(ev.name || '?').slice(0, 16), String(ev.text).slice(0, 120)); sfx.tick(); } break;
     case 'toffer': case 'tacc': case 'tdec': case 'tgive': case 'tack': tradeEvent(ev); break;
     case 'chaos': runChaos(ev.t, ev.seed); break;
     case 'ck': { sfx.squeak(); if (NET.role === 'host') { const c = plaza.crabs[ev.i]; if (c && !c.fly && !(c.dead > 0)) { c.fly = { vx: ev.vx, vy: ev.vy, vz: ev.vz, spin: ev.spin }; c.stun = 0; } } break; }
     case 'bk': if (NET.role === 'host') fun.ballV.set(ev.vx, ev.vy, ev.vz); sfx.thunk(); break;
-    case 'shove': if (ev.to === NET.myId && !me.riding) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
+    case 'shove': if (ev.to === NET.myId && !me.riding && !me.passenger) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
     case 'mega': feed(`${ev.name} caught a MEGA ${ev.sp} and named it ${ev.mega}!`, '#6fe8ff'); sfx.lvl(); break;
     case 'splash': { ripple(ev.x, ev.z); splash(ev.x, .1, ev.z, 8, 2); break; }
     case 'ap': { const info = NET.players.get(ev.id) || {}; info.ap = ev.ap; NET.players.set(ev.id, info); const rp = remotes.get(ev.id); if (rp) { rp.ap = ev.ap; buildRemoteBody(rp); } break; }
     case 'left': { removeRemote(ev.id); feed(`${ev.name || 'A player'} left.`, '#ccc'); break; }
   }
 }
+/* ---------- text chat (online rooms) ---------- */
+let chatOpen = false, lastChatAt = 0;
+function addChat(name, text, mine) {
+  const box = $('chat'), d = document.createElement('div'); d.className = 'm'; const b = document.createElement('b'); b.textContent = name + ': '; d.appendChild(b); d.appendChild(document.createTextNode(text)); if (mine) d.style.background = 'rgba(43,99,230,.55)';
+  box.appendChild(d); while (box.children.length > 9) box.removeChild(box.firstChild); setTimeout(() => { d.style.opacity = 0; setTimeout(() => d.remove(), 700); }, 14000);
+}
+function openChat() { if (NET.role === 'solo') { toast('Chat works in online rooms. Host or join one!', 2200, '#ffd43b'); return; } chatOpen = true; const i = $('chatIn'); i.style.display = 'block'; i.value = ''; i.focus(); }
+function closeChat() { chatOpen = false; const i = $('chatIn'); i.style.display = 'none'; i.blur(); if (ui === 'play') lockPointer(); }
+$('chatIn').addEventListener('keydown', e => {
+  e.stopPropagation();
+  if (e.code === 'Enter') { const t = $('chatIn').value.trim().slice(0, 120), now = performance.now(); if (t && now - lastChatAt > 500) { lastChatAt = now; addChat(me.name, t, true); netEvent({ k: 'chat', name: me.name, text: t }); } closeChat(); e.preventDefault(); }
+  else if (e.code === 'Escape') { closeChat(); e.preventDefault(); }
+});
 function netEvent(ev) {
   if (NET.role === 'solo') return;
   if (NET.role === 'host') { for (const c of Object.values(NET.conns)) { try { c.send({ t: 'ev', ev, from: NET.myId }); } catch (e) { } } }
@@ -1627,7 +1648,7 @@ function updateHUD() {
   if (it) { const sp = FISH[it.idx], b = save.book[it.idx], f = FX[sp.fx]; $('card').style.display = 'flex'; $('card').innerHTML = `<img src="${ICON[it.idx]}"><div><div class="nm" style="color:${R_COL[sp.r]}">${sp.n}</div><div class="sm">Lv ${fishLevel(sp, it.kg)} · ${lbs(it.kg)} lbs · ${R_NAMES[sp.r]}</div><div class="sm">Effect if eaten: ${b && b.fx ? f.e + ' ' + f.n : '❓ ???'}</div><div class="sm">Press E to eat · Q to switch</div></div>`; } else $('card').style.display = 'none';
   const bi = BAITS[save.baitSel]; $('bait').textContent = `${bi.e} ${bi.n}${save.baitSel === 'worm' ? ' (∞)' : ' ×' + save.bait[save.baitSel]}  [R]`;
   $('fx').innerHTML = Object.entries(effects).map(([k, t]) => { const f = FX[k]; return `<div class="chip ${f.g === true ? 'g' : f.g === false ? 'b' : 'n'}">${f.e} ${f.n} ${Math.ceil(t)}s</div>`; }).join('');
-  let pr = ''; if (ui === 'play') { if (Math.hypot(me.x - STALL.x, me.z - (STALL.z + 1.5)) < 6) pr = '[F] Fin\'s Fish Market'; else if (F.state === 'idle' && bucket.length === 0) pr = ''; if (F.state === 'wait') pr = 'Waiting for a bite… (click to reel in)'; } if (ui === 'play') { if (me.swim) pr = '[Space] climb out at a dock · Shift swim fast'; else if (me.riding) pr = '[G] Dismount · Shift boost · Space leap'; else if (MEGA.summoned && MEGA.rec && Math.hypot(MEGA.x - me.x, MEGA.z - me.z) < 12) pr = `[G] Hop on ${MEGA.rec.name}`; else if (MEGA.summoned && MEGA.rec) pr = `${MEGA.rec.name} is out in the water. Swim up close and press [G] to ride!`; else if (save.megas.length && F.state === 'idle' && rodOut && !pr) pr = '🐋 [G] Call your Mega (face the sea) · [M] Stable'; }
+  let pr = ''; if (ui === 'play') { if (Math.hypot(me.x - STALL.x, me.z - (STALL.z + 1.5)) < 6) pr = '[F] Fin\'s Fish Market'; else if (F.state === 'idle' && bucket.length === 0) pr = ''; if (F.state === 'wait') pr = 'Waiting for a bite… (click to reel in)'; } if (ui === 'play') { if (me.swim) pr = '[Space] climb out at a dock · Shift swim fast'; else if (me.passenger) pr = '[G] Hop off' + (megaCanFish(megaMountDef()) ? ' · hold click to fish from here!' : ''); else if (me.riding) pr = '[G] Dismount · Shift boost · Space leap' + (megaCanFish(MEGAS[MEGA.rec.sp]) ? ' · hold click to FISH from your Mega!' : ''); else if (findSeat()) pr = `[G] Hop on ${findSeat().name}'s Mega (2nd seat)`; else if (MEGA.summoned && MEGA.rec && Math.hypot(MEGA.x - me.x, MEGA.z - me.z) < 12) pr = `[G] Hop on ${MEGA.rec.name}`; else if (MEGA.summoned && MEGA.rec) pr = `${MEGA.rec.name} is out in the water. Swim up close and press [G] to ride!`; else if (save.megas.length && F.state === 'idle' && rodOut && !pr) pr = '🐋 [G] Call your Mega (face the sea) · [M] Stable'; }
   $('prompt').textContent = pr;
 }
 function drawIcon(i, found) { return `<img src="${found ? ICON[i] : ICON_SIL[i]}">`; }
@@ -1777,6 +1798,7 @@ addEventListener('keydown', e => {
   if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
   if (!e.repeat) pressedQ.push(e.code); keys[e.code] = true; if (ui === 'play' && !document.pointerLockElement) lockPointer(); if (e.repeat) return;
   if (ui === 'play') {
+    if (e.code === 'Enter') { openChat(); e.preventDefault(); return; }
     if (e.code === 'KeyE') eatSelected();
     if (e.code === 'KeyH') { if (!rodOut) hotSelect(0); else if (F.state === 'idle' && bucket.length) hotSelect(selSlot + 1); else if (!bucket.length) toast('Catch a fish first!', 1200); }
     if (/^Digit[1-9]$/.test(e.code)) hotSelect(+e.code.slice(5) - 1);
@@ -1899,12 +1921,28 @@ function updateDetail(dt) {
    MEGAS: ultra-rare rideable sea giants you can name, feed and customise
 ========================================================= */
 const MEGAS = [
-  { n: 'Glimmer Whale', shape: 'whale', c1: '#2f7bff', c2: '#bfe3ff', glow: '#6fe8ff', size: 1.5, spd: 1.0, e: '🐋' },
-  { n: 'Ember Ray', shape: 'ray', c1: '#ff5a3a', c2: '#ffd23a', glow: '#ff9a3a', size: 1.3, spd: 1.25, e: '🔥' },
-  { n: 'Neon Shark', shape: 'shark', c1: '#7a3bff', c2: '#2ee6c8', glow: '#b36bff', size: 1.3, spd: 1.35, e: '🦈' },
-  { n: 'Jade Dragonfish', shape: 'serpent', c1: '#16b36b', c2: '#ffd43b', glow: '#7bffb0', size: 1.0, spd: 1.15, e: '🐉' },
-  { n: 'Cosmic Koi', shape: 'koi', c1: '#1a1236', c2: '#ff8fe0', glow: '#ff6bf0', size: 1.3, spd: 1.2, e: '🌌' }
+  { n: 'Glimmer Whale', shape: 'whale', c1: '#2f7bff', c2: '#bfe3ff', glow: '#6fe8ff', size: 1.5, spd: 1.0, e: '🐋', w: 10, val: 20000, seats: 2, fish: false },
+  { n: 'Ember Ray', shape: 'ray', c1: '#ff5a3a', c2: '#ffd23a', glow: '#ff9a3a', size: 1.3, spd: 1.25, e: '🔥', w: 10, val: 25000, seats: 1, fish: false },
+  { n: 'Neon Shark', shape: 'shark', c1: '#7a3bff', c2: '#2ee6c8', glow: '#b36bff', size: 1.3, spd: 1.35, e: '🦈', w: 8, val: 30000, seats: 1, fish: false },
+  { n: 'Jade Dragonfish', shape: 'serpent', c1: '#16b36b', c2: '#ffd43b', glow: '#7bffb0', size: 1.0, spd: 1.15, e: '🐉', w: 8, val: 22000, seats: 1, fish: false },
+  { n: 'Cosmic Koi', shape: 'koi', c1: '#1a1236', c2: '#ff8fe0', glow: '#ff6bf0', size: 1.3, spd: 1.2, e: '🌌', w: 6, val: 40000, seats: 1, fish: false },
+  { n: 'Tide Turtle', shape: 'turtle', c1: '#2f9e6a', c2: '#f2d27a', glow: '#7bffd0', size: 1.5, spd: .8, e: '🐢', w: 7, val: 35000, seats: 2, fish: true },
+  { n: 'Splash Dolphin', shape: 'dolphin', c1: '#4d7fb8', c2: '#e8f4ff', glow: '#8fe3ff', size: 1.3, spd: 1.6, e: '🐬', w: 10, val: 24000, seats: 1, fish: false },
+  { n: 'Kraken Kid', shape: 'octopus', c1: '#b0306a', c2: '#ffb3d1', glow: '#ff6bb8', size: 1.4, spd: .95, e: '🐙', w: 6, val: 38000, seats: 1, fish: true },
+  { n: 'Frost Narwhal', shape: 'narwhal', c1: '#8fb5e8', c2: '#f2fbff', glow: '#bfefff', size: 1.4, spd: 1.2, e: '🦄', w: 6, val: 36000, seats: 2, fish: false },
+  { n: 'Bubble Seahorse', shape: 'seahorse', c1: '#ffb347', c2: '#fff0b3', glow: '#ffe066', size: 1.3, spd: 1.1, e: '🐴', w: 8, val: 26000, seats: 1, fish: false },
+  { n: 'Boulder Crab', shape: 'crab', c1: '#d9482b', c2: '#ffcf9e', glow: '#ff9a3a', size: 1.5, spd: .85, e: '🦀', w: 5, val: 42000, seats: 2, fish: true },
+  { n: 'Lantern Angler', shape: 'angler', c1: '#2c2e5c', c2: '#7a7fd8', glow: '#a8ff8f', size: 1.3, spd: 1.0, e: '🔦', w: 5, val: 45000, seats: 1, fish: true },
+  { n: 'Aurora Whale', shape: 'whale', c1: '#2bd1a0', c2: '#ffb3f0', glow: '#9dffd9', size: 1.8, spd: 1.15, e: '🌈', w: 2, val: 70000, seats: 2, fish: true },
+  { n: 'Magma Shark', shape: 'shark', c1: '#ff4b1f', c2: '#ffd23a', glow: '#ff9a3a', size: 1.5, spd: 1.7, e: '🌋', w: 3, val: 60000, seats: 1, fish: false },
+  { n: 'Golden Dragonfish', shape: 'serpent', c1: '#e8a91a', c2: '#fff1b0', glow: '#ffe066', size: 1.2, spd: 1.45, e: '👑', w: 2, val: 65000, seats: 2, fish: false },
+  { n: 'Frost Koi', shape: 'koi', c1: '#d8f0ff', c2: '#4dabf7', glow: '#9fe6ff', size: 1.3, spd: 1.3, e: '❄️', w: 6, val: 32000, seats: 1, fish: false },
+  { n: 'Sunset Manta', shape: 'ray', c1: '#ff7a8a', c2: '#ffd5a8', glow: '#ffb3a0', size: 1.7, spd: 1.2, e: '🌅', w: 4, val: 48000, seats: 2, fish: true },
+  { n: 'Void Leviathan', shape: 'whale', c1: '#241a4a', c2: '#7b5cff', glow: '#b36bff', size: 2.3, spd: 1.3, e: '🕳️', w: 1, val: 120000, seats: 2, fish: true },
+  { n: 'Rainbow Dolphin', shape: 'dolphin', c1: '#ff6bb8', c2: '#fff59d', glow: '#ffffff', size: 1.5, spd: 1.8, e: '🌈', w: 1, val: 90000, seats: 2, fish: false }
 ];
+function pickMegaSp() { let t = 0; for (const m of MEGAS) t += m.w; let r = Math.random() * t; for (let i = 0; i < MEGAS.length; i++) { r -= MEGAS[i].w; if (r <= 0) return i; } return 0; }
+const megaCanFish = d => !!(d && d.fish);
 const FOODS = { krill: { n: 'Krill Snack', e: '🦐', h: 25, xp: 20, pack: 5, price: 60 }, squid: { n: 'Glow Squid', e: '🦑', h: 50, xp: 70, pack: 3, price: 150 }, tuna: { n: 'Golden Tuna', e: '🐟', h: 100, xp: 220, pack: 1, price: 400 } };
 const TRAILS = { sparkle: '✨ Sparkles', flame: '🔥 Flames', bubble: '🫧 Bubbles', rainbow: '🌈 Rainbow' };
 const megaXpNeed = l => Math.round(100 * Math.pow(l, 1.3));
@@ -1974,6 +2012,44 @@ function makeMega(def, c1, glowCol, level = 1) {
       for (const s of [-1, 1]) { eye(s * .34, .12, .2, .1, head); C(GM, [s * .26, .42, -.02], [.09, .75, .09], [-.7, 0, s * .35], head); for (const sg of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.012, .006, 1.1, 5), GM); w.position.set(s * .3, -.15 + sg * .05, .78); w.rotation.set(Math.PI / 2 + .3 * sg, 0, s * .6); head.add(w); } E(mat(0x0a0a14), [s * .1, .0, .66], [.03, .03, .03], head); }
       U.seatY = .62; U.seatZ = .55; break;
     }
+    case 'turtle': {
+      E(M1, [0, .12, -.05], [1.0, .55, 1.25]); E(M2, [0, -.22, 0], [.9, .22, 1.1]); for (const [x, z] of [[0, .45], [-.45, .0], [.45, .0], [0, -.4], [-.3, -.8], [.3, -.8], [-.6, .6], [.6, .6]]) E(FM, [x, .62, z], [.3, .09, .3]);
+      E(M1, [0, .12, 1.45], [.3, .26, .38]); for (const sd of [-1, 1]) { eye(sd * .22, .2, 1.65, .07); fin([[0, 0], [.7, .1], [1.1, -.1], [.9, -.45], [.4, -.3]], [sd, 1], [sd * .75, -.08, .85], 'h', FM, B, sd * .25); fin([[0, 0], [.5, -.05], [.7, -.3], [.3, -.35]], [sd, 1], [sd * .65, -.1, -.85], 'h', FM, B, sd * .15); }
+      mk(smoothCone, M1, [0, .02, -1.5], [.1, .45, .1], B).rotation.x = -Math.PI / 2; E(mat(0x0a0a14), [0, .06, 1.78], [.05, .03, .04]); U.seatY = .78; U.seatZ = .45; U.seat2 = [0, .78, -.45]; break;
+    }
+    case 'dolphin': {
+      B.add(megaBody(1.75, .5, .5, c1, def.c2, { tp: 1.3, tpk: .8, belly2: .8 })); E(M1, [0, -.06, 1.75], [.16, .13, .5]); E(M2, [0, -.12, 1.95], [.09, .05, .3]);
+      for (const sd of [-1, 1]) { eye(sd * .36, .17, 1.2, .07); fin([[0, 0], [.7, -.1], [.8, -.38], [.3, -.15]], [sd, 1], [sd * .38, -.3, .7], 'h', FM, B, sd * .5); } fin([[0, 0], [-.1, .7], [.25, .85], [.55, 0]], [1, 1], [0, .46, .15], 'v', FM);
+      const t = new THREE.Group(); t.position.set(0, 0, -1.7); B.add(t); E(M1, [0, 0, -.25], [.2, .18, .5], t); fin([[0, .05], [.3, .1], [.75, .45], [.95, .7], [.55, .5], [.25, .3], [0, .34], [-.25, .3], [-.55, .5], [-.95, .7], [-.75, .45], [-.3, .1]], [.8, .8], [0, 0, -.5], 'h', FM, t); U.tail = t; U.seatY = .52; U.seatZ = .0; U.seat2 = [0, .5, -.7]; break;
+    }
+    case 'octopus': {
+      E(M1, [0, 1.0, -.2], [.8, .95, .85]); E(M2, [0, .75, .35], [.5, .4, .35]); for (let i = 0; i < 9; i++) { const a = Math.random() * 6.28; E(FM, [Math.sin(a) * .55, 1.35 + Math.random() * .3, -.2 + Math.cos(a) * .55], [.08, .08, .08]); } E(M1, [0, .45, .1], [.75, .35, .75]);
+      U.tents = []; for (let i = 0; i < 8; i++) { const a = i / 8 * 6.283, tg = new THREE.Group(); tg.position.set(Math.sin(a) * .5, .4, .1 + Math.cos(a) * .5); tg.rotation.y = a; B.add(tg); for (let j = 0; j < 6; j++) E(j % 2 ? M2 : M1, [0, -j * .02, .25 + j * .32], [.14 - j * .018, .12 - j * .014, .2], tg); U.tents.push(tg); }
+      for (const sd of [-1, 1]) { eye(sd * .42, .95, .5, .17); } E(mat(0x0a0a14), [0, .5, .72], [.12, .05, .06]); U.seatY = 1.85; U.seatZ = -.15; U.seat2 = null; break;
+    }
+    case 'narwhal': {
+      B.add(megaBody(1.95, .58, .58, c1, def.c2, { belly2: .8, patch: new THREE.Color(def.c2), tp: 1.5, tpk: .8 })); E(M1, [0, .1, 1.6], [.4, .35, .4]); const tk = new THREE.Mesh(new THREE.CylinderGeometry(.01, .09, 2.4, 10), mat(0xfff7e0)); tk.rotation.x = Math.PI / 2; tk.position.set(0, .05, 3.1); B.add(tk); for (let i = 0; i < 9; i++) { const r = new THREE.Mesh(new THREE.TorusGeometry(.03 + (i * .008), .012, 6, 12), GM); r.position.set(0, .05, 2.0 + i * .24); B.add(r); }
+      for (const sd of [-1, 1]) { eye(sd * .44, .1, 1.5, .08); fin([[0, 0], [.6, -.05], [.95, -.3], [.45, -.2]], [sd, 1], [sd * .5, -.28, .6], 'h', FM, B, sd * .5); } fin([[0, 0], [-.1, .35], [.35, .3]], [1, 1], [0, .55, -.3], 'v', FM);
+      const t = new THREE.Group(); t.position.set(0, 0, -1.85); B.add(t); E(M1, [0, 0, -.3], [.25, .22, .55], t); fin([[0, .05], [.4, .1], [.85, .4], [1.1, .85], [.7, .6], [.3, .4], [0, .45], [-.3, .4], [-.7, .6], [-1.1, .85], [-.85, .4], [-.4, .1]], [.75, .75], [0, 0, -.6], 'h', FM, t); U.tail = t; U.seatY = .62; U.seatZ = .3; U.seat2 = [0, .6, -.65]; break;
+    }
+    case 'seahorse': {
+      E(M1, [0, .95, 0], [.55, .85, .5]); E(M2, [0, .8, .3], [.4, .6, .28]); E(M1, [0, 1.75, .2], [.4, .38, .45]); E(M1, [0, 1.65, .85], [.14, .14, .45]); for (let i = 0; i < 5; i++) E(GM, [0, 1.95 - i * .02, -.05 - i * .1], [.05, .05 + (4 - i) * .02, .05]);
+      for (const sd of [-1, 1]) { eye(sd * .3, 1.82, .4, .08); fin([[0, 0], [.5, .1], [.6, -.2], [.25, -.3]], [sd, 1], [sd * .45, 1.0, .1], 'h', FM2, B, sd * .4); }
+      const t = new THREE.Group(); t.position.set(0, .35, -.25); B.add(t); for (let i = 0; i < 9; i++) { const a = i * .55, r = .42 - i * .035; E(i % 2 ? M2 : M1, [0, -Math.sin(a) * .5 - .1, -Math.cos(a) * .5 + .4 - i * .03], [r * .7, r * .7, r * .7], t); } U.tail = t;
+      fin([[0, 0], [-.1, .5], [-.35, .55], [-.4, 0]], [1, 1], [0, .9, -.5], 'v', FM2); U.seatY = 1.2; U.seatZ = -.05; break;
+    }
+    case 'crab': {
+      E(M1, [0, .35, 0], [1.15, .5, .95]); E(M2, [0, .05, 0], [1.0, .2, .85]); for (const [x, z] of [[-.5, .3], [.5, .3], [0, -.3], [-.3, .6], [.3, .6]]) E(FM, [x, .75, z], [.2, .08, .2]);
+      for (const sd of [-1, 1]) { eye(sd * .3, .95, .75, .09); const cl = new THREE.Group(); cl.position.set(sd * 1.0, .35, .7); B.add(cl); E(M1, [sd * .2, 0, .25], [.14, .14, .5], cl, [0, sd * .3, 0]); E(M1, [sd * .35, 0, .8], [.4, .24, .4], cl); E(FM, [sd * .6, .02, 1.15], [.14, .12, .3], cl, [0, -sd * .5, 0]); E(FM, [sd * .2, .02, 1.15], [.14, .12, .3], cl, [0, sd * .5, 0]);
+        for (let i = 0; i < 3; i++) { const lg = mk(cylGeo, M2, [sd * (.95 + i * .12), .18, -.35 + i * .35], [.045, .55, .045], B); lg.rotation.z = sd * 1.1; } }
+      U.seatY = 1.0; U.seatZ = .05; U.seat2 = [0, 1.0, -.5]; break;
+    }
+    case 'angler': {
+      E(M1, [0, .1, 0], [.85, .75, 1.0]); E(M2, [0, -.4, .2], [.7, .3, .8]); E(mat(0x12102a), [0, -.05, .85], [.6, .38, .4]); for (let i = 0; i < 14; i++) { const x = (i / 13 - .5) * 1.0; C(mat(0xffffff), [x, .12, 1.05], [.04, .16, .04], [Math.PI, 0, 0]); C(mat(0xffffff), [x * .95, -.28, 1.03], [.04, .16, .04], [0, 0, 0]); }
+      for (const sd of [-1, 1]) { eye(sd * .45, .55, .65, .13); fin([[0, 0], [.55, .05], [.7, -.25], [.25, -.3]], [sd, 1], [sd * .75, -.2, .1], 'h', FM, B, sd * .4); }
+      const st = new THREE.Mesh(new THREE.CylinderGeometry(.025, .04, 1.6, 6), M1); st.position.set(0, 1.1, .7); st.rotation.x = -.9; B.add(st); E(GM, [0, 1.85, 1.45], [.2, .2, .2]); E(GS2, [0, 1.85, 1.45], [.35, .35, .35]);
+      const t = new THREE.Group(); t.position.set(0, 0, -.95); B.add(t); fin([[0, 0], [-.1, .6], [.3, .75], [.6, 0]], [1, 1], [0, 0, -.1], 'v', FM, t, -.2); fin([[0, 0], [-.1, -.5], [.3, -.6], [.5, 0]], [1, 1], [0, 0, -.1], 'v', FM, t, .2); U.tail = t; U.seatY = .85; U.seatZ = -.15; break;
+    }
     default: { // koi
       B.add(megaBody(1.5, .58, .6, c1, def.c2, { patch: new THREE.Color(def.c2), tp: 1.4, tpk: .72, belly2: .55 }));
       for (const s of [-1, 1]) { eye(s * .43, .18, 1.12, .1); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.014, .006, 1.0, 5), GM); w.position.set(s * .2, -.14, 1.55); w.rotation.set(1.2 + i * .25, 0, s * (.5 + i * .3)); B.add(w); } fin([[0, 0], [.55, -.08], [.95, -.28], [.7, -.55], [.3, -.3], [0, -.2]], [s, 1], [s * .52, -.18, .4], 'h', FM2, B, s * .5); fin([[0, 0], [.3, -.05], [.5, -.3], [.1, -.14]], [s, 1], [s * .22, -.45, -.5], 'h', FM2, B, s * .3); for (let i = 0; i < 4; i++) E(GM, [s * .16, .54 - i * .02, .6 - i * .5], [.04, .04, .04]); }
@@ -1981,12 +2057,14 @@ function makeMega(def, c1, glowCol, level = 1) {
       const t = new THREE.Group(); t.position.set(0, 0, -1.45); B.add(t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); t.children[t.children.length - 1].scale.y = -1; fin([[0, 0], [.3, -.5], [.8, -.9], [.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); fin([[0, 0], [-.3, -.5], [-.8, -.9], [-.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); U.tail = t; U.seatY = .6; U.seatZ = .1;
     }
   }
+  if (def.seats === 2 && !U.seat2 && U.seat2 !== null) U.seat2 = [0, U.seatY, U.seatZ - 1.0]; if (def.seats !== 2) U.seat2 = null;
   const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .2 + .02 * level })); aura.scale.setScalar(5 + level * .4); aura.position.y = .3; aura.userData.base = 5 + level * .4; g.add(aura); U.aura = aura;
   g.userData = U; return g;
 }
 function animateMega(g, t) {
   const U = g.userData; if (U.tail) U.tail.rotation.y = Math.sin(t * 3.2) * .35;
   if (U.segs) U.segs.forEach((s, i) => { s.position.x = Math.sin(t * 3 - i * .55) * (.05 + i * .045); });
+  if (U.tents) U.tents.forEach((tg, i) => { tg.rotation.x = Math.sin(t * 2 + i) * .25; });
   if (U.ring) U.ring.rotation.z = t * .7; if (U.aura) U.aura.scale.setScalar(U.aura.userData.base * (1 + Math.sin(t * 2) * .05));
 }
 /* coloured trail particles */
@@ -2020,11 +2098,30 @@ function summonMega(rec) {
 function nearestWalk(x, z) { let best = null; for (const w of walkRects) { const px = clamp(x, w.x0 + .9, w.x1 - .9), pz = clamp(z, w.z0 + .9, w.z1 - .9), d = Math.hypot(px - x, pz - z); if (!best || d < best.d) best = { x: px, z: pz, d }; } return best; }
 function toggleMega() {
   if (ui !== 'play') return; const rec = activeMegaRec();
+  if (me.passenger) { leavePassenger(); return; }
+  if (!me.riding) { const seat = findSeat(); if (seat && (!MEGA.summoned || Math.hypot(seat.mx - me.x, seat.mz - me.z) < Math.hypot(MEGA.x - me.x, MEGA.z - me.z))) { boardPassenger(seat); return; } }
   if (!rec) { toast('Catch a Mega first! They are super rare. Mega Lure bait helps (market).', 3000, '#ffd43b'); return; }
   if (me.riding) { dismountMega(); return; }
   if (!MEGA.summoned) { summonMega(rec); return; }
   const d = Math.hypot(MEGA.x - me.x, MEGA.z - me.z);
   if (d < 12) mountMega(rec); else { let spot = null; for (let r = 5; r < 40 && !spot; r += 2) for (let a = 0; a < 6.3; a += .6) { const tx = me.x + Math.sin(a) * r, tz = me.z + Math.cos(a) * r; if (isWater(tx, tz, 3)) { spot = [tx, tz]; break; } } if (spot) { MEGA.x = spot[0]; MEGA.z = spot[1]; splash(MEGA.x, .1, MEGA.z, 25, 5); toast(`${rec.name} swims over!`, 1500, '#6fe8ff'); } }
+}
+function megaMountDef() { if (me.riding) return MEGA.rec ? MEGAS[MEGA.rec.sp] : null; if (me.passenger) { const rp = remotes.get(me.passenger); return rp && rp.mg ? MEGAS[rp.mg.s] : null; } return null; }
+const _seat = { x: 0, y: 0, z: 0, a: 0 };
+function seatWorld(rp) { const mg = rp.mg, o = rp.megaObj; if (!mg || !o || !MEGAS[mg.s]) return null; const st = o.userData.seat2; if (!st) return null; const sc = megaScaleOf(mg.s, mg.l), a = rp.ma, lx = st[0] * sc, lz = st[2] * sc; _seat.x = rp.mx + Math.sin(a) * lz + Math.cos(a) * lx; _seat.z = rp.mz + Math.cos(a) * lz - Math.sin(a) * lx; _seat.y = o.position.y + st[1] * sc; _seat.a = a; return _seat; }
+function findSeat() {
+  for (const rp of remotes.values()) { if (!rp.mg || !rp.mg.r || !rp.megaObj || !rp.megaObj.userData.seat2 || !MEGAS[rp.mg.s] || MEGAS[rp.mg.s].seats < 2) continue; if (Math.hypot(rp.mx - me.x, rp.mz - me.z) > 9) continue; let taken = false; for (const r2 of remotes.values()) if (r2.st && r2.st.pg === rp.id) taken = true; if (taken) continue; return rp; }
+  return null;
+}
+function boardPassenger(rp) { if (F.state !== 'idle') resetFishing(); me.swim = false; me.passenger = rp.id; me.vx = me.vz = 0; me.grounded = false; sfx.boing(); splash(rp.mx, .2, rp.mz, 18, 4); toast(`You hop on ${rp.name}'s ${MEGAS[rp.mg.s].n}!${MEGAS[rp.mg.s].fish ? ' You can fish from here!' : ''} (G to hop off)`, 3600, '#6fe8ff'); }
+function leavePassenger() {
+  const rp = remotes.get(me.passenger); me.passenger = null; me.vy = 0; const w = nearestWalk(me.x, me.z);
+  if (w && w.d < 14) { me.grounded = true; me.y = Y0; me.x = w.x; me.z = w.z; } else { if (rp) { me.x = rp.mx + 2.5; me.z = rp.mz; } me.y = 0; enterSwim(); }
+  splash(me.x, me.y, me.z, 16, 4); toast('You hop off.', 1400);
+}
+function updatePassenger(dt) {
+  const rp = remotes.get(me.passenger), pos = rp && rp.mg && rp.mg.r ? seatWorld(rp) : null; if (!pos) { leavePassenger(); return; }
+  me.x = pos.x; me.z = pos.z; me.y = pos.y; me.vx = me.vz = 0; me.vy = 0; me.grounded = false; me.spd = rp.spd || 0; me.walk += me.spd * dt * .4; me.sc += (1 - me.sc) * Math.min(1, 3 * dt);
 }
 function mountMega(rec) {
   if (F.state !== 'idle') resetFishing(); me.riding = true; MEGA.ridden = true; me.vx = me.vz = 0; me.grounded = false; me.yaw = MEGA.yaw + Math.PI * 0; sfx.boing(); splash(MEGA.x, .2, MEGA.z, 22, 4);
@@ -2039,6 +2136,7 @@ function updateRide(dt) {
   const rec = MEGA.rec; if (!rec || !MEGA.obj) { me.riding = false; return; }
   let ix = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0), iz = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0); if (ui !== 'play') { ix = 0; iz = 0; }
   if (has('invert')) { ix = -ix; iz = -iz; }
+  const fishingNow = megaCanFish(MEGAS[rec.sp]) && F.state !== 'idle' && F.state !== 'show'; if (fishingNow) { ix = 0; iz = 0; }
   const fx = Math.sin(me.yaw), fz = Math.cos(me.yaw), rx = -Math.cos(me.yaw), rz = Math.sin(me.yaw);
   let dx = fx * iz + rx * ix, dz = fz * iz + rz * ix; const len = Math.hypot(dx, dz); if (len > 1) { dx /= len; dz /= len; }
   const moving = len > .05, boost = (keys.ShiftLeft || keys.ShiftRight) && moving, spd = megaSpeed(rec) * (boost ? 1.7 : 1);
@@ -2049,7 +2147,7 @@ function updateRide(dt) {
   for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + 1.4; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
   for (const w of walkRects) { const pad = 1.6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), r = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, r, t, b); if (m === l) nx -= l; else if (m === r) nx += r; else if (m === t) nz -= t; else nz += b; } }
   if (terrainH(nx, nz) > -.3) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -228, 228); nz = clamp(nz, -250, 128); MEGA.x = nx; MEGA.z = nz;
-  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play') { MEGA.vy = 10 + (boost ? 3 : 0); sfx.boing(); splash(MEGA.x, .1, MEGA.z, 22, 5); }
+  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = 10 + (boost ? 3 : 0); sfx.boing(); splash(MEGA.x, .1, MEGA.z, 22, 5); }
   MEGA.vy -= 24 * dt; MEGA.y += MEGA.vy * dt; if (MEGA.y < 0) { if (MEGA.vy < -6) { splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); sfx.splashS(); } MEGA.y = 0; MEGA.vy = 0; }
   const sc = megaScaleOf(rec.sp, rec.level), U = MEGA.obj.userData, surf = waveH(MEGA.x, MEGA.z, time) + .1;
   me.x = MEGA.x + Math.sin(MEGA.yaw) * U.seatZ * sc; me.z = MEGA.z + Math.cos(MEGA.yaw) * U.seatZ * sc; me.y = surf + MEGA.y + U.seatY * sc; me.vx = MEGA.vx; me.vz = MEGA.vz; me.spd = sp; me.vy = 0; me.grounded = false;
@@ -2108,7 +2206,7 @@ function renderStable() {
   const rec = save.megas.find(m => m.id === stSel), def = MEGAS[rec.sp]; if (!stRig) stRig = makePreviewRig($('stCanvas')); stRig.show(def, rec.c1, rec.glow, rec.level);
   const box = document.createElement('div'); box.className = 'card'; box.style.textAlign = 'left';
   const nameRow = document.createElement('div'); nameRow.innerHTML = '<div class="lab">Name</div>'; const inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 14; inp.value = rec.name; inp.onchange = () => { rec.name = inp.value.trim().slice(0, 14) || rec.name; persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; nameRow.appendChild(inp); box.appendChild(nameRow);
-  const info = document.createElement('div'); info.innerHTML = `<div class="small">${def.n} · Level ${rec.level}/10 · Speed ${megaSpeed(rec).toFixed(1)} m/s</div><div class="lab">Level</div><div class="bar" style="width:260px"><i style="width:${rec.level >= 10 ? 100 : rec.xp / megaXpNeed(rec.level) * 100}%;background:#74c0fc"></i></div><div class="lab">Hunger</div><div class="bar" style="width:260px"><i style="width:${rec.hunger}%;background:${rec.hunger < 20 ? '#ff6b6b' : '#51cf66'}"></i></div>`; box.appendChild(info);
+  const info = document.createElement('div'); info.innerHTML = `<div class="small">${def.n} · Level ${rec.level}/10 · Speed ${megaSpeed(rec).toFixed(1)} m/s</div><div class="small" style="color:#ffd43b">${def.fish ? '🎣 Fishing Mega: cast your rod while riding! ' : ''}${def.seats === 2 ? '👥 2 seats: a friend can hop on behind you ' : ''}${!def.fish && def.seats !== 2 ? 'Speedy solo ride' : ''}</div><div class="lab">Level</div><div class="bar" style="width:260px"><i style="width:${rec.level >= 10 ? 100 : rec.xp / megaXpNeed(rec.level) * 100}%;background:#74c0fc"></i></div><div class="lab">Hunger</div><div class="bar" style="width:260px"><i style="width:${rec.hunger}%;background:${rec.hunger < 20 ? '#ff6b6b' : '#51cf66'}"></i></div>`; box.appendChild(info);
   const feed = document.createElement('div'); feed.innerHTML = '<div class="lab">Feed</div>'; for (const [k, f] of Object.entries(FOODS)) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = `${f.e} ${f.n} (${save.food[k] || 0})`; b.onclick = () => { feedMega(rec, k); renderStable(); }; feed.appendChild(b); } box.appendChild(feed);
   const mkSw = (label, key) => { const d = document.createElement('div'); d.innerHTML = `<div class="lab">${label}</div>`; for (const c of SWATCH) { const s = document.createElement('span'); s.className = 'sw' + (rec[key].toLowerCase() === c ? ' on' : ''); s.style.background = c; s.onclick = () => { rec[key] = c; persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; d.appendChild(s); } return d; };
   box.appendChild(mkSw('Body color', 'c1')); box.appendChild(mkSw('Glow color', 'glow'));
@@ -2132,8 +2230,7 @@ function renderStable() {
   }
 }
 let sellArm = null;
-const MEGA_BASE = [20000, 25000, 30000, 22000, 40000];
-const megaValue = rec => Math.round(MEGA_BASE[rec.sp] * (1 + .25 * (rec.level - 1)) / 100) * 100;
+const megaValue = rec => Math.round(MEGAS[rec.sp].val * (1 + .25 * (rec.level - 1)) / 100) * 100;
 function sellMega(rec) {
   if (me.riding) { toast('Hop off your Mega first!', 1800, '#ffd43b'); return; } if (TRADE.out && TRADE.out.rec === rec) { toast('That Mega is part of a pending trade.', 1800, '#ffd43b'); return; }
   const val = megaValue(rec); save.megas = save.megas.filter(m => m !== rec); if (save.activeMega === rec.id) { MEGA.summoned = false; save.activeMega = save.megas[0] ? save.megas[0].id : null; buildMegaObj(); }
@@ -2222,9 +2319,9 @@ function buildCove() {
   bigSign('MEGA COVE', '#0b7285', 4, 1, 66.5, Y0 + 3.4, -124.4, 0); enableShadows(scene);
 }
 const MAPS = [
-  { id: 'outer', n: 'Outer Dock', e: '🌉', price: 800, d: 'A long bridge to a far-out dock with richer water (+15% luck, Mega bites 1.5x).', build: buildOuter },
-  { id: 'island', n: 'Treasure Island', e: '🏝️', price: 2200, d: 'A palm island far across the sea. Reach it by riding a Mega. Fishing there is lucky (+20%).', build: buildIsland },
-  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 1000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: buildCove }
+  { id: 'outer', n: 'Outer Dock', e: '🌉', price: 500, d: 'A long bridge to a far-out dock with richer water (+15% luck, Mega bites 1.5x).', build: buildOuter },
+  { id: 'island', n: 'Treasure Island', e: '🏝️', price: 1000, d: 'A palm island far across the sea. Reach it by riding a Mega. Fishing there is lucky (+20%).', build: buildIsland },
+  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 2000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: buildCove }
 ];
 function buyMap(m) { if (save.gold < m.price || save.maps[m.id]) return; save.gold -= m.price; save.maps[m.id] = true; persist(); m.build(); sfx.lvl(); toast(`MAP EXPANDED: ${m.n} unlocked!`, 3200, '#ffd43b'); renderMarket(); }
 
@@ -2386,14 +2483,14 @@ function addFun() {
   }
   enableShadows(scene);
 }
-function shoveAction() { if (me.riding || me.swim || ui !== 'play' || me.shoveT > 0 || F.state === 'fight') return; me.shoveT = .35; me.shoveHit = true; me.shoveN = (me.shoveN | 0) + 1; sfx.whoosh(); }
+function shoveAction() { if (me.riding || me.passenger || me.swim || ui !== 'play' || me.shoveT > 0 || F.state === 'fight') return; me.shoveT = .35; me.shoveHit = true; me.shoveN = (me.shoveN | 0) + 1; sfx.whoosh(); }
 function doShove() {
   const fx = Math.sin(me.bodyYaw), fz = Math.cos(me.bodyYaw); let hit = 0;
   for (const rp of remotes.values()) { if (!rp.init) continue; const dx = rp.x - me.x, dz = rp.z - me.z, d = Math.hypot(dx, dz); if (d < 2.8 && (dx * fx + dz * fz) / (d || 1) > .15 && Math.abs(rp.y - me.y) < 2) { netEvent({ k: 'shove', to: rp.id, dx: fx, dz: fz, who: me.name }); hit++; toast(`You shove ${rp.name}!`, 1600, '#ffd43b'); } }
   if (Math.hypot(FIN_AT.x - me.x, FIN_AT.z - me.z) < 3) { finSay('HEY! I sell fish, not hugs!'); hit++; }
   if (!hit && Math.random() < .5) toast('You shove the air. It does not push back.', 1500);
 }
-function kickAction() { if (me.riding || me.swim || ui !== 'play' || me.kickT > 0 || F.state === 'fight') return; me.kickT = .4; me.kickHit = true; me.kickN = (me.kickN | 0) + 1; sfx.whoosh(); }
+function kickAction() { if (me.riding || me.passenger || me.swim || ui !== 'play' || me.kickT > 0 || F.state === 'fight') return; me.kickT = .4; me.kickHit = true; me.kickN = (me.kickN | 0) + 1; sfx.whoosh(); }
 const KICK_LINES = ['BOINK!', 'CRAB PUNT!', 'GOAL!!', 'Sorry crab!', 'Crab-a-pult!', 'That crab has a sponsor now.', 'Crab: "I was walking here!"', 'Left foot, no regrets.'];
 function doKick() {
   const fx = Math.sin(me.bodyYaw), fz = Math.cos(me.bodyYaw); let hit = 0;
@@ -2408,7 +2505,7 @@ function doKick() {
 ========================================================= */
 const chaos = { t: 30, fx: [] };
 const CHAOS_TYPES = ['rain', 'wave', 'barrels', 'gull', 'crabs'];
-function knockMe(dx, dz, pw) { if (me.riding) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = 1.3; }
+function knockMe(dx, dz, pw) { if (me.riding || me.passenger) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = 1.3; }
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function runChaos(type, seed) {
   const R = rng(seed || 1); sfx.honk();
@@ -2490,13 +2587,14 @@ function rebuildMe() { if (meChar) meChar.destroy(); meChar = makeCharFromAp(sav
 function updateMeAvatar(dt) {
   if (!meChar) rebuildMe(); meChar.group.visible = true;
   const fishing = ['charge', 'cast', 'wait', 'bite', 'fight'].includes(F.state);
-  if (me.riding) me.bodyYaw = MEGA.yaw;
+  if (me.riding) me.bodyYaw = MEGA.yaw; else if (me.passenger) { const rp = remotes.get(me.passenger); if (rp) me.bodyYaw = rp.ma; }
   else if (fishing) me.bodyYaw = lerpAngle(me.bodyYaw, me.yaw, 10 * dt);
   else if (me.spd > .3) me.bodyYaw = lerpAngle(me.bodyYaw, Math.atan2(me.vx, me.vz), 12 * dt);
   let mode = 'hold'; const st = F.state;
   if (!rodOut && (!bucket.length || !bucket[selSlot])) rodOut = true;
-  curHold = (me.riding || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : !rodOut && bucket[selSlot] ? bucket[selSlot] : null;
-  if (me.riding) mode = 'ride'; else if (me.swim) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (has('disco')) mode = 'dance';
+  curHold = (me.riding || me.passenger || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : !rodOut && bucket[selSlot] ? bucket[selSlot] : null;
+  const mnt = me.riding || me.passenger, fishNow = mnt && (st === 'charge' || st === 'cast' || st === 'fight' || st === 'wait' || st === 'bite');
+  if (mnt && !fishNow) mode = 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (has('disco')) mode = 'dance';
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
   me.wob = clamp((me.wob || 0) + Math.min(.1, Math.abs(dsp) * .003) - 2.5 * dt, 0, 1.2);
@@ -2509,7 +2607,7 @@ function updateMeAvatar(dt) {
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
   const up = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? lerp(1.5, .5, clamp(F.t / .25, 0, 1)) : .9;
-  myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !me.riding && !me.swim && !curHold; setHeld(heldSlot, curHold, meChar, me.bodyYaw, me.sc);
+  myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !(mnt && !fishNow && !megaCanFish(megaMountDef())) && !me.swim && !curHold; setHeld(heldSlot, curHold, meChar, me.bodyYaw, me.sc);
 }
 function update(dt) {
   time += dt;

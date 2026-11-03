@@ -5,7 +5,7 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 - Catch 31 species. Each one fights back with its own mini-game.
 - Eat your catch, if you dare. Every fish gives a different effect, and the Fish Dictionary only reveals it after you've tried one.
 - Level up, buy rods, bait and skills at Fin's Fish Market, and complete the dictionary.
-- **Megas:** incredibly rare giant sea creatures (about 1 in a few hundred bites in deep water; Mega Lure bait makes them ~30x likelier). Name them, feed them, level them up, recolor them, pick a swim trail, and ride them across the sea (`G`). Manage them in the Mega Stable (`M`).
+- **Megas:** 19 kinds, incredibly rare (a starter rod almost never hooks one). Some are fishing Megas (cast while riding) and some seat two riders giant sea creatures (about 1 in a few hundred bites in deep water; Mega Lure bait makes them ~30x likelier). Name them, feed them, level them up, recolor them, pick a swim trail, and ride them across the sea (`G`). Manage them in the Mega Stable (`M`).
 - **Map expansion:** buy new areas at the market's Map tab (Outer Dock, Treasure Island, Mega Cove). Some can only be reached on a Mega.
 - Dress your character in the Closet (`C`).
 
@@ -36,6 +36,7 @@ Click **Host online room** and share the 4-letter code. Friends click **Join roo
 | T | Skills (its own screen) |
 | Space (in the air) | jump off the dock and swim; Space near a dock to climb out |
 | Shift / Space (riding) | boost / leap |
+| Enter | text chat (online rooms) |
 | Esc | pause |
 
 Progress is saved in `localStorage`.
