@@ -359,35 +359,35 @@ const skill = k => save.skills[k] || 0;
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
-renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
 const scene = new THREE.Scene();
 const FOG = 0xcdeeff;
 scene.fog = new THREE.Fog(FOG, 140, 900);
 const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 900);
 camera.rotation.order = 'YXZ'; scene.add(camera);
-scene.add(new THREE.HemisphereLight(0xcfe9ff, 0xffc98a, 1.25));
-const sun = new THREE.DirectionalLight(0xffd9a0, 2.3); sun.position.set(-50, 42, -70); scene.add(sun); scene.add(sun.target);
-sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04;
+scene.add(new THREE.HemisphereLight(0xd6e8ff, 0xb6a58c, 1.15));
+const sun = new THREE.DirectionalLight(0xfff0d6, 2.7); sun.position.set(-50, 42, -70); scene.add(sun); scene.add(sun.target);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3;
 Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 170 }); sun.shadow.camera.updateProjectionMatrix();
 const fillLight = new THREE.DirectionalLight(0x9cc8ff, .45); fillLight.position.set(40, 20, 60); scene.add(fillLight);
 /* post-processing: bloom + warm golden-hour color grade */
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
-const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.55, 0.7, 1.0); composer.addPass(bloom);
+const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.5, 1.05); composer.addPass(bloom);
 composer.addPass(new ShaderPass({
   uniforms: { tDiffuse: { value: null } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
   fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
     void main(){ vec4 c=texture2D(tDiffuse,vUv); float l=dot(c.rgb,vec3(.299,.587,.114));
-      c.rgb*=mix(vec3(.9,.97,1.12),vec3(1.1,1.0,.86),smoothstep(.15,.75,l));
-      c.rgb=mix(vec3(l),c.rgb,1.22);
-      float d=distance(vUv,vec2(.5)); c.rgb*=1.0-smoothstep(.5,.95,d)*.32; gl_FragColor=c; }`
+      c.rgb*=mix(vec3(.95,.99,1.05),vec3(1.05,1.0,.94),smoothstep(.15,.75,l));
+      c.rgb=mix(vec3(l),c.rgb,.98);
+      float d=distance(vUv,vec2(.5)); c.rgb*=1.0-smoothstep(.55,1.0,d)*.2; gl_FragColor=c; }`
 }));
 composer.addPass(new OutputPass());
 function resize() { renderer.setSize(innerWidth, innerHeight, false); composer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
-const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([120, 195, 255]), 3, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t; })();
+const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([88, 118, 150, 182, 210, 232, 247, 255]), 8, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t; })();
 const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1b2344, side: THREE.BackSide });
 const matCache = new Map();
 function mat(c, opts) {
@@ -421,10 +421,10 @@ for (let i = 0; i < 16; i++) {
 /* ---------- water ---------- */
 const waveH = (x, z, t) => 0.09 * Math.sin(x * 0.35 + t * 1.2) + 0.07 * Math.sin(z * 0.3 + t * 0.9) + 0.04 * Math.sin((x + z) * 0.2 + t * 1.7);
 const waterGeo = new THREE.PlaneGeometry(900, 900, 70, 70); waterGeo.rotateX(-Math.PI / 2);
-const water = new THREE.Mesh(waterGeo, new THREE.MeshLambertMaterial({ color: 0x0fc2ff, transparent: true, opacity: 0.8, flatShading: true }));
+const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ color: 0x1a8fb8, transparent: true, opacity: 0.88, roughness: .16, metalness: .12 }));
 scene.add(water);
 const wpos = waterGeo.attributes.position; const wbase = new Float32Array(wpos.array);
-function updateWater(t) { for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3], z = wbase[i * 3 + 2]; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; }
+function updateWater(t) { for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3], z = wbase[i * 3 + 2]; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; waterGeo.computeVertexNormals(); }
 mk(new THREE.PlaneGeometry(900, 900), mat(0xffe39a), [0, -7, 0], null, scene).rotation.x = -Math.PI / 2;
 
 /* =========================================================
@@ -613,7 +613,7 @@ function toonSync(time = 0) {
   for (let i = 0; i < 2; i++) { const f = this.p[i ? FTR : FTL], m = this.shoes[i]; m.position.set(f.x + sy * .08 * s, f.y, f.z + cy * .08 * s); m.rotation.y = yaw; m.scale.set(.17 * s, .11 * s, .27 * s); }
   for (const sp of this.spin) sp.rotation.y = time * 18;
 }
-const FLOP = []; FLOP[HEAD] = 0.13; FLOP[KNL] = 0.3; FLOP[KNR] = 0.3; // arms are stiff now: no floppy arm swing
+const FLOP = []; FLOP[HEAD] = 0.42; FLOP[KNL] = 0.6; FLOP[KNR] = 0.6; // arms are stiff now: no floppy arm swing
 
 class Char {
   constructor(cols, parent) {
@@ -638,14 +638,14 @@ class Char {
     for (let i = 0; i < NP; i++) {
       const p = this.p[i], pv = this.pv[i], t = this.t[i];
       if (floppy && FLOP[i]) {
-        const vx = (p.x - pv.x) * 0.93, vy = (p.y - pv.y) * 0.93, vz = (p.z - pv.z) * 0.93; pv.copy(p); p.x += vx; p.y += vy; p.z += vz;
+        const vx = (p.x - pv.x) * 0.55, vy = (p.y - pv.y) * 0.55, vz = (p.z - pv.z) * 0.55; pv.copy(p); p.x += vx; p.y += vy; p.z += vz;
         const k = FLOP[i]; p.x += (t.x - p.x) * k; p.y += (t.y - p.y) * k; p.z += (t.z - p.z) * k;
       } else { pv.copy(p); p.copy(t); }
     }
   }
   sync(time = 0) {
     const s = this.s;
-    { const pe0 = this.p[PELV], pp0 = this.pv[PELV]; this.jig = 1 + Math.sin(time * 11) * .05 * clamp(Math.hypot(pe0.x - pp0.x, pe0.z - pp0.z) * 14, 0, 1) + Math.sin(time * 2.3) * .015; }
+    { const pe0 = this.p[PELV], pp0 = this.pv[PELV]; this.jig = 1 + Math.sin(time * 11) * .012 * clamp(Math.hypot(pe0.x - pp0.x, pe0.z - pp0.z) * 14, 0, 1) + Math.sin(time * 2.3) * .008; }
     for (let bi = 0; bi < this.bones.length; bi++) {
       const b = this.bones[bi], A = this.p[b.a], B = this.p[b.b]; _v.set(B.x - A.x, B.y - A.y, B.z - A.z); const len = _v.length();
       b.m.position.set((A.x + B.x) / 2, (A.y + B.y) / 2, (A.z + B.z) / 2);
@@ -1107,7 +1107,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261102205008';
+const GAME_BUILD = '20261102205342';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1210,7 +1210,7 @@ function doCast() {
   if (onLand(tx, tz)) { toast('Aim at the water!', 1200, '#ffd43b'); F.state = 'idle'; $('power').style.display = 'none'; return; }
   F.dirx = dx; F.dirz = dz; F.ox = me.x; F.oz = me.z; F.dist = d; F.tx = tx; F.tz = tz;
   tipPos(_tip); F.sx = _tip.x; F.sy = _tip.y; F.sz = _tip.z; F.t = 0; F.flight = .45 + d / 70; F.state = 'cast'; F.castAnim = 0; F.bait = save.baitSel;
-  sfx.cast(); noise(.18, .07, 4000, 1200, 'highpass'); me.wob = (me.wob || 0) + .7; myBobber.visible = true; myLine.visible = true; $('power').style.display = 'none';
+  sfx.cast(); noise(.18, .07, 4000, 1200, 'highpass'); me.wob = (me.wob || 0) + .2; myBobber.visible = true; myLine.visible = true; $('power').style.display = 'none';
 }
 function landBobber() { sfx.splashW();
   F.state = 'wait'; F.t = 0; splash(F.tx, .1, F.tz, 26, 3.4); ripple(F.tx, F.tz); setTimeout(() => ripple(F.tx, F.tz), 220); ripple(F.tx, F.tz); sfx.plop();
@@ -1545,9 +1545,9 @@ function updateRemotes(dt) {
     if ((st0.kn | 0) !== rp.kn) { rp.kn = st0.kn | 0; rp.kk = 0; } if ((st0.sn | 0) !== rp.sn) { rp.sn = st0.sn | 0; rp.sk = 0; }
     if (rp.kk != null) { rp.kk += dt / .4; if (rp.kk >= 1) rp.kk = null; } if (rp.sk != null) { rp.sk += dt / .35; if (rp.sk >= 1) rp.sk = null; }
     updateRemoteMega(rp, dt);
-    const wobR = (mode === 'fight' ? .6 : 0) + (rp.fx.includes('jelly') || rp.fx.includes('dizzy') ? .75 : 0), mvR = moving ? Math.min(1, rp.spd / 4) : 0;
-    const leanR = mode === 'fight' ? -.25 : clamp((rp.spd || 0) * .045, 0, .3) + Math.sin(time * 9 + rp.walk) * .1 * wobR;
-    const swayR = Math.sin(time * 13 + rp.walk) * (.04 + .2 * wobR) + Math.sin(rp.walk * 2.2) * .09 * mvR;
+    const wobR = (mode === 'fight' ? .25 : 0) + (rp.fx.includes('jelly') || rp.fx.includes('dizzy') ? .75 : 0), mvR = moving ? Math.min(1, rp.spd / 4) : 0;
+    const leanR = mode === 'fight' ? -.2 : clamp((rp.spd || 0) * .03, 0, .2) + Math.sin(time * 9 + rp.walk) * .03 * wobR;
+    const swayR = Math.sin(time * 13 + rp.walk) * (.012 + .06 * wobR) + Math.sin(rp.walk * 2.2) * .04 * mvR;
     const L = genPose({ amp: mvR, phase: rp.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: .8, lean: leanR, sway: swayR, kick: rp.kk || 0, shove: rp.sk || 0 });
     rp.ch.setTargets(L, { x: rp.x, y: rp.y, z: rp.z }, rp.yaw, rp.sc); rp.ch.follow(true); rp.ch.sync(time);
     setHeld(rp.held, hfv && !ghost ? { idx: hfv[0], kg: hfv[1] } : null, rp.ch, rp.yaw, rp.sc);
@@ -1574,7 +1574,7 @@ function handleEvent(ev, fromId) {
     case 'chaos': runChaos(ev.t, ev.seed, ev.x, ev.z); break;
     case 'ck': { sfx.squeak(); if (NET.role === 'host') { const c = plaza.crabs[ev.i]; if (c && !c.fly && !(c.dead > 0)) { c.fly = { vx: ev.vx, vy: ev.vy, vz: ev.vz, spin: ev.spin }; c.stun = 0; } } break; }
     case 'bk': if (NET.role === 'host') fun.ballV.set(ev.vx, ev.vy, ev.vz); sfx.thunk(); break;
-    case 'shove': if (ev.to === NET.myId && !me.riding && !me.passenger) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
+    case 'shove': if (ev.to === NET.myId && !me.riding && !me.passenger) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = .5; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
     case 'mega': feed(`${ev.name} caught a MEGA ${ev.sp} and named it ${ev.mega}!`, '#6fe8ff'); sfx.lvl(); break;
     case 'splash': { ripple(ev.x, ev.z); splash(ev.x, .1, ev.z, 8, 2); break; }
     case 'ap': { const info = NET.players.get(ev.id) || {}; info.ap = ev.ap; NET.players.set(ev.id, info); const rp = remotes.get(ev.id); if (rp) { rp.ap = ev.ap; buildRemoteBody(rp); } break; }
@@ -2621,6 +2621,7 @@ const inCircle = (c, r) => Math.hypot(me.x - c.x, me.z - c.z) < r;
 function burnBack(c, msg, fxName) { const d = c === LAVA ? { x: LAVA.x + 4, z: LAVA.z + 52, yaw: Math.PI } : { x: STORM.x + 4, z: STORM.z + 52, yaw: Math.PI }; worldFx.portalCool = 0; warpTo(d, 'the dock'); toast(msg, 2400, '#ff8a8a'); sfx.zap(); me.wob = 1.6; if (fxName) makeBolt(me.x, 40, me.z, me.x, .2, me.z, true); }
 function updateWorlds(dt) {
   worldFx.portalCool -= dt; const t = time;
+  if (worldFx.clouds) { const vis = Math.hypot(me.x - STORM.x, me.z - STORM.z) < 240; for (const c of worldFx.clouds) c.visible = vis; }
   for (const m of worldFx.lavaTex) { m.a.offset.x += dt * .012; m.a.offset.y += dt * .008; if (m.b) { m.b.offset.x -= dt * .009; m.b.offset.y += dt * .011; } }
   for (const q of portals) { q.ring.rotation.z = t * 1.4; q.ring2.rotation.z = -t * 2.1; q.ring.rotation.x = Math.sin(t) * .15; q.core.material.opacity = .65 + Math.sin(t * 4) * .2; q.g.lookAt(me.x, q.g.position.y, me.z); }
   if (started && ui === 'play' && !me.riding && !me.passenger && !me.swim && worldFx.portalCool <= 0) for (const q of portals) if (Math.hypot(me.x - q.x, me.z - q.z) < 1.35 && me.y < Y0 + 1.4) { warpTo(q.dest, q.name); break; }
@@ -2671,7 +2672,7 @@ function buildStorm() {
   const halo = new THREE.Mesh(new THREE.RingGeometry(STORM.r - 1, STORM.r + 5, 72), new THREE.MeshBasicMaterial({ color: new THREE.Color(.4, .8, 2.2), transparent: true, opacity: .3, depthWrite: false, side: THREE.DoubleSide })); halo.rotation.x = -Math.PI / 2; halo.position.set(cx, .22, cz); scene.add(halo);
   for (let i = 0; i < 36; i++) { const a = i / 36 * TAU; if (Math.sin(a) > .78) continue; const rr = STORM.r + 3 + rnd(0, 5), s = rnd(3.5, 7), rx = cx + Math.cos(a) * rr, rz = cz + Math.sin(a) * rr; const r = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), mat(0x3a4262)); r.scale.set(s, s * rnd(.9, 2), s); r.position.set(rx, s * .4, rz); scene.add(r); swimBlockers.push({ x: rx, z: rz, r: s }); }
   // storm clouds hanging overhead
-  for (let i = 0; i < 38; i++) { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * 100, r = rnd(14, 28), c = new THREE.Mesh(sphS, new THREE.MeshToonMaterial({ color: i % 3 ? 0x353c55 : 0x2a3048, gradientMap: toonGrad })); c.scale.set(r, r * .45, r); c.position.set(cx + Math.cos(a) * d, 50 + rnd(0, 8), cz + Math.sin(a) * d); scene.add(c); }
+  for (let i = 0; i < 38; i++) { const a = Math.random() * TAU, d = Math.sqrt(Math.random()) * 100, r = rnd(14, 28), c = new THREE.Mesh(sphS, new THREE.MeshToonMaterial({ color: i % 3 ? 0x353c55 : 0x2a3048, gradientMap: toonGrad })); c.scale.set(r, r * .45, r); c.position.set(cx + Math.cos(a) * d, 50 + rnd(0, 8), cz + Math.sin(a) * d); scene.add(c); (worldFx.clouds = worldFx.clouds || []).push(c); }
   const cl = new THREE.PointLight(0x7aa8ff, 1.8, 280, 1.2); cl.position.set(cx, 42, cz); scene.add(cl); worldFx.cloudLight = cl;
   // rain
   const N = 900, pos = new Float32Array(N * 3); for (let i = 0; i < N; i++) { pos[i * 3] = cx + rnd(-24, 24); pos[i * 3 + 1] = rnd(0, 30); pos[i * 3 + 2] = cz + rnd(-24, 24); } const rg = new THREE.BufferGeometry(); rg.setAttribute('position', new THREE.BufferAttribute(pos, 3));
@@ -2874,7 +2875,7 @@ function doKick() {
 ========================================================= */
 const chaos = { t: 30, fx: [] };
 const CHAOS_TYPES = ['wave', 'barrels', 'gull', 'crabs', 'meteors', 'lowgrav', 'party'];
-function knockMe(dx, dz, pw) { if (me.riding || me.passenger) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = 1.3; }
+function knockMe(dx, dz, pw) { if (me.riding || me.passenger) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = .5; }
 function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function runChaos(type, seed, cx = 0, cz = -5) {
   const R = rng(seed || 1); sfx.honk();
@@ -3061,12 +3062,12 @@ function updateMeAvatar(dt) {
   if (mnt && !fishNow) mode = 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (digState) mode = 'fight'; else if (emote.t > 0) mode = emote.m; else if (has('disco')) mode = 'dance';
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
-  me.wob = clamp((me.wob || 0) + Math.min(.1, Math.abs(dsp) * .003) - 2.5 * dt, 0, 1.2);
+  me.wob = clamp((me.wob || 0) + Math.min(.03, Math.abs(dsp) * .001) - 3 * dt, 0, .6);
   if (has('jelly') || has('dizzy') || has('sleepy')) me.wob = Math.max(me.wob, .75);
   const stress = st === 'fight' && F.G ? F.G.stress : 0, mv = Math.min(1, me.spd / 4);
-  let lean = clamp(me.spd * .045, 0, .3) + Math.sin(time * 9) * .1 * me.wob;
-  if (mode === 'fight') lean = -.12 - stress * .3 + Math.sin(time * 16) * .06 * stress; else if (mode === 'cast') lean = lerp(-.35, .4, clamp(F.t / .25, 0, 1)); else if (mode === 'ride') lean = .08 + me.spd * .012; else if (mode === 'swim') lean = .15 + me.spd * .06;
-  const sway = Math.sin(time * 13) * (.04 + .2 * me.wob) + Math.sin(me.walk * 2.2) * .09 * mv + Math.sin(time * 19) * .1 * stress;
+  let lean = clamp(me.spd * .03, 0, .2) + Math.sin(time * 9) * .03 * me.wob;
+  if (mode === 'fight') lean = -.1 - stress * .18 + Math.sin(time * 16) * .02 * stress; else if (mode === 'cast') lean = lerp(-.35, .4, clamp(F.t / .25, 0, 1)); else if (mode === 'ride') lean = .08 + me.spd * .012; else if (mode === 'swim') lean = .15 + me.spd * .06;
+  const sway = Math.sin(time * 13) * (.012 + .06 * me.wob) + Math.sin(me.walk * 2.2) * .04 * mv + Math.sin(time * 19) * .03 * stress;
   const L = genPose({ amp: mv, phase: me.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: clamp(F.t / .25, 0, 1), lean, sway, kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
