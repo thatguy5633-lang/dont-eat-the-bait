@@ -31,7 +31,8 @@
   #card .nm{font-size:16px;font-weight:900} #card .sm{font-size:13px;opacity:.9}
   #bucket{position:absolute;left:62%;bottom:14px;transform:translateX(-50%);display:flex;gap:6px;max-width:36vw;flex-wrap:wrap;justify-content:center}
   .slot{width:52px;height:40px;border-radius:9px;background:rgba(20,33,61,.7);border:3px solid #14213d;position:relative;display:flex;align-items:center;justify-content:center}
-  .slot.sel{border-color:#ffd43b;transform:translateY(-6px)}
+  .slot.sel{border-color:#ffd43b;transform:translateY(-6px);background:rgba(60,80,130,.85)}
+  .slot .hk{position:absolute;left:3px;top:0;font-size:10px;font-weight:900;color:#ffd43b}
   .slot img{width:46px;height:30px}
   #bait{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);font-size:14px;font-weight:800}
   #fx{position:absolute;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
@@ -105,7 +106,7 @@
   <div id="card" class="panel"></div>
   <div id="bucket"></div>
   <div id="fx"></div>
-  <div id="help" class="stroke">WASD move · Mouse look · Hold LMB cast / reel · RMB reel in · E eat · Q/wheel pick fish · R bait<br>F market · B fish dictionary &amp; skills · C closet · G call/ride Mega · M Mega stable · K kick · X shove · T skills · Space jump · Esc pause</div>
+  <div id="help" class="stroke">WASD move · Mouse look · Hold LMB cast / reel · RMB reel in · E eat · 1-9/Q/wheel rod &amp; fish · R bait<br>F market · B fish dictionary &amp; skills · C closet · G call/ride Mega · M Mega stable · K kick · X shove · T skills · Space jump · Esc pause</div>
 </div>
 <div id="lids"></div><div id="tint"></div>
 
@@ -290,7 +291,7 @@ const OUTFITS = [
   { n: 'Fisher vest', pat: 'plain', sleeves: false, x: 'vest' },
   { n: 'Nothing', pat: 'plain', sleeves: false, naked: true }
 ];
-const HATS = ['None', 'Cap', 'Beanie', 'Top hat', 'Crown', 'Traffic cone', 'Party hat', 'Chef hat', 'Pirate hat', 'Bucket hat', 'Cowboy', 'Propeller', 'Hard hat', 'Wizard', 'Clown wig'];
+const HATS = ['None', 'Cap', 'Beanie', 'Top hat', 'Crown', 'Traffic cone', 'Party hat', 'Chef hat', 'Pirate hat', 'Bucket hat', 'Cowboy', 'Propeller', 'Hard hat', 'Wizard', 'Clown wig', 'Bunny ears', 'Rain hat'];
 const MASKS = ['None', 'Ninja band', 'Bandit', 'Surgical', 'Goggles', 'Sunglasses', 'Eyepatch', 'Luchador', 'Clown nose', 'Blush'];
 const STACHES = ['None', 'Handlebar', 'Walrus', 'Pencil', 'Goatee', 'Big beard', 'Fu Manchu'];
 const SWATCH = ['#ffb6c9', '#ff8fa3', '#ff6b6b', '#ff9f43', '#ffd43b', '#a9e34b', '#51cf66', '#38d9a9', '#4dabf7', '#4263eb', '#9775fa', '#e599f7', '#fafafa', '#adb5bd', '#495057', '#212529', '#c7864f', '#8d5a2b', '#f1c9a5', '#fff0d6'];
@@ -406,10 +407,33 @@ const plankTex = canvasTex(128, 128, g => {
   for (let i = 0; i < 4; i++) { g.fillStyle = i % 2 ? '#e39a4a' : '#f2b25f'; g.fillRect(0, i * 32, 128, 30); g.fillStyle = '#9a5a22'; g.fillRect(0, i * 32 + 30, 128, 2); g.fillRect(((i * 53) % 100) + 10, i * 32, 2, 30); }
 });
 plankTex.wrapS = plankTex.wrapT = THREE.RepeatWrapping;
+/* real 3D boards: every plank is its own slightly crooked, slightly different box, with gaps and nailheads (like the concept art) */
+const boardTex = canvasTex(64, 128, g => {
+  g.fillStyle = '#fff'; g.fillRect(0, 0, 64, 128);
+  for (let i = 0; i < 16; i++) { g.strokeStyle = `rgba(110,60,20,${.1 + Math.random() * .18})`; g.lineWidth = 1 + Math.random() * 1.5; const x = 3 + Math.random() * 58; g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + (Math.random() - .5) * 8, 40, x + (Math.random() - .5) * 8, 90, x + (Math.random() - .5) * 6, 128); g.stroke(); }
+  g.fillStyle = 'rgba(90,45,15,.35)'; g.beginPath(); g.ellipse(18 + Math.random() * 28, 30 + Math.random() * 70, 4, 8, 0, 0, TAU); g.fill();
+  g.strokeStyle = 'rgba(70,35,10,.7)'; g.lineWidth = 7; g.strokeRect(0, 0, 64, 128); g.strokeStyle = 'rgba(255,225,160,.55)'; g.lineWidth = 3; g.strokeRect(5, 5, 54, 118);
+  g.fillStyle = 'rgba(60,35,15,.8)'; for (const y of [8, 120]) for (const x of [10, 54]) { g.beginPath(); g.arc(x, y, 2.6, 0, TAU); g.fill(); }
+});
+const BOARD_UP = new THREE.Vector3(0, 1, 0);
+const boardMat = new THREE.MeshToonMaterial({ map: boardTex, gradientMap: toonGrad });
+const boardGeo = new THREE.BoxGeometry(1, 1, 1), BOARD_COLS = ['#f2b25f', '#e39a4a', '#d98a3d', '#eba956', '#c97d36', '#f5be72'];
 function plankTop(x0, x1, z0, z1, y) {
-  const t = plankTex.clone(); t.needsUpdate = true; t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set((x1 - x0) / 4, (z1 - z0) / 4);
-  const p = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, z1 - z0), new THREE.MeshToonMaterial({ map: t, gradientMap: toonGrad })); p.rotation.x = -Math.PI / 2; p.position.set((x0 + x1) / 2, y, (z0 + z1) / 2); scene.add(p);
-  deco(x0, x1, y - 0.5, y - .01, z0, z1, mat(0x8a5a2e));
+  const w = x1 - x0, d = z1 - z0, across = w <= d;           // boards run across the short side
+  const run = across ? w : d, len = across ? d : w, bw = .78, gap = .2, n = Math.max(1, Math.round(len / (bw + gap)));
+  const im = new THREE.InstancedMesh(boardGeo, boardMat, n), m4 = new THREE.Matrix4(), q = new THREE.Quaternion(), sc = new THREE.Vector3(), ps = new THREE.Vector3(), col = new THREE.Color(), step = len / n;
+  for (let i = 0; i < n; i++) {
+    const c = (across ? z0 : x0) + step * (i + .5), jitter = (Math.random() - .5) * .03, thick = .15 + Math.random() * .08, rl = run - .04 - Math.random() * .08;
+    q.setFromAxisAngle(BOARD_UP, (Math.random() - .5) * .012);
+    if (across) { sc.set(rl, thick, step - gap); ps.set((x0 + x1) / 2 + jitter, y - thick / 2 + (Math.random() - .5) * .03, c); }
+    else { sc.set(step - gap, thick, rl); ps.set(c, y - thick / 2 + (Math.random() - .5) * .018, (z0 + z1) / 2 + jitter); }
+    m4.compose(ps, q, sc); im.setMatrixAt(i, m4); col.set(BOARD_COLS[(Math.random() * BOARD_COLS.length) | 0]); im.setColorAt(i, col);
+  }
+  im.instanceMatrix.needsUpdate = true; if (im.instanceColor) im.instanceColor.needsUpdate = true; im.castShadow = true; im.receiveShadow = true; scene.add(im);
+  deco(x0 - .06, x1 + .06, y - .5, y - .2, z0 - .06, z1 + .06, mat(0x2e1c0e));
+  // chunky side beams
+  if (across) { deco(x0 - .08, x0 + .1, y - .42, y - .02, z0, z1, mat(0x7a4b25)); deco(x1 - .1, x1 + .08, y - .42, y - .02, z0, z1, mat(0x7a4b25)); }
+  else { deco(x0, x1, y - .42, y - .02, z0 - .08, z0 + .1, mat(0x7a4b25)); deco(x0, x1, y - .42, y - .02, z1 - .1, z1 + .08, mat(0x7a4b25)); }
 }
 {
   // beach
@@ -678,23 +702,30 @@ function torsoTex(ap, o) {
 /* ---------- hats ---------- */
 function buildHat(kind, col, head, char) {
   if (!kind) return;
-  const g = new THREE.Group(), M = mat(col), blk = mat(0x212121), wht = mat(0xffffff);
-  const dome = (r, y, m) => { const d = new THREE.Mesh(new THREE.SphereGeometry(1, 12, 6, 0, TAU, 0, Math.PI / 2), m); d.scale.set(r, r * .85, r); d.position.y = y; g.add(d); return d; };
+  const g = new THREE.Group(), C = new THREE.Color(col), DS = THREE.DoubleSide, M = mat(col, { side: DS }), Mdk = mat(C.clone().multiplyScalar(.62).getHex(), { side: DS }), Mlt = mat(C.clone().lerp(new THREE.Color(0xffffff), .45).getHex(), { side: DS });
+  const blk = mat(0x1d1b22, { side: DS }), wht = mat(0xffffff, { side: DS }), gold = mat(0xffc82c, { side: DS }), red = mat(0xe03131, { side: DS });
+  const lathe = (pts, m, par) => { const o = new THREE.Mesh(new THREE.LatheGeometry(pts.map(([r, y]) => new THREE.Vector2(r, y)), 22), m); (par || g).add(o); return o; };
+  const ring = (r, y, t, m, par) => { const o = new THREE.Mesh(new THREE.TorusGeometry(r, t, 8, 24), m); o.rotation.x = Math.PI / 2; o.position.y = y; (par || g).add(o); return o; };
+  const sector = (r, h, a0, a1, m, y) => { const o = new THREE.Mesh(new THREE.CylinderGeometry(r, r, h, 24, 1, false, a0, a1 - a0), m); o.position.y = y; g.add(o); return o; };
+  const star = (x, y, z, sz, m) => { const o = mk(coneGeo, m, [x, y, z], [sz, sz * .4, sz], g); o.rotation.x = Math.PI / 2; return o; };
+  const dome = [[0, .58], [.16, .57], [.31, .52], [.42, .4], [.47, .24], [.48, .1], [.46, .02], [.0, .02]];
   switch (kind) {
-    case 1: dome(.45, .12, M); mk(boxGeo, M, [0, .12, .46], [.46, .04, .36], g); break;
-    case 2: dome(.46, .1, M); mk(sphGeo, wht, [0, .5, 0], [.12, .12, .12], g); mk(cylGeo, mat(0xffffff), [0, .13, 0], [.47, .07, .47], g); break;
-    case 3: mk(cylGeo, blk, [0, .72, 0], [.28, .5, .28], g); mk(cylGeo, blk, [0, .44, 0], [.5, .04, .5], g); mk(cylGeo, M, [0, .5, 0], [.285, .08, .285], g); break;
-    case 4: mk(cylGeo, mat(0xffc82c), [0, .52, 0], [.33, .2, .33], g); for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; mk(coneGeo, mat(0xffc82c), [Math.cos(a) * .3, .76, Math.sin(a) * .3], [.08, .24, .08], g); } break;
-    case 5: mk(coneGeo, mat(0xff6b00), [0, .72, 0], [.26, .7, .26], g); mk(cylGeo, wht, [0, .65, 0], [.2, .1, .2], g); mk(boxGeo, mat(0xff6b00), [0, .4, 0], [.6, .04, .6], g); break;
-    case 6: mk(coneGeo, M, [0, .75, 0], [.28, .75, .28], g); mk(sphGeo, mat(0xffe066), [0, 1.15, 0], [.09, .09, .09], g); break;
-    case 7: mk(cylGeo, wht, [0, .62, 0], [.3, .4, .3], g); mk(sphGeo, wht, [0, .88, 0], [.4, .22, .4], g); mk(cylGeo, mat(0xdddddd), [0, .42, 0], [.33, .06, .33], g); break;
-    case 8: { const a = mk(coneGeo, M, [0, .6, 0], [.62, .38, .3], g); a.rotation.y = 0; mk(boxGeo, M, [0, .42, 0], [1.1, .06, .62], g); mk(sphGeo, wht, [0, .58, .3], [.09, .09, .03], g); break; }
-    case 9: mk(cylGeo, M, [0, .5, 0], [.4, .28, .4], g); mk(cylGeo, M, [0, .38, 0], [.62, .04, .62], g); break;
-    case 10: mk(cylGeo, M, [0, .55, 0], [.3, .24, .3], g); mk(cylGeo, M, [0, .4, 0], [.72, .04, .5], g); mk(cylGeo, mat(0x6b3a1a), [0, .45, 0], [.31, .05, .31], g); break;
-    case 11: dome(.46, .1, M); const pr = new THREE.Group(); pr.position.y = .5; mk(boxGeo, mat(0xe03131), [0, 0, 0], [.7, .02, .1], pr); mk(boxGeo, mat(0x4dabf7), [0, 0, 0], [.1, .02, .7], pr); g.add(pr); mk(cylGeo, blk, [0, .48, 0], [.04, .1, .04], g); char.spin.push(pr); break;
-    case 12: dome(.47, .1, M); mk(boxGeo, M, [0, .12, .48], [.5, .05, .3], g); mk(boxGeo, M, [0, .52, 0], [.1, .08, .6], g); mk(sphGeo, mat(0xfff3b0), [0, .22, .4], [.08, .06, .05], g); break;
-    case 13: mk(coneGeo, M, [0, .95, 0], [.36, 1.1, .36], g); mk(cylGeo, M, [0, .4, 0], [.62, .04, .62], g); mk(sphGeo, mat(0xffe066), [.12, .85, .3], [.06, .06, .02], g); mk(sphGeo, mat(0xffe066), [-.1, 1.15, .22], [.05, .05, .02], g); break;
-    case 14: for (const [x, y, z] of [[0, .46, 0], [-.3, .3, 0], [.3, .3, 0], [-.2, .42, -.2], [.2, .42, -.2], [-.2, .42, .2], [.2, .42, .2], [0, .3, -.35]]) mk(sphGeo, M, [x, y, z], [.2, .2, .2], g); break;
+    case 1: lathe(dome, M); lathe([[.47, .1], [.49, .1], [.49, .02], [.47, .02]], Mdk); sector(.58, .035, -.95, .95, Mdk, .075).rotation.x = .12; mk(sphGeo, Mdk, [0, .58, 0], [.045, .04, .045], g); for (const a of [0, 1.05, 2.1, -1.05, -2.1]) { const sm = mk(boxGeo, Mlt, [Math.sin(a) * .37, .42, Math.cos(a) * .37], [.012, .26, .012], g); sm.rotation.set(0, a, 0); } break;
+    case 2: lathe([[0, .68], [.22, .66], [.4, .54], [.47, .3], [.48, .08], [.0, .08]], M); ring(.48, .13, .075, Mlt); ring(.485, .22, .05, Mlt); for (let i = 0; i < 14; i++) { const a = i / 14 * TAU; mk(boxGeo, Mdk, [Math.sin(a) * .5, .15, Math.cos(a) * .5], [.015, .17, .02], g).rotation.y = a; } for (const [x, y, z] of [[0, .78, 0], [.1, .74, .04], [-.1, .74, -.02], [.02, .74, .1], [-.02, .73, -.1], [.0, .85, .0]]) mk(sphGeo, wht, [x, y, z], [.1, .1, .1], g); break;
+    case 3: lathe([[0, .98], [.28, .97], [.3, .95], [.3, .52], [.3, .5], [.25, .46], [0, .46]], blk); lathe([[.3, .62], [.31, .62], [.31, .5], [.3, .5]], M); mk(boxGeo, gold, [0, .56, .315], [.12, .1, .02], g); mk(boxGeo, blk, [0, .56, .322], [.07, .06, .02], g); lathe([[.28, .46], [.62, .46], [.68, .5], [.64, .52], [.5, .5], [.28, .5]], blk).position.y = -.0; break;
+    case 4: lathe([[.42, .52], [.46, .5], [.47, .26], [.46, .22], [.43, .22], [.43, .5]], gold); lathe([[.0, .28], [.43, .3], [.43, .5], [.0, .4]], mat(0xb02040, { side: DS })); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU, x = Math.sin(a) * .445, z = Math.cos(a) * .445; const sp = mk(coneGeo, gold, [x, .66, z], [.1, .3, .1], g); mk(sphGeo, i % 2 ? mat(0x3aa6ff) : red, [x, .84, z], [.05, .05, .05], g); mk(sphGeo, i % 2 ? red : mat(0x3ad06a), [x * .995, .38, z * .995], [.045, .045, .03], g); } ring(.455, .52, .02, gold); ring(.46, .24, .025, gold); break;
+    case 5: lathe([[0, 1.05], [.07, .95], [.17, .5], [.29, .13], [.0, .13]], mat(0xff6b00, { side: DS })); lathe([[.12, .83], [.15, .72], [.21, .72], [.17, .83]], wht); lathe([[.2, .56], [.215, .5], [.245, .35], [.23, .35], [.2, .42]], wht); mk(boxGeo, mat(0xff6b00), [0, .1, 0], [.72, .05, .72], g); mk(boxGeo, mat(0xe85d00), [0, .06, 0], [.76, .03, .76], g); break;
+    case 6: lathe([[0, 1.1], [.06, .98], [.2, .55], [.33, .1], [.0, .1]], M); for (let i = 0; i < 4; i++) lathe([[.31 - i * .075, .18 + i * .2], [.335 - i * .075, .15 + i * .2], [.35 - i * .075, .21 + i * .2], [.325 - i * .075, .24 + i * .2]], i % 2 ? gold : Mlt); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU; mk(sphGeo, wht, [Math.sin(a) * .09, 1.13 + Math.cos(i * 5) * .03, Math.cos(a) * .09], [.07, .07, .07], g); } star(0, .1, .0, .01, M); break;
+    case 7: lathe([[.0, .1], [.34, .1], [.35, .5], [.3, .5], [.0, .5]], wht); ring(.35, .12, .035, mat(0xdcdce4)); for (const [x, y, z, r] of [[0, .9, 0, .3], [.26, .78, .0, .24], [-.26, .78, .0, .24], [0, .78, .26, .24], [0, .78, -.26, .24], [.18, .98, .1, .2], [-.18, .96, -.08, .2], [0, 1.06, 0, .22]]) mk(sphGeo, wht, [x, y, z], [r, r * .9, r], g); mk(cylGeo, Mlt, [0, .22, 0], [.352, .06, .352], g); break;
+    case 8: { const hull = mk(sphGeo, blk, [0, .38, 0], [.68, .26, .36], g); hull.rotation.z = 0; for (const sd of [-1, 1]) { const w = mk(coneGeo, blk, [sd * .72, .5, 0], [.2, .36, .3], g); w.rotation.z = -sd * 1.15; } const trim = mk(sphGeo, gold, [0, .3, 0], [.7, .12, .38], g); trim.scale.y = .05; lathe(dome.map(([r, y]) => [r * .98, y * .75 + .08]), blk).position.y = 0; mk(sphGeo, wht, [0, .5, .33], [.1, .09, .03], g); mk(sphGeo, blk, [-.03, .51, .36], [.02, .02, .01], g); mk(sphGeo, blk, [.03, .51, .36], [.02, .02, .01], g); for (const sd of [-1, 1]) mk(boxGeo, wht, [0, .43, .34], [.2, .025, .02], g).rotation.z = sd * .5; break; }
+    case 9: lathe([[0, .52], [.2, .5], [.34, .42], [.4, .24], [.42, .12], [.0, .12]], M); lathe([[.42, .13], [.6, .02], [.82, -.04], [.84, -.02], [.62, .08], [.42, .2]], M); ring(.41, .2, .028, Mdk); for (let i = 0; i < 10; i++) { const a = i / 10 * TAU; mk(boxGeo, Mdk, [Math.sin(a) * .7, .03, Math.cos(a) * .7], [.01, .01, .18], g).rotation.y = a; } break;
+    case 10: lathe([[0, .62], [.1, .61], [.18, .52], [.3, .55], [.34, .5], [.34, .14], [.0, .14]], M); lathe([[.33, .16], [.52, .14], [.78, .16], [.9, .26], [.86, .3], [.76, .22], [.5, .2], [.33, .24]], M); for (const sd of [-1, 1]) mk(sphGeo, M, [sd * .84, .26, 0], [.1, .05, .34], g).rotation.z = sd * .3; ring(.345, .23, .03, mat(0x5a2f12)); mk(boxGeo, gold, [0, .23, .35], [.1, .08, .02], g); star(0, .23, .365, .05, wht); break;
+    case 11: { const pan = [0xe03131, 0xffd43b, 0x4dabf7, 0x51cf66]; for (let i = 0; i < 4; i++) { const o = new THREE.Mesh(new THREE.SphereGeometry(.48, 12, 8, i * Math.PI / 2, Math.PI / 2, 0, Math.PI / 2), mat(pan[i], { side: DS })); o.scale.set(1, .85, 1); o.position.y = .1; g.add(o); } mk(sphGeo, blk, [0, .5, 0], [.05, .04, .05], g); sector(.58, .035, -.95, .95, blk, .09); const pr = new THREE.Group(); pr.position.y = .6; mk(cylGeo, blk, [0, -.05, 0], [.03, .1, .03], pr); mk(sphGeo, gold, [0, .02, 0], [.05, .05, .05], pr); mk(boxGeo, mat(0xe03131), [.3, .02, 0], [.6, .02, .12], pr); mk(boxGeo, mat(0x4dabf7), [0, .02, .3], [.12, .02, .6], pr); g.add(pr); char.spin.push(pr); break; }
+    case 12: lathe(dome, mat(0xffc82c, { side: DS })); lathe([[.47, .04], [.58, .02], [.6, .06], [.5, .09]], mat(0xe8b020, { side: DS })); sector(.62, .04, -.95, .95, mat(0xe8b020), .06); mk(boxGeo, mat(0xe8b020), [0, .58, 0], [.1, .09, .78], g); for (const sd of [-1, 1]) mk(boxGeo, mat(0xe8b020), [sd * .26, .5, 0], [.05, .06, .7], g); mk(cylGeo, mat(0xfff3b0), [0, .3, .46], [.1, .07, .1], g).rotation.x = Math.PI / 2; mk(sphGeo, mat(0xfffbd0), [0, .3, .52], [.07, .07, .04], g); break;
+    case 13: { const seg = [[.0, .45, .38, .0], [.05, .78, .29, .12], [.14, 1.08, .2, .26], [.3, 1.34, .12, .4], [.52, 1.55, .07, .55]]; for (const [x, y, r, t] of seg) { const c = mk(coneGeo, M, [x * .6, y - .2, 0], [r * 1.25, .42, r * 1.25], g); c.rotation.z = -t * .6; } lathe([[.3, .46], [.62, .44], [.72, .5], [.66, .55], [.5, .52], [.3, .55]], M); ring(.33, .5, .035, gold); mk(boxGeo, gold, [0, .5, .35], [.1, .08, .02], g); star(.0, .78, .3, .06, gold); star(-.1, 1.08, .2, .045, wht); star(.14, .95, .24, .04, Mlt); mk(sphGeo, gold, [.34, 1.68, 0], [.07, .07, .07], g); break; }
+    case 14: { const cs = [col, '#ff6b9a', '#ffd43b', '#4dabf7', '#51cf66', '#ff8a3d']; let n = 0; for (const [x, y, z] of [[0, .5, 0], [-.28, .42, .08], [.28, .42, .08], [-.38, .22, .0], [.38, .22, .0], [-.2, .46, -.2], [.2, .46, -.2], [-.34, .3, -.18], [.34, .3, -.18], [0, .3, -.4], [-.16, .56, .12], [.16, .56, .12]]) mk(sphGeo, mat(cs[n++ % cs.length]), [x, y, z], [.22, .22, .22], g); break; }
+    case 15: { const pink = mat('#ffc2d6', { side: DS }); for (const sd of [-1, 1]) { const ear = new THREE.Group(); ear.position.set(sd * .2, .4, -.02); ear.rotation.z = -sd * .18; ear.rotation.x = -.08; mk(sphGeo, M, [0, .5, 0], [.13, .55, .07], ear); mk(sphGeo, pink, [0, .5, .045], [.075, .43, .03], ear); g.add(ear); } lathe([[.47, .24], [.48, .1], [.46, .03], [.47, .1]], M); ring(.47, .1, .04, M); break; }
+    case 16: lathe(dome.map(([r, y]) => [r * 1.03, y * .85 + .04]), mat(0xffd43b, { side: DS })); lathe([[.46, .08], [.66, .0], [.88, -.1], [.9, -.07], [.68, .06], [.48, .14]], mat(0xffd43b, { side: DS })); lathe([[.4, -.0], [.48, -.1], [.52, -.22], [.46, -.22], [.38, -.12]], mat(0xe8b020, { side: DS })); ring(.46, .16, .03, mat(0x3b3b3b)); mk(sphGeo, wht, [0, .6, 0], [.04, .04, .04], g); break;
   }
   head.add(g);
 }
@@ -845,15 +876,17 @@ function makeGuyFromAp(ap, parent) {
   const face = new THREE.Mesh(new THREE.SphereGeometry(.45, 20, 14, Math.PI / 2 - .85, 1.7, Math.PI / 2 - .7, 1.4), new THREE.MeshBasicMaterial({ map: paintFaceTex(ap), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ch.head.add(face);
   if (ap.hat) buildHat(ap.hat, ap.hatCol, ch.head, ch);
   const B = ch.body, x = o.x;
-  if (x === 'hood') mk(sphGeo, mat(shirt), [0, .3, -.35], [.34, .3, .24], B);
-  if (x === 'overalls') { for (const s of [-1, 1]) mk(boxGeo, mat('#2f6fd6'), [s * .2, .25, .3], [.08, .6, .04], B); mk(boxGeo, mat('#2f6fd6'), [0, -.3, .3], [.5, .4, .04], B); }
-  if (x === 'rain') { for (const y of [.25, 0, -.25]) mk(sphGeo, mat(0x333333), [0, y, .32], [.04, .04, .03], B); }
-  if (x === 'tux') { mk(coneGeo, mat(0xe03131), [-.09, .42, .33], [.09, .1, .04], B).rotation.z = Math.PI / 2; mk(coneGeo, mat(0xe03131), [.09, .42, .33], [.09, .1, .04], B).rotation.z = -Math.PI / 2; mk(sphGeo, mat(0xb02020), [0, .42, .33], [.04, .04, .04], B); }
-  if (x === 'belt') { mk(cylGeo, mat(0x1b1b1b), [0, -.38, 0], [.36, .07, .3], B); mk(boxGeo, mat(0xffd43b), [0, -.38, .3], [.12, .09, .03], B); }
-  if (x === 'chef') { for (const sx of [-.12, .12]) for (const y of [.3, 0, -.3]) mk(sphGeo, mat(0xdddddd), [sx, y, .32], [.035, .035, .03], B); mk(cylGeo, mat(0xe03131), [0, .5, 0], [.28, .06, .26], B); }
-  if (x === 'cape') { const cp = mk(boxGeo, mat('#e03131'), [0, -.1, -.34], [.7, 1.0, .04], B); cp.rotation.x = .12; mk(sphGeo, mat(0xffd43b), [0, .45, .3], [.05, .05, .04], B); }
-  if (x === 'sash') { mk(cylGeo, mat('#e03131'), [0, -.38, 0], [.36, .08, .3], B); mk(boxGeo, mat('#e03131'), [.3, -.5, .25], [.07, .26, .04], B); }
-  if (x === 'vest') { mk(boxGeo, mat(ap.shirt2 === '#ffffff' ? '#ffd43b' : ap.shirt2), [0, 0, .31], [.5, .8, .04], B); for (const sx of [-.16, .16]) mk(boxGeo, mat(0x00000020), [sx, -.2, .34], [.16, .16, .03], B); }
+  const sh = new THREE.Color(shirt), shd = mat(sh.clone().multiplyScalar(.7).getHex()), shl = mat(sh.clone().lerp(new THREE.Color(0xffffff), .35).getHex()), gold = mat(0xffc82c), blk = mat(0x1d1b22);
+  const btn = (px, py, pz, r, m) => mk(sphGeo, m || gold, [px, py, pz], [r, r, r * .6], B);
+  if (x === 'hood') { mk(sphGeo, mat(shirt), [0, .36, -.33], [.36, .26, .26], B); const rim = new THREE.Mesh(new THREE.TorusGeometry(.3, .07, 8, 20, Math.PI * 1.25), mat(shirt)); rim.rotation.set(0, 0, Math.PI * .875); rim.position.set(0, .44, .02); B.add(rim); for (const sd of [-1, 1]) { mk(cylGeo, mat(0xffffff), [sd * .08, .22, .33], [.012, .24, .012], B); mk(sphGeo, mat(0xffffff), [sd * .08, .09, .33], [.03, .03, .03], B); } mk(boxGeo, shd, [0, -.18, .32], [.46, .22, .03], B); for (const sd of [-1, 1]) mk(boxGeo, shd, [sd * .2, -.18, .33], [.012, .2, .02], B); }
+  if (x === 'overalls') { const dn = mat('#2f6fd6'), dd = mat('#245bb5'); for (const sd of [-1, 1]) { mk(boxGeo, dn, [sd * .2, .22, .3], [.08, .62, .04], B); btn(sd * .2, .0, .335, .05); mk(boxGeo, dn, [sd * .21, .5, -.3], [.08, .4, .04], B).rotation.x = .15; } mk(boxGeo, dn, [0, -.28, .3], [.5, .46, .04], B); mk(boxGeo, dd, [0, -.18, .325], [.28, .2, .02], B); for (const sd of [-1, 1]) mk(boxGeo, dd, [sd * .05, -.3, .335], [.01, .1, .01], B); mk(boxGeo, dd, [0, -.12, .335], [.28, .01, .01], B); }
+  if (x === 'rain') { const yl = mat('#ffd43b'), yd = mat('#e8b40f'); for (const y of [.28, .06, -.16, -.38]) btn(0, y, .325, .045, blk); mk(boxGeo, yd, [0, .5, .1], [.52, .1, .46], B); for (const sd of [-1, 1]) { mk(boxGeo, yd, [sd * .18, -.1, .33], [.18, .015, .02], B); mk(boxGeo, yl, [sd * .18, -.02, .325], [.2, .2, .02], B); } mk(boxGeo, yd, [0, .0, .328], [.012, .9, .012], B); mk(sphGeo, yl, [0, .42, -.3], [.36, .22, .22], B); }
+  if (x === 'tux') { const wh = mat(0xffffff), rd = mat(0xe03131); for (const sd of [-1, 1]) { const lp = mk(boxGeo, blk, [sd * .13, .24, .33], [.1, .52, .02], B); lp.rotation.z = sd * .25; mk(boxGeo, wh, [sd * .045, .12, .335], [.05, .5, .015], B); } mk(coneGeo, rd, [-.1, .42, .35], [.1, .11, .04], B).rotation.z = Math.PI / 2; mk(coneGeo, rd, [.1, .42, .35], [.1, .11, .04], B).rotation.z = -Math.PI / 2; mk(sphGeo, mat(0xb02020), [0, .42, .36], [.045, .045, .04], B); for (const y of [.1, -.05, -.2]) btn(0, y, .345, .03, gold); mk(boxGeo, blk, [0, -.42, -.2], [.5, .5, .04], B).rotation.x = .1; }
+  if (x === 'belt') { mk(cylGeo, mat(0x1b1b1b), [0, -.38, 0], [.37, .08, .31], B); const bu = mk(boxGeo, gold, [0, -.38, .31], [.14, .11, .03], B); mk(boxGeo, blk, [0, -.38, .33], [.07, .06, .02], B); for (const sd of [-1, 1]) { const sa = mk(boxGeo, mat('#e03131'), [0, .05, 0], [.07, .95, .05], B); sa.position.set(sd * .0, .05, .33); sa.rotation.z = sd * .75; sa.scale.set(.06, .8, .02); } mk(sphGeo, gold, [.1, -.1, .35], [.05, .05, .02], B); }
+  if (x === 'chef') { for (const sx of [-.12, .12]) for (const y of [.3, .08, -.14, -.36]) btn(sx, y, .33, .04, mat(0xdddddd)); mk(boxGeo, mat(0xdddddd), [0, .0, .322], [.012, .9, .012], B); const nk = new THREE.Mesh(new THREE.TorusGeometry(.22, .05, 8, 18), mat(0xe03131)); nk.rotation.x = Math.PI / 2; nk.position.set(0, .52, 0); B.add(nk); mk(coneGeo, mat(0xe03131), [.0, .43, .26], [.06, .14, .04], B).rotation.z = Math.PI; }
+  if (x === 'cape') { const cm = mat('#e03131', { side: THREE.DoubleSide }); const g2 = new THREE.PlaneGeometry(.9, 1.15, 6, 8), pp = g2.attributes.position; for (let i = 0; i < pp.count; i++) { const y = pp.getY(i), xx = pp.getX(i); pp.setZ(i, -.02 - (1 - (y + .575) / 1.15) * .22 + Math.sin(xx * 7 + y * 3) * .03); pp.setX(i, xx * (1 + (.575 - y) * .25)); } g2.computeVertexNormals(); const cp = new THREE.Mesh(g2, cm); cp.position.set(0, -.08, -.34); B.add(cp); mk(sphGeo, gold, [.2, .46, .3], [.06, .06, .04], B); mk(sphGeo, gold, [-.2, .46, .3], [.06, .06, .04], B); mk(cylGeo, gold, [0, .48, .3], [.2, .015, .015], B).rotation.z = Math.PI / 2; const em = mk(coneGeo, mat(0xffd43b), [0, .0, .325], [.12, .14, .02], B); em.rotation.z = Math.PI; }
+  if (x === 'sash') { mk(cylGeo, mat('#e03131'), [0, -.38, 0], [.37, .1, .31], B); mk(coneGeo, mat('#e03131'), [.3, -.52, .24], [.07, .3, .03], B).rotation.z = .2; mk(coneGeo, mat('#c02020'), [.18, -.5, .3], [.06, .26, .03], B).rotation.z = -.15; mk(sphGeo, mat('#e03131'), [.22, -.4, .3], [.07, .06, .04], B); for (const sd of [-1, 1]) mk(cylGeo, mat('#e03131'), [sd * .27, -.1, 0], [.07, .05, .07], B); mk(boxGeo, mat('#3a3548'), [0, .2, .32], [.46, .03, .02], B); }
+  if (x === 'vest') { const vc = mat(ap.shirt2 === '#ffffff' ? '#ffd43b' : ap.shirt2), vd = mat(new THREE.Color(ap.shirt2 === '#ffffff' ? '#ffd43b' : ap.shirt2).multiplyScalar(.7).getHex()); mk(boxGeo, vc, [0, 0, .31], [.5, .82, .04], B); mk(boxGeo, vd, [0, 0, .335], [.012, .8, .012], B); for (const sx of [-.16, .16]) { mk(boxGeo, vd, [sx, -.22, .34], [.17, .17, .03], B); mk(boxGeo, vc, [sx, -.16, .355], [.17, .04, .02], B); btn(sx, -.18, .37, .02, gold); mk(boxGeo, vd, [sx, .15, .34], [.14, .12, .03], B); } for (const sd of [-1, 1]) mk(boxGeo, vc, [sd * .2, .42, .26], [.1, .1, .12], B); mk(cylGeo, mat(0xff6b3a), [.18, .02, .36], [.012, .1, .012], B); }
   enableShadows(ch.group); return ch;
 }
 function ik2(S, T, L1, L2, hint) {
@@ -899,18 +932,43 @@ function rebuildAllChars() {
   if (typeof rebuildPreview === 'function' && ui === 'closet') rebuildPreview();
   if (typeof rebuildFin === 'function') rebuildFin();
 }
+const fishBodyMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad });
 function makeFish3D(sp) {
   const g = new THREE.Group(), m1 = mat(sp.c1), m2 = mat(sp.c2);
   if (sp.shape === 4) { mk(boxGeo, m1, [0, .1, 0], [.3, .55, .22], g); mk(boxGeo, m1, [.3, -.1, 0], [.62, .22, .22], g); mk(boxGeo, m2, [.3, -.22, 0], [.64, .05, .24], g); const b = new THREE.Group(); b.add(g); return b; }
   const D = { 0: [.5, .26, .15], 1: [.95, .12, .1], 2: [.4, .4, .36], 3: [.5, .06, .5] }[sp.shape];
-  mk(sphGeo, m1, [0, 0, 0], D, g); mk(sphGeo, m2, [.02, -D[1] * .35, 0], [D[0] * .9, D[1] * .55, D[2] * .92], g);
-  const tail = mk(coneGeo, m2, [-D[0] - .1, 0, 0], [.2, .3, .04], g); tail.rotation.z = Math.PI / 2;
-  if (sp.shape !== 3) mk(coneGeo, m2, [-.05, D[1] + .06, 0], [.12, .2, .04], g);
-  else { mk(coneGeo, m1, [-D[0] - .4, 0, 0], [.03, .5, .03], g).rotation.z = Math.PI / 2; }
-  for (const s of [-1, 1]) { mk(sphGeo, mat(0xffffff), [D[0] * .68, D[1] * .32, s * D[2] * .8], [.07, .07, .05], g); mk(sphGeo, mat(0x111111), [D[0] * .74, D[1] * .32, s * D[2] * .88], [.035, .035, .03], g); }
-  if (sp.pat === 1) for (let i = 0; i < 3; i++) mk(boxGeo, m2, [-.15 + i * .2, 0, 0], [.05, D[1] * 2.05, D[2] * 2.05], g);
-  if (sp.pat === 2) for (let i = 0; i < 5; i++) mk(sphGeo, m2, [-.2 + i * .12, D[1] * .7 * (i % 2 ? 1 : -.3), D[2] * .7 * (i % 2 ? .7 : -.7)], [.05, .05, .05], g);
-  if (sp.shape === 2) for (let i = 0; i < 8; i++) { const a = i / 8 * TAU; const c = mk(coneGeo, m2, [Math.cos(a) * D[0] * .85, Math.sin(a) * D[1] * .95, 0], [.05, .12, .05], g); c.rotation.z = a - Math.PI / 2; }
+  const c1 = new THREE.Color(sp.c1), c2 = new THREE.Color(sp.c2), dark = c1.clone().multiplyScalar(.5), belly = c2.clone().lerp(new THREE.Color(0xffffff), .4), tmp = new THREE.Color();
+  // smooth tapered body, shaded back-to-belly with scale-like patterning painted into the vertices
+  const geo = new THREE.SphereGeometry(1, 30, 20), P = geo.attributes.position, cols = new Float32Array(P.count * 3), sm = THREE.MathUtils.smoothstep;
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), back = Math.max(0, -x), front = Math.max(0, x);
+    const taper = sp.shape === 3 ? 1 - back * .12 : (1 - Math.pow(back, 1.5) * .8) * (1 - Math.pow(front, 3) * .3);
+    P.setXYZ(i, x * D[0], y * D[1] * taper * (y < 0 ? .86 : 1), z * D[2] * taper);
+    tmp.copy(belly).lerp(c1, sm(y, -.5, .25)); if (y > .55) tmp.lerp(dark, (y - .55) * .9);
+    if (sp.pat === 1 && Math.sin(x * 15) > .45 && y > -.25) tmp.lerp(c2, .9);
+    if (sp.pat === 2 && Math.sin(x * 24 + .5) * Math.sin(y * 19 + z * 13) > .8) tmp.lerp(c2, .95);
+    const sc = Math.sin(x * 55 + (Math.floor(y * 16) & 1) * 1.6) * Math.sin(y * 48) * .5 + .5; tmp.multiplyScalar(.93 + sc * .1);   // faint scale rows
+    if (x > .42 && x < .5) tmp.multiplyScalar(.62);                                                                                   // gill line
+    if (x < -.78) tmp.lerp(c2, .55);
+    cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals();
+  g.add(new THREE.Mesh(geo, fishBodyMat));
+  const fin = (pts, sx, sy, x, y, z, ry, rz) => { const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); const f = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshToonMaterial({ color: sp.c2, gradientMap: toonGrad, side: THREE.DoubleSide })); f.scale.set(sx, sy, 1); f.position.set(x, y, z); f.rotation.set(0, ry || 0, rz || 0); g.add(f); return f; };
+  const fh = Math.max(.55, D[1] * 3.4);
+  if (sp.shape === 3) { mk(coneGeo, m1, [-D[0] - .4, 0, 0], [.03, .5, .03], g).rotation.z = Math.PI / 2; }
+  else {
+    fin([[0, .07], [-.14, .3], [-.3, .34], [-.24, .06], [-.3, -.3], [-.14, -.28], [0, -.07]], fh, fh, -D[0] * .94, 0, 0);                              // forked tail
+    if (sp.shape !== 2) fin([[0, 0], [-.06, .2], [-.14, .26], [-.3, .2], [-.32, 0]], D[0] * 1.1, D[1] * 1.5, D[0] * .1, D[1] * .88, 0);                // dorsal
+    fin([[0, 0], [-.1, -.14], [-.26, -.12], [-.22, 0]], D[0] * 1.1, D[1] * 1.3, -D[0] * .3, -D[1] * .8, 0);                                         // anal
+  }
+  for (const sd of [-1, 1]) fin([[0, 0], [-.12, -.1], [-.3, -.22], [-.2, .02]], D[0] * 1.2, D[1] * 1.5, D[0] * .3, -D[1] * .25, sd * D[2] * .8, sd * 1.2, .1);   // pectorals
+  for (const sd of [-1, 1]) {
+    const eye = new THREE.Group(); eye.position.set(D[0] * .68, D[1] * .3, sd * D[2] * .76); g.add(eye);
+    mk(sphGeo, mat(0xffffff), [0, 0, sd * .005], [.075, .075, .05], eye); mk(sphGeo, mat(sp.c2 === '#ffffff' ? 0xffc83a : 0xffc83a), [.012, 0, sd * .03], [.052, .052, .03], eye); mk(sphGeo, mat(0x0a0a12), [.018, 0, sd * .042], [.034, .034, .02], eye); mk(sphGeo, mat(0xffffff), [.03, .02, sd * .052], [.012, .012, .01], eye);
+  }
+  if (sp.shape !== 3) mk(boxGeo, mat(0x3a1a1a), [D[0] * .99, -D[1] * .12, 0], [.03, .015, D[2] * .5], g);                                           // mouth
+  if (sp.shape === 2) for (let i = 0; i < 18; i++) { const u = Math.acos(1 - 2 * (i + .5) / 18), v = Math.PI * (1 + Math.sqrt(5)) * i, nx = Math.cos(v) * Math.sin(u), ny = Math.cos(u), nz = Math.sin(v) * Math.sin(u); if (nx > .75) continue; const sp2 = mk(coneGeo, mat(sp.c2), [nx * D[0] * 1.02, ny * D[1] * 1.02, nz * D[2] * 1.02], [.04, .13, .04], g); sp2.lookAt(nx * 5, ny * 5, nz * 5); sp2.rotateX(Math.PI / 2); }
   return g;
 }
 function drawFishIcon(sp, sil) {
@@ -999,7 +1057,9 @@ const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
 let started = false, ui = 'menu', time = 0, sleepLock = 0, sleepTimer = 5, burpTimer = 4, honkTimer = 3, nausea = 0, xpBoost = false, eatT = 0, eatFx = null, wheelQ = 0, discoDir = 0;
 const bucket = [];
-let selSlot = 0;
+let selSlot = 0, rodOut = true;
+function hotSelect(n) { if (n === 0) rodOut = true; else if (bucket[n - 1]) { rodOut = false; selSlot = n - 1; } else return; sfx.tick(); lastHudKey = ''; }
+function hotCycle(dir) { const n = bucket.length + 1; let cur = rodOut ? 0 : selSlot + 1; cur = (cur + dir + n) % n; hotSelect(cur); }
 const bucketCap = () => 6 + 2 * skill('bucket');
 function stats() {
   const r = RODS[save.rod];
@@ -1144,7 +1204,7 @@ function addToBucket(idx, kg) {
 }
 function updateFishing(dt) {
   if (me.riding || me.swim) { if (F.state !== 'idle') resetFishing(); mouse.pressed = false; mouse.rpressed = false; return; }
-  const canAct = ui === 'play' && sleepLock <= 0;
+  const canAct = ui === 'play' && sleepLock <= 0 && rodOut;
   if (!canAct) { F.power = 0; }
   switch (F.state) {
     case 'idle':
@@ -1225,9 +1285,10 @@ function applyFx(id, silent) {
   return id;
 }
 function eatSelected() {
-  if (eatT > 0 || F.state !== 'idle' && F.state !== 'show') return; me.showing = false;
+  if (eatT > 0 || F.state !== 'idle' && F.state !== 'show') return;
+  if (bucket.length && rodOut) { toast('Pick a fish first: number keys or Q. Press 1 for the rod.', 1800, '#ffd43b'); return; }
   if (!bucket.length) { toast('You ate the BAIT! Blech. 🪱', 2200, '#ff8a8a'); nausea = 4; eatT = 1; eatFx = null; sfx.eat(); sfx.bad(); netEvent({ k: 'ate', name: me.name, what: 'the bait' }); return; }
-  const it = bucket.splice(selSlot, 1)[0]; selSlot = clamp(selSlot, 0, bucket.length - 1); eatT = 1.1; eatFx = it; sfx.eat();
+  const it = bucket.splice(selSlot, 1)[0]; selSlot = clamp(selSlot, 0, bucket.length - 1); eatT = 1.1; eatFx = it; rodOut = true; sfx.eat();
 }
 function finishEat() {
   const it = eatFx; eatFx = null; if (!it) return; const sp = FISH[it.idx]; const id = applyFx(sp.fx), f = FX[id];
@@ -1545,7 +1606,10 @@ function enterWorld() { started = true; me.name = save.name || 'Player'; setUI('
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement === canvas) wasLocked = true; else if (wasLocked && ui === 'play') { wasLocked = false; setUI('pause'); } });
 function updateBucketUI() {
-  const b = $('bucket'); b.innerHTML = ''; bucket.forEach((it, i) => { const d = document.createElement('div'); d.className = 'slot' + (i === selSlot ? ' sel' : ''); d.innerHTML = `<img src="${ICON[it.idx]}">`; d.title = FISH[it.idx].n; b.appendChild(d); });
+  const b = $('bucket'); b.innerHTML = '';
+  const tile = (html, on, n, title) => { const d = document.createElement('div'); d.className = 'slot' + (on ? ' sel' : ''); d.innerHTML = `<span class="hk">${n}</span>${html}`; if (title) d.title = title; b.appendChild(d); return d; };
+  tile('<span style="font-size:24px">🎣</span>', rodOut, 1, 'Fishing rod');
+  bucket.forEach((it, i) => tile(`<img src="${ICON[it.idx]}">`, !rodOut && i === selSlot, i + 2 <= 9 ? i + 2 : '', FISH[it.idx].n));
   for (let i = bucket.length; i < bucketCap(); i++) { const d = document.createElement('div'); d.className = 'slot'; d.style.opacity = .35; b.appendChild(d); }
 }
 let lastHudKey = '';
@@ -1554,9 +1618,9 @@ function updateHUD() {
   const list = [{ n: me.name, s: save.score, me: 1 }]; for (const rp of remotes.values()) list.push({ n: rp.name, s: rp.score || 0 }); list.sort((a, b) => b.s - a.s);
   $('players').firstChild.textContent = `PLAYERS: ${list.length}/8`; $('plist').innerHTML = NET.role === 'solo' ? '' : list.map(p => `<div style="color:${p.me ? '#ffd43b' : '#fff'}">${p.n}  ${p.s}</div>`).join('');
   $('stressbar').firstElementChild.style.width = (F.state === 'fight' && F.G ? clamp(F.G.stress, 0, 1) * 100 : 0) + '%';
-  const key = [bucket.length, selSlot, save.baitSel, save.bait.shrimp, save.bait.glitter, Object.keys(effects).join(), save.rod, bucketCap()].join('|');
+  const key = [bucket.length, selSlot, rodOut, save.baitSel, save.bait.shrimp, save.bait.glitter, Object.keys(effects).join(), save.rod, bucketCap()].join('|');
   if (key !== lastHudKey) { lastHudKey = key; updateBucketUI(); }
-  const it = bucket[selSlot];
+  const it = rodOut ? null : bucket[selSlot];
   if (it) { const sp = FISH[it.idx], b = save.book[it.idx], f = FX[sp.fx]; $('card').style.display = 'flex'; $('card').innerHTML = `<img src="${ICON[it.idx]}"><div><div class="nm" style="color:${R_COL[sp.r]}">${sp.n}</div><div class="sm">Lv ${fishLevel(sp, it.kg)} · ${it.kg} kg · ${R_NAMES[sp.r]}</div><div class="sm">Effect if eaten: ${b && b.fx ? f.e + ' ' + f.n : '❓ ???'}</div><div class="sm">Press E to eat · Q to switch</div></div>`; } else $('card').style.display = 'none';
   const bi = BAITS[save.baitSel]; $('bait').textContent = `${bi.e} ${bi.n}${save.baitSel === 'worm' ? ' (∞)' : ' ×' + save.bait[save.baitSel]}  [R]`;
   $('fx').innerHTML = Object.entries(effects).map(([k, t]) => { const f = FX[k]; return `<div class="chip ${f.g === true ? 'g' : f.g === false ? 'b' : 'n'}">${f.e} ${f.n} ${Math.ceil(t)}s</div>`; }).join('');
@@ -1702,8 +1766,9 @@ addEventListener('keydown', e => {
   if (!e.repeat) pressedQ.push(e.code); keys[e.code] = true; if (ui === 'play' && !document.pointerLockElement) lockPointer(); if (e.repeat) return;
   if (ui === 'play') {
     if (e.code === 'KeyE') eatSelected();
-    if (e.code === 'KeyH') { if (me.showing) me.showing = false; else if (F.state !== 'idle') { } else if (bucket.length) { me.showing = true; toast(`Holding up your ${FISH[bucket[selSlot].idx].n}. Press H to put it away.`, 1800, '#ffd43b'); } else toast('Catch a fish first!', 1200); }
-    if (e.code === 'KeyQ') { if (bucket.length) { selSlot = (selSlot + 1) % bucket.length; sfx.tick(); } }
+    if (e.code === 'KeyH') { if (!rodOut) hotSelect(0); else if (F.state === 'idle' && bucket.length) hotSelect(selSlot + 1); else if (!bucket.length) toast('Catch a fish first!', 1200); }
+    if (/^Digit[1-9]$/.test(e.code)) hotSelect(+e.code.slice(5) - 1);
+    if (e.code === 'KeyQ') hotCycle(1);
     if (e.code === 'KeyR') { const order = ['worm', 'shrimp', 'glitter', 'mega'].filter(k => k === 'worm' || save.bait[k] > 0); save.baitSel = order[(order.indexOf(save.baitSel) + 1) % order.length] || 'worm'; sfx.tick(); persist(); }
     if (e.code === 'KeyF') openMarket();
     if (e.code === 'KeyB') openBook();
@@ -1736,7 +1801,7 @@ function stickLook(dt) {
   const nx = mpos.x / innerWidth, e = .04; // only keeps turning while the cursor is pushed against the screen edge
   if (nx < e) me.yaw += 3 * dt * (1 - nx / e); else if (nx > 1 - e) me.yaw -= 3 * dt * ((nx - (1 - e)) / e);
 }
-addEventListener('wheel', e => { if (ui === 'play' && bucket.length) { selSlot = (selSlot + (e.deltaY > 0 ? 1 : -1) + bucket.length) % bucket.length; } }, { passive: true });
+addEventListener('wheel', e => { if (ui === 'play' && F.state === 'idle') hotCycle(e.deltaY > 0 ? 1 : -1); }, { passive: true });
 
 /* =========================================================
    LOOP
@@ -2284,8 +2349,8 @@ function updateMeAvatar(dt) {
   else if (fishing) me.bodyYaw = lerpAngle(me.bodyYaw, me.yaw, 10 * dt);
   else if (me.spd > .3) me.bodyYaw = lerpAngle(me.bodyYaw, Math.atan2(me.vx, me.vz), 12 * dt);
   let mode = 'hold'; const st = F.state;
-  if (me.showing && (F.state !== 'idle' || !bucket.length || me.riding || me.swim)) me.showing = false;
-  curHold = (me.riding || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : me.showing && bucket[selSlot] ? bucket[selSlot] : null;
+  if (!rodOut && (!bucket.length || !bucket[selSlot])) rodOut = true;
+  curHold = (me.riding || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : !rodOut && bucket[selSlot] ? bucket[selSlot] : null;
   if (me.riding) mode = 'ride'; else if (me.swim) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (has('disco')) mode = 'dance';
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
@@ -2321,7 +2386,7 @@ function loop(now) {
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 buildDetail(); buildShore(); buildPlaza(); buildIsland360(); addFun(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { makeFish3D, buildHat,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>

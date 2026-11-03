@@ -24,7 +24,7 @@ Click **Host online room** and share the 4-letter code. Friends click **Join roo
 | RMB | reel in |
 | E | eat the selected fish (not the bait!) |
 | Q / wheel | pick a fish in your bucket |
-| H | hold the selected fish up in both hands (everyone in the room sees it) |
+| 1 = rod, 2-9 = fish | pick your rod or a fish. A selected fish stays in your hands until you pick the rod again (H toggles). |
 | R | switch bait |
 | F | market (near the stall) |
 | B | Fish Dictionary and skills |
