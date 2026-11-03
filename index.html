@@ -464,7 +464,7 @@ function plankTop(x0, x1, z0, z1, y) {
   // lamp posts
   for (const [x, z] of [[-4.2, -12], [4.2, -24], [-4.2, 2]]) { mk(cylGeo, mat(0x3b3b3b), [x, Y0 + 1.6, z], [.1, 3.2, .1], scene); mk(sphGeo, new THREE.MeshBasicMaterial({ color: 0xffe9a8 }), [x, Y0 + 3.3, z], [.3, .3, .3], scene); }
   // rowboat
-  const bm = mat(0xc4672f); deco(7, 11, -.2, .5, -18, -14, bm); deco(7.3, 10.7, .5, .6, -17.7, -14.3, mat(0xe8c28f)); deco(6.6, 7.0, .2, .9, -17.6, -14.4, bm);
+  // (floating rowboats removed)
   // rocks on beach + palm-ish trees
   for (let i = 0; i < 9; i++) { const x = rnd(-30, 30), z = rnd(14, 40); if (Math.abs(x - 14) < 8 && z < 22) continue; mk(new THREE.IcosahedronGeometry(1, 0), mat(0xa9a39a), [x, Y0 + .1, z], [rnd(.4, 1.1), rnd(.3, .7), rnd(.4, 1)], scene); }
 }
@@ -493,7 +493,7 @@ function drawSign() {
   g.fillStyle = '#fff'; g.font = 'bold 44px "Trebuchet MS",Arial'; g.fillText(`(${found}/${FISH.length})`, 256, 165);
   g.font = 'bold 34px "Trebuchet MS",Arial'; g.fillText('TOP SELLER:', 256, 240);
   const best = Object.keys(save.book).reduce((m, i) => Math.max(m, FISH[i].price), 0);
-  g.fillStyle = '#ffd43b'; g.font = 'bold 62px "Trebuchet MS",Arial'; g.fillText((best || 500) + ' G!', 256, 315); signTex.needsUpdate = true;
+  g.fillStyle = '#ffd43b'; g.font = 'bold 62px "Trebuchet MS",Arial'; g.fillText('$' + (best || 500) + '!', 256, 315); signTex.needsUpdate = true;
 }
 drawSign();
 {
@@ -1074,6 +1074,7 @@ const myLine = makeLine(); myLine.visible = false;
 const heldFish = new THREE.Group(); scene.add(heldFish); heldFish.visible = false;
 const heldSlot = { g: heldFish, key: '' }; let curHold = null;
 /* a fish actually held in both hands (shown to everyone in the room) */
+function lbs(kg) { return Math.round(kg * 22.046) / 10; }
 function setHeld(slot, item, ch, yaw, sc) {
   if (!item || !ch) { slot.g.visible = false; return; }
   const key = item.idx + '|' + Math.round(item.kg * 10);
@@ -1198,7 +1199,7 @@ function addToBucket(idx, kg) {
   const lv = fishLevel(sp, kg); let xp = Math.round((10 + 14 * sp.r * sp.r + kg * 1.5) * (xpBoost ? 3 : 1)); xpBoost = false;
   save.xp += xp; let lvUp = false; while (save.xp >= xpNeed(save.level)) { save.xp -= xpNeed(save.level); save.level++; lvUp = true; }
   bucket.push({ idx, kg }); selSlot = bucket.length - 1;
-  toast(`CAUGHT! ${sp.n} · ${kg} kg · Lv ${lv}`, 2600, R_COL[sp.r]); if (first) { toast('NEW FISH! Added to your Fish Dictionary 📖', 2600, '#ffd43b'); drawSign(); }
+  toast(`CAUGHT! ${sp.n} · ${lbs(kg)} lbs · Lv ${lv}`, 2600, R_COL[sp.r]); if (first) { toast('NEW FISH! Added to your Fish Dictionary 📖', 2600, '#ffd43b'); drawSign(); }
   if (lvUp) { sfx.lvl(); toast(`LEVEL UP! You are level ${save.level}. Skill point earned! Press T to spend it.`, 3400, '#ffd43b'); }
   netEvent({ k: 'catch', name: me.name, fish: sp.n, kg, r: sp.r }); persist();
 }
@@ -1454,12 +1455,14 @@ function feed(txt, col = '#fff') { toast(txt, 3000, col); }
 function netSplash(x, z) { if (NET.role !== 'solo') netEvent({ k: 'splash', x, z }); }
 function handleEvent(ev, fromId) {
   switch (ev.k) {
-    case 'catch': { const col = R_COL[ev.r] || '#fff'; if (ev.r >= 2 || Math.random() < .5) feed(`${ev.name} caught a ${ev.fish} (${ev.kg}kg)!`, col); break; }
+    case 'catch': { const col = R_COL[ev.r] || '#fff'; if (ev.r >= 2 || Math.random() < .5) feed(`${ev.name} caught a ${ev.fish} (${lbs(ev.kg)} lbs)!`, col); break; }
     case 'ate': { const f = ev.fx ? FX[ev.fx] : null; feed(`${ev.name} ate ${ev.what}${f ? ` → ${f.e} ${f.n}!` : '!'}`, f ? (f.g === false ? '#ff8a8a' : '#8ce99a') : '#ffd43b'); break; }
     case 'honk': sfx.honk(); break;
+    case 'toffer': case 'tacc': case 'tdec': case 'tgive': case 'tack': tradeEvent(ev); break;
+    case 'chaos': runChaos(ev.t, ev.seed); break;
     case 'ck': { sfx.squeak(); if (NET.role === 'host') { const c = plaza.crabs[ev.i]; if (c && !c.fly && !(c.dead > 0)) { c.fly = { vx: ev.vx, vy: ev.vy, vz: ev.vz, spin: ev.spin }; c.stun = 0; } } break; }
     case 'bk': if (NET.role === 'host') fun.ballV.set(ev.vx, ev.vy, ev.vz); sfx.thunk(); break;
-    case 'shove': if (ev.to === NET.myId && !me.riding) { me.kx = ev.dx * 11; me.kz = ev.dz * 11; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
+    case 'shove': if (ev.to === NET.myId && !me.riding) { me.kx = ev.dx * 15; me.kz = ev.dz * 15; me.knockT = .5; me.wob = 1.2; toast(`${ev.who} shoved you!`, 1800, '#ff8a8a'); sfx.thunk(); } break;
     case 'mega': feed(`${ev.name} caught a MEGA ${ev.sp} and named it ${ev.mega}!`, '#6fe8ff'); sfx.lvl(); break;
     case 'splash': { ripple(ev.x, ev.z); splash(ev.x, .1, ev.z, 8, 2); break; }
     case 'ap': { const info = NET.players.get(ev.id) || {}; info.ap = ev.ap; NET.players.set(ev.id, info); const rp = remotes.get(ev.id); if (rp) { rp.ap = ev.ap; buildRemoteBody(rp); } break; }
@@ -1621,10 +1624,10 @@ function updateHUD() {
   const key = [bucket.length, selSlot, rodOut, save.baitSel, save.bait.shrimp, save.bait.glitter, Object.keys(effects).join(), save.rod, bucketCap()].join('|');
   if (key !== lastHudKey) { lastHudKey = key; updateBucketUI(); }
   const it = rodOut ? null : bucket[selSlot];
-  if (it) { const sp = FISH[it.idx], b = save.book[it.idx], f = FX[sp.fx]; $('card').style.display = 'flex'; $('card').innerHTML = `<img src="${ICON[it.idx]}"><div><div class="nm" style="color:${R_COL[sp.r]}">${sp.n}</div><div class="sm">Lv ${fishLevel(sp, it.kg)} · ${it.kg} kg · ${R_NAMES[sp.r]}</div><div class="sm">Effect if eaten: ${b && b.fx ? f.e + ' ' + f.n : '❓ ???'}</div><div class="sm">Press E to eat · Q to switch</div></div>`; } else $('card').style.display = 'none';
+  if (it) { const sp = FISH[it.idx], b = save.book[it.idx], f = FX[sp.fx]; $('card').style.display = 'flex'; $('card').innerHTML = `<img src="${ICON[it.idx]}"><div><div class="nm" style="color:${R_COL[sp.r]}">${sp.n}</div><div class="sm">Lv ${fishLevel(sp, it.kg)} · ${lbs(it.kg)} lbs · ${R_NAMES[sp.r]}</div><div class="sm">Effect if eaten: ${b && b.fx ? f.e + ' ' + f.n : '❓ ???'}</div><div class="sm">Press E to eat · Q to switch</div></div>`; } else $('card').style.display = 'none';
   const bi = BAITS[save.baitSel]; $('bait').textContent = `${bi.e} ${bi.n}${save.baitSel === 'worm' ? ' (∞)' : ' ×' + save.bait[save.baitSel]}  [R]`;
   $('fx').innerHTML = Object.entries(effects).map(([k, t]) => { const f = FX[k]; return `<div class="chip ${f.g === true ? 'g' : f.g === false ? 'b' : 'n'}">${f.e} ${f.n} ${Math.ceil(t)}s</div>`; }).join('');
-  let pr = ''; if (ui === 'play') { if (Math.hypot(me.x - STALL.x, me.z - (STALL.z + 1.5)) < 6) pr = '[F] Fin\'s Fish Market'; else if (F.state === 'idle' && bucket.length === 0) pr = ''; if (F.state === 'wait') pr = 'Waiting for a bite… (click to reel in)'; } if (ui === 'play') { if (me.swim) pr = '[Space] climb out at a dock · Shift swim fast'; else if (me.riding) pr = '[G] Dismount · Shift boost · Space leap'; else if (MEGA.summoned && MEGA.rec && Math.hypot(MEGA.x - me.x, MEGA.z - me.z) < 12) pr = `[G] Ride ${MEGA.rec.name}`; }
+  let pr = ''; if (ui === 'play') { if (Math.hypot(me.x - STALL.x, me.z - (STALL.z + 1.5)) < 6) pr = '[F] Fin\'s Fish Market'; else if (F.state === 'idle' && bucket.length === 0) pr = ''; if (F.state === 'wait') pr = 'Waiting for a bite… (click to reel in)'; } if (ui === 'play') { if (me.swim) pr = '[Space] climb out at a dock · Shift swim fast'; else if (me.riding) pr = '[G] Dismount · Shift boost · Space leap'; else if (MEGA.summoned && MEGA.rec && Math.hypot(MEGA.x - me.x, MEGA.z - me.z) < 12) pr = `[G] Hop on ${MEGA.rec.name}`; else if (MEGA.summoned && MEGA.rec) pr = `${MEGA.rec.name} is out in the water. Swim up close and press [G] to ride!`; else if (save.megas.length && F.state === 'idle' && rodOut && !pr) pr = '🐋 [G] Call your Mega (face the sea) · [M] Stable'; }
   $('prompt').textContent = pr;
 }
 function drawIcon(i, found) { return `<img src="${found ? ICON[i] : ICON_SIL[i]}">`; }
@@ -1632,29 +1635,29 @@ function drawIcon(i, found) { return `<img src="${found ? ICON[i] : ICON_SIL[i]}
 let mTab = 'sell';
 function sellPrice(it) { const sp = FISH[it.idx]; return Math.round(sp.price * (.7 + .6 * clamp((it.kg - sp.min) / Math.max(.01, sp.max - sp.min), 0, 1)) * (has('goldtouch') ? 2 : 1)); }
 function renderMarket() {
-  $('mGold').textContent = `💰 ${save.gold} G`; const body = $('mBody'); body.innerHTML = '';
+  $('mGold').textContent = `💰 $${save.gold}`; const body = $('mBody'); body.innerHTML = '';
   document.querySelectorAll('#market .tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === mTab));
   if (mTab === 'sell') {
     if (!bucket.length) body.innerHTML = '<div class="sub">Your bucket is empty. Go catch something!</div>';
     else {
       const row = document.createElement('div'); row.className = 'grid';
-      bucket.forEach((it, i) => { const sp = FISH[it.idx], d = document.createElement('div'); d.className = 'fcard'; d.innerHTML = `${drawIcon(it.idx, true)}<div style="color:${R_COL[sp.r]};font-weight:900">${sp.n}</div><div>${it.kg} kg</div>`; const b = document.createElement('button'); b.className = 'opt'; b.textContent = `Sell ${sellPrice(it)} G`; b.onclick = () => { const p = sellPrice(it); bucket.splice(i, 1); selSlot = clamp(selSlot, 0, bucket.length - 1); save.gold += p; save.score += p; persist(); sfx.cash(); renderMarket(); }; d.appendChild(b); row.appendChild(d); });
-      body.appendChild(row); const all = document.createElement('button'); all.textContent = `Sell all (${bucket.reduce((s, it) => s + sellPrice(it), 0)} G)`; all.onclick = () => { const p = bucket.reduce((s, it) => s + sellPrice(it), 0); bucket.length = 0; selSlot = 0; save.gold += p; save.score += p; persist(); sfx.cash(); renderMarket(); }; body.appendChild(all);
+      bucket.forEach((it, i) => { const sp = FISH[it.idx], d = document.createElement('div'); d.className = 'fcard'; d.innerHTML = `${drawIcon(it.idx, true)}<div style="color:${R_COL[sp.r]};font-weight:900">${sp.n}</div><div>${lbs(it.kg)} lbs</div>`; const b = document.createElement('button'); b.className = 'opt'; b.textContent = `Sell $${sellPrice(it)}`; b.onclick = () => { const p = sellPrice(it); bucket.splice(i, 1); selSlot = clamp(selSlot, 0, bucket.length - 1); save.gold += p; save.score += p; persist(); sfx.cash(); renderMarket(); }; d.appendChild(b); row.appendChild(d); });
+      body.appendChild(row); const all = document.createElement('button'); all.textContent = `Sell all ($${bucket.reduce((s, it) => s + sellPrice(it), 0)})`; all.onclick = () => { const p = bucket.reduce((s, it) => s + sellPrice(it), 0); bucket.length = 0; selSlot = 0; save.gold += p; save.score += p; persist(); sfx.cash(); renderMarket(); }; body.appendChild(all);
     }
   } else if (mTab === 'rod') {
     const g = document.createElement('div'); g.className = 'grid'; g.style.gridTemplateColumns = 'repeat(auto-fill,minmax(230px,1fr))';
     RODS.forEach((r, i) => { const d = document.createElement('div'); d.className = 'card'; d.innerHTML = `<b style="color:${r.col === '#343a40' ? '#adb5bd' : r.col}">${r.n}</b><div class="small">${r.d}</div><div class="small">Cast ${r.cast}m · Bite speed ×${(1 / r.bite).toFixed(1)} · Luck +${Math.round(r.luck * 100)}% · Line ×${r.line}</div>`; const b = document.createElement('button'); b.className = 'opt';
-      if (save.rod === i) { b.textContent = 'Equipped ✓'; b.disabled = true; } else if (save.rod > i) { b.textContent = 'Owned'; b.disabled = true; } else { b.textContent = `Buy ${r.price} G`; b.disabled = save.gold < r.price || i !== save.rod + 1; if (i !== save.rod + 1) b.textContent = 'Locked'; b.onclick = () => { save.gold -= r.price; save.rod = i; persist(); setMyRod(); sfx.cash(); toast(`New rod: ${r.n}!`, 2000, '#ffd43b'); renderMarket(); }; } d.appendChild(b); g.appendChild(d); });
+      if (save.rod === i) { b.textContent = 'Equipped ✓'; b.disabled = true; } else if (save.rod > i) { b.textContent = 'Owned'; b.disabled = true; } else { b.textContent = `Buy $${r.price}`; b.disabled = save.gold < r.price || i !== save.rod + 1; if (i !== save.rod + 1) b.textContent = 'Locked'; b.onclick = () => { save.gold -= r.price; save.rod = i; persist(); setMyRod(); sfx.cash(); toast(`New rod: ${r.n}!`, 2000, '#ffd43b'); renderMarket(); }; } d.appendChild(b); g.appendChild(d); });
     body.appendChild(g);
   } else if (mTab === 'mega') {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Food keeps your Mega fed (hungry Megas swim slower) and levels it up: faster, bigger and glowier. Open the Mega Stable (M) to feed them.</div>');
-    for (const [k, f] of Object.entries(FOODS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:440px'; d.innerHTML = `<b>${f.e} ${f.n}</b> (you have ${save.food[k] || 0})<div class="small">+${f.h} hunger · +${f.xp} XP</div>`; const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = `Buy ${f.pack} for ${f.price} G`; bt.disabled = save.gold < f.price; bt.onclick = () => { save.gold -= f.price; save.food[k] = (save.food[k] || 0) + f.pack; persist(); sfx.cash(); renderMarket(); }; d.appendChild(bt); body.appendChild(d); }
+    for (const [k, f] of Object.entries(FOODS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:440px'; d.innerHTML = `<b>${f.e} ${f.n}</b> (you have ${save.food[k] || 0})<div class="small">+${f.h} hunger · +${f.xp} XP</div>`; const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = `Buy ${f.pack} for $${f.price}`; bt.disabled = save.gold < f.price; bt.onclick = () => { save.gold -= f.price; save.food[k] = (save.food[k] || 0) + f.pack; persist(); sfx.cash(); renderMarket(); }; d.appendChild(bt); body.appendChild(d); }
     const sb = document.createElement('button'); sb.className = 'sec'; sb.textContent = '🐋 Open Mega Stable'; sb.onclick = () => { stableFrom = null; openStable(); }; body.appendChild(sb);
   } else if (mTab === 'map') {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Expand the world! Some areas are only reachable by riding a Mega.</div>');
-    for (const m of MAPS) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:520px'; d.innerHTML = `<b>${m.e} ${m.n}</b><div class="small">${m.d}</div>`; const bt = document.createElement('button'); bt.className = 'opt'; if (save.maps[m.id]) { bt.textContent = 'Unlocked ✓'; bt.disabled = true; } else { bt.textContent = `Unlock ${m.price} G`; bt.disabled = save.gold < m.price; bt.onclick = () => buyMap(m); } d.appendChild(bt); body.appendChild(d); }
+    for (const m of MAPS) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:520px'; d.innerHTML = `<b>${m.e} ${m.n}</b><div class="small">${m.d}</div>`; const bt = document.createElement('button'); bt.className = 'opt'; if (save.maps[m.id]) { bt.textContent = 'Unlocked ✓'; bt.disabled = true; } else { bt.textContent = `Unlock $${m.price}`; bt.disabled = save.gold < m.price; bt.onclick = () => buyMap(m); } d.appendChild(bt); body.appendChild(d); }
   } else {
-    for (const k of ['shrimp', 'glitter', 'mega']) { const b = BAITS[k], d = document.createElement('div'); d.className = 'card'; d.style.margin = '8px auto'; d.style.maxWidth = '420px'; d.innerHTML = `<b>${b.e} ${b.n}</b> (you have ${save.bait[k]})<div class="small">${b.d}</div>`; const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = `Buy ${b.pack} for ${b.price} G`; bt.disabled = save.gold < b.price; bt.onclick = () => { save.gold -= b.price; save.bait[k] += b.pack; persist(); sfx.cash(); renderMarket(); }; d.appendChild(bt); body.appendChild(d); }
+    for (const k of ['shrimp', 'glitter', 'mega']) { const b = BAITS[k], d = document.createElement('div'); d.className = 'card'; d.style.margin = '8px auto'; d.style.maxWidth = '420px'; d.innerHTML = `<b>${b.e} ${b.n}</b> (you have ${save.bait[k]})<div class="small">${b.d}</div>`; const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = `Buy ${b.pack} for $${b.price}`; bt.disabled = save.gold < b.price; bt.onclick = () => { save.gold -= b.price; save.bait[k] += b.pack; persist(); sfx.cash(); renderMarket(); }; d.appendChild(bt); body.appendChild(d); }
     body.insertAdjacentHTML('beforeend', '<div class="small">Worms are free and infinite. Each cast with special bait uses one. Careful: do NOT eat the bait.</div>');
   }
 }
@@ -1672,7 +1675,7 @@ function renderBook() {
     FISH.forEach((sp, i) => { const b = save.book[i]; const d = document.createElement('div'); d.className = 'fcard' + (bSel === i ? ' sel' : ''); d.innerHTML = `${drawIcon(i, !!b)}<div style="color:${b ? R_COL[sp.r] : '#9aa'}">#${String(i + 1).padStart(2, '0')} ${b ? sp.n : '???'}</div>`; d.onclick = () => { bSel = i; renderBook(); }; gridEl.appendChild(d); });
     body.appendChild(gridEl);
     const sp = FISH[bSel], b = save.book[bSel], det = document.createElement('div'); det.className = 'card'; det.style.marginTop = '10px'; const f = FX[sp.fx];
-    det.innerHTML = b ? `<b style="font-size:20px;color:${R_COL[sp.r]}">${sp.n}</b> · ${R_NAMES[sp.r]}<div>${sp.blurb}</div><div class="small">Caught: ${b.n} · Best: ${b.best} kg · Sells for ~${sp.price} G</div><div class="small">Where: ${sp.zones.split('').map(z => ({ n: 'near the dock', m: 'mid water', f: 'deep water' }[z])).join(', ')}</div><div class="small">Fight: ${STYLE_NAME[sp.style]}</div><div><b>Effect when eaten:</b> ${b.fx ? `${f.e} ${f.n} — ${f.d}` : '❓ Unknown. Eat one to find out (at your own risk!)'}</div>` : `<b>???</b><div class="small">Catch this fish to learn about it.</div>`;
+    det.innerHTML = b ? `<b style="font-size:20px;color:${R_COL[sp.r]}">${sp.n}</b> · ${R_NAMES[sp.r]}<div>${sp.blurb}</div><div class="small">Caught: ${b.n} · Best: ${lbs(b.best)} lbs · Sells for ~$${sp.price}</div><div class="small">Where: ${sp.zones.split('').map(z => ({ n: 'near the dock', m: 'mid water', f: 'deep water' }[z])).join(', ')}</div><div class="small">Fight: ${STYLE_NAME[sp.style]}</div><div><b>Effect when eaten:</b> ${b.fx ? `${f.e} ${f.n} — ${f.d}` : '❓ Unknown. Eat one to find out (at your own risk!)'}</div>` : `<b>???</b><div class="small">Catch this fish to learn about it.</div>`;
     body.appendChild(det);
   } else {
     const pts = save.level - 1 - save.spent; const hd = document.createElement('div'); hd.className = 'stroke'; hd.style.cssText = 'font-size:22px;margin-bottom:8px;color:#ffd43b'; hd.textContent = `Skill points: ${pts}`; body.appendChild(hd);
@@ -1710,6 +1713,14 @@ function renderCloset() {
   const t = $('cTabs'); t.innerHTML = ''; CAT.forEach(c => { const b = document.createElement('button'); b.className = 'opt sec' + (cTab === c.id ? ' on' : ''); b.textContent = c.n; b.onclick = () => { cTab = c.id; renderCloset(); }; t.appendChild(b); });
   const body = $('cBody'); body.innerHTML = '';
   if (cTab === 'preset') { const d = document.createElement('div'); d.innerHTML = '<div class="lab">Start from a look</div>'; for (const k of Object.keys(PRESETS)) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = k; b.onclick = () => { save.ap = Object.assign({}, PRESETS[k]); apChanged(); }; d.appendChild(b); } body.appendChild(d); body.insertAdjacentHTML('beforeend', '<div class="small" style="margin-top:8px">Then tweak anything in the other tabs. Drag the preview to spin.</div>'); }
+  if (cTab === 'preset') {
+    const my = document.createElement('div'); my.style.marginTop = '12px'; my.innerHTML = '<div class="lab">⭐ My looks</div>'; save.looks = save.looks || [];
+    const nm = document.createElement('input'); nm.type = 'text'; nm.maxLength = 16; nm.placeholder = 'Name your look'; nm.style.width = '150px'; const sv = document.createElement('button'); sv.className = 'opt'; sv.textContent = '💾 Save current look';
+    sv.onclick = () => { const n = (nm.value.trim() || 'Look ' + (save.looks.length + 1)).slice(0, 16); const ap = JSON.parse(JSON.stringify(save.ap)); const i = save.looks.findIndex(l => l.n === n); if (i >= 0) save.looks[i].ap = ap; else if (save.looks.length < 24) save.looks.push({ n, ap }); else { toast('You can keep 24 looks. Delete one first.', 2000); return; } persist(); toast(`Saved "${n}"!`, 1400, '#8ce99a'); renderCloset(); };
+    my.appendChild(nm); my.appendChild(sv); const lst = document.createElement('div'); lst.style.marginTop = '6px';
+    for (const l of save.looks) { const row = document.createElement('span'); row.style.cssText = 'display:inline-flex;margin:3px'; const b = document.createElement('button'); b.className = 'opt'; b.textContent = l.n; b.onclick = () => { save.ap = JSON.parse(JSON.stringify(l.ap)); apChanged(); }; const x = document.createElement('button'); x.className = 'opt sec'; x.textContent = '✕'; x.title = 'Delete'; x.onclick = () => { save.looks = save.looks.filter(q => q !== l); persist(); renderCloset(); }; row.appendChild(b); row.appendChild(x); lst.appendChild(row); }
+    if (!save.looks.length) lst.innerHTML = '<div class="small">Dress up in the other tabs, then save it here.</div>'; my.appendChild(lst); body.appendChild(my);
+  }
   if (cTab === 'head') { body.appendChild(optRow('Head shape', HEADS, 'head')); body.appendChild(colRow('Fur / skin color', 'skin')); }
   if (cTab === 'face') { body.appendChild(optRow('Eyes', EYES, 'eyes')); body.appendChild(colRow('Eye color', 'eyeCol')); body.appendChild(optRow('Mouth', MOUTHS, 'mouth')); }
   if (cTab === 'outfit') { body.appendChild(optRow('Outfit', OUTFITS.map(o => o.n), 'outfit')); body.appendChild(colRow('Shirt color', 'shirt')); body.appendChild(colRow('Pattern / accent color', 'shirt2')); body.appendChild(colRow('Pants color', 'pants')); body.appendChild(colRow('Shoes', 'shoe')); }
@@ -1762,6 +1773,7 @@ $('nmInput').addEventListener('keydown', e => { if (e.key === 'Enter') confirmMe
 ========================================================= */
 addEventListener('keydown', e => {
   if (e.target && e.target.tagName === 'INPUT') return;
+  if (TRADE.in && !e.repeat && (e.code === 'KeyY' || e.code === 'KeyN')) { answerTrade(e.code === 'KeyY'); return; }
   if (['Space', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Tab'].includes(e.code)) e.preventDefault();
   if (!e.repeat) pressedQ.push(e.code); keys[e.code] = true; if (ui === 'play' && !document.pointerLockElement) lockPointer(); if (e.repeat) return;
   if (ui === 'play') {
@@ -1845,7 +1857,7 @@ function buildDetail() {
   foamStrip(-34.5, 7.4, -E, 7.4); foamStrip(E, 7.4, 34.5, 7.4); foamStrip(-34.8, 8, -34.8, 44, 2); foamStrip(34.8, 8, 34.8, 44, 2);
   // foam rings + lanterns on posts
   const posts = []; for (let z = -28; z <= 8; z += 4) posts.push([-4.7, z], [4.7, z]); for (let x = -14; x <= 14; x += 4) { posts.push([x, -38.2]); if (Math.abs(x) > 5) posts.push([x, -27.8]); } for (const x of [-15.2, 15.2]) for (let z = -37; z <= -29; z += 4) posts.push([x, z]);
-  for (const [x, z] of posts) { const r = new THREE.Mesh(new THREE.RingGeometry(.4, .6, 18), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false })); r.rotation.x = -Math.PI / 2; r.position.set(x, .08, z); scene.add(r); detail.rings.push({ m: r, p: Math.random() * 6 }); }
+  // (foam rings around posts removed: they read as gold circles in the water)
   for (let z = -28; z <= 8; z += 8) for (const s of [-1, 1]) lantern(s * 4.7, Y0 + 2.15, z);
   for (const [x, z] of [[-14, -38.2], [-6, -38.2], [2, -38.2], [10, -38.2], [14, -38.2], [-15.2, -29], [15.2, -29], [-14, -27.8], [14, -27.8]]) lantern(x, Y0 + 2.15, z);
   lantern(STALL.x - 4, Y0 + 3.7, STALL.z + .3); lantern(STALL.x + 4, Y0 + 3.7, STALL.z + .3);
@@ -1873,7 +1885,7 @@ function buildDetail() {
   // buoys + lifebuoy + boats
   for (const [x, z] of [[8, -6], [-9, -10], [11, -22], [-12, -20], [9, -33], [-13, -42], [14, -45], [-6, -48]]) { const b = new THREE.Group(); mk(sphGeo, mat(0xff3b3b), [0, .12, 0], [.5, .5, .5], b); mk(cylGeo, mat(0xffffff), [0, .13, 0], [.52, .1, .52], b); mk(cylGeo, mat(0x2b2b3a), [0, .62, 0], [.05, .5, .05], b); b.position.set(x, 0, z); b.userData.b = true; scene.add(b); clouds.push(b); }
   { const ring = new THREE.Mesh(new THREE.TorusGeometry(.38, .12, 8, 18), mat(0xff3b3b)); ring.position.set(4.52, Y0 + 1.1, -12); ring.rotation.y = Math.PI / 2; scene.add(ring); for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; mk(boxGeo, mat(0xffffff), [4.52, Y0 + 1.1 + Math.sin(a) * .38, -12 + Math.cos(a) * .38], [.06, .2, .2], scene); } }
-  { const bm = mat(0x2f8bff); deco(-11, -7, -.2, .5, -26, -22, bm); deco(-10.7, -7.3, .5, .6, -25.7, -22.3, mat(0xf6dca8)); deco(-6.6, -6.3, .2, 1.0, -25.6, -22.4, bm); mk(cylGeo, mat(0x9a5a2a), [-9, 1.6, -24], [.06, 2.2, .06], scene); const sail = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 1.6), new THREE.MeshBasicMaterial({ color: 0xfff6c8, side: THREE.DoubleSide })); sail.position.set(-9, 1.9, -23.6); scene.add(sail); }
+  // (floating sailboat removed)
   enableShadows(scene);
 }
 function updateDetail(dt) {
@@ -1898,43 +1910,78 @@ const TRAILS = { sparkle: '✨ Sparkles', flame: '🔥 Flames', bubble: '🫧 Bu
 const megaXpNeed = l => Math.round(100 * Math.pow(l, 1.3));
 const megaScaleOf = (sp, lv) => MEGAS[sp].size * .9 * (1 + .04 * (lv - 1));
 const sphS = new THREE.SphereGeometry(1, 24, 16);
+const megaBodyMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad });
+/* smooth, tapered, back-to-belly shaded body (nose = +z) with painted scales/patches */
+function megaBody(Lz, H, W, c1, c2, o = {}) {
+  const geo = new THREE.SphereGeometry(1, 44, 30), P = geo.attributes.position, cols = new Float32Array(P.count * 3), a = new THREE.Color(c1), b = new THREE.Color(c2), lt = b.clone().lerp(new THREE.Color(0xffffff), o.belly2 == null ? .5 : o.belly2), tmp = new THREE.Color(), sm = THREE.MathUtils.smoothstep;
+  for (let i = 0; i < P.count; i++) {
+    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), back = Math.max(0, -z), front = Math.max(0, z), ax = Math.abs(x);
+    const taper = (1 - Math.pow(back, o.tp || 1.6) * (o.tpk == null ? .78 : o.tpk)) * (1 - Math.pow(front, 3) * .22);
+    let px = x * W * taper, py = y * H * taper * (y < 0 ? (o.flat || .92) : 1), pz = z * Lz;
+    if (o.wing) { pz = z * Lz * (1 - ax * ax * .3) - ax * ax * o.wing; py *= (1 - ax * .35); px *= 1 + ax * .08; }
+    P.setXYZ(i, px, py, pz);
+    tmp.copy(lt).lerp(a, sm(y, -.5, .22)); if (y > .6) tmp.multiplyScalar(1 - (y - .6) * .6);
+    if (o.patch && Math.sin(z * 6.5 + x * 4) * Math.sin(y * 5 + z * 3.2 + 1) > .15) tmp.copy(o.patch).lerp(a, .15 * Math.random());
+    if (o.pleat && y < -.1) tmp.multiplyScalar(.9 + .1 * Math.sin(x * 46));
+    if (o.stripe && Math.sin(z * 18) > .62 && y > -.1) tmp.lerp(b, .85);
+    tmp.multiplyScalar(.93 + .09 * (Math.sin(z * 64) * Math.sin(x * 52 + y * 30) * .5 + .5));
+    cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals(); return new THREE.Mesh(geo, megaBodyMat);
+}
 function makeMega(def, c1, glowCol, level = 1) {
   const g = new THREE.Group(), B = new THREE.Group(); g.add(B);
-  const M1 = new THREE.MeshToonMaterial({ color: c1, gradientMap: toonGrad }), M2 = new THREE.MeshToonMaterial({ color: def.c2, gradientMap: toonGrad }), gc = new THREE.Color(glowCol);
-  const GM = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(2.6) }), GS2 = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.7), transparent: true, opacity: .8 });
+  const M1 = new THREE.MeshToonMaterial({ color: c1, gradientMap: toonGrad }), M2 = new THREE.MeshToonMaterial({ color: def.c2, gradientMap: toonGrad }), gc = new THREE.Color(glowCol), DS = THREE.DoubleSide;
+  const GM = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(2.2) }), GS2 = new THREE.MeshBasicMaterial({ color: gc.clone().multiplyScalar(1.5), transparent: true, opacity: .85 });
+  const FM = new THREE.MeshToonMaterial({ color: new THREE.Color(c1).lerp(new THREE.Color(def.c2), .35), gradientMap: toonGrad, side: DS }), FM2 = new THREE.MeshToonMaterial({ color: def.c2, gradientMap: toonGrad, side: DS, transparent: true, opacity: .92 });
   const E = (m, p, s, par = B, rot) => { const o = new THREE.Mesh(sphS, m); o.position.set(p[0], p[1], p[2]); o.scale.set(s[0], s[1], s[2]); if (rot) o.rotation.set(rot[0], rot[1], rot[2]); par.add(o); return o; };
   const C = (m, p, s, rot, par = B) => { const o = new THREE.Mesh(smoothCone, m); o.position.set(p[0], p[1], p[2]); o.scale.set(s[0], s[1], s[2]); if (rot) o.rotation.set(rot[0], rot[1], rot[2]); par.add(o); return o; };
+  // flat fin from a polygon: plane 'v' = vertical (x→z along the body), 'h' = horizontal (x sideways, y backwards)
+  const fin = (pts, sc, pos, plane, m, par = B, rot) => { const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); const f = new THREE.Mesh(new THREE.ShapeGeometry(sh), m); f.scale.set(sc[0], sc[1], 1); f.position.set(pos[0], pos[1], pos[2]); if (plane === 'v') f.rotation.y = Math.PI / 2; else f.rotation.x = -Math.PI / 2; if (rot) f.rotation.z += rot; par.add(f); return f; };
+  const eye = (x, y, z, r, par = B) => { const e = new THREE.Group(); e.position.set(x, y, z); par.add(e); const sd = Math.sign(x) || 1; E(mat(0xffffff), [0, 0, 0], [r, r, r], e); E(GM, [sd * r * .12, 0, r * .35], [r * .62, r * .62, r * .5], e); E(mat(0x0a0a14), [sd * r * .2, 0, r * .55], [r * .34, r * .34, r * .3], e); E(mat(0xffffff), [sd * r * .3, r * .2, r * .72], [r * .1, r * .1, r * .1], e); };
   const U = { seatY: .7, seatZ: 0, tail: null, segs: null, ring: null, aura: null };
   switch (def.shape) {
     case 'whale': {
-      E(M1, [0, 0, 0], [.85, .7, 2.0]); E(M2, [0, -.3, .15], [.74, .42, 1.7]);
-      for (const s of [-1, 1]) { E(M1, [s * .82, -.3, .4], [.55, .08, .26], B, [0, 0, s * .4]); E(GM, [s * .6, .2, 1.5], [.07, .07, .07]); for (let i = 0; i < 6; i++) E(GS2, [s * .8, .05 + .1 * Math.sin(i), .9 - i * .35], [.05, .05, .12]); }
-      const t = new THREE.Group(); t.position.set(0, 0, -1.9); B.add(t); E(M1, [0, 0, -.3], [.35, .28, .6], t); E(M1, [.45, 0, -.65], [.55, .07, .28], t, [0, .5, 0]); E(M1, [-.45, 0, -.65], [.55, .07, .28], t, [0, -.5, 0]); E(GS2, [0, .05, -.7], [.18, .05, .3], t); U.tail = t; U.seatY = .72; U.seatZ = .15; break;
+      B.add(megaBody(2.0, .78, .86, c1, def.c2, { pleat: true, belly2: .7, tp: 1.5, tpk: .84 }));
+      E(M1, [0, .12, 1.55], [.55, .45, .5]); // melon head bump
+      for (const s of [-1, 1]) {
+        fin([[0, 0], [.55, -.02], [1.15, .22], [1.3, .55], [.75, .45], [.1, .32]], [s, 1], [s * .76, -.32, .75], 'h', FM, B, s * .5);
+        eye(s * .74, .08, 1.38, .09); E(GM, [s * .5, .5, .6], [.05, .05, .05]); E(GM, [s * .62, .32, 0], [.05, .05, .05]); E(GM, [s * .55, .22, -.8], [.05, .05, .05]);
+        for (let i = 0; i < 6; i++) E(GS2, [s * (.82 - i * .015), -.12 + .03 * Math.sin(i), 1.2 - i * .3], [.02, .02, .13]);
+      }
+      fin([[0, 0], [-.1, .55], [.25, .7], [.5, .3]], [1, 1], [0, .74, -.6], 'v', FM);
+      const t = new THREE.Group(); t.position.set(0, 0, -1.85); B.add(t); E(M1, [0, 0, -.32], [.3, .26, .62], t);
+      fin([[0, .05], [.4, .1], [.85, .4], [1.15, .85], [.75, .62], [.32, .42], [0, .46], [-.32, .42], [-.75, .62], [-1.15, .85], [-.85, .4], [-.4, .1]], [.85, .85], [0, 0, -.7], 'h', FM, t); E(GS2, [0, .06, -1.0], [.16, .04, .3], t);
+      U.tail = t; U.seatY = .72; U.seatZ = .15; break;
     }
     case 'ray': {
-      E(M1, [0, 0, 0], [2.3, .13, 1.5]); E(M1, [0, .1, .95], [.55, .28, .55]); E(GS2, [0, -.04, -.1], [2.35, .06, 1.55]);
-      for (const s of [-1, 1]) { E(GM, [s * 2.25, 0, -.1], [.1, .05, .2]); E(GM, [s * .28, .28, 1.2], [.06, .06, .06]); }
-      const t = new THREE.Group(); t.position.set(0, 0, -1.4); B.add(t); E(M1, [0, 0, -.7], [.07, .07, 1.3], t); E(GM, [0, 0, -2.0], [.09, .09, .09], t); U.tail = t; U.seatY = .3; U.seatZ = .05; break;
+      B.add(megaBody(1.45, .22, 2.3, c1, def.c2, { wing: .75, tp: 1.2, tpk: .5, flat: .6, belly2: .7, patch: new THREE.Color(def.c2) }));
+      E(M1, [0, .12, .95], [.5, .25, .5]); E(GS2, [0, .08, -.15], [2.1, .03, 1.2]);
+      for (const s of [-1, 1]) { eye(s * .34, .24, 1.22, .09); E(GM, [s * 2.15, .02, -.45], [.1, .05, .22]); for (let i = 0; i < 5; i++) E(GM, [s * (.5 + i * .35), .1, .1 - i * .25], [.05, .05, .05]); E(mat(0x0a0a14), [s * .16, .1, .6], [.08, .03, .05]); }
+      const t = new THREE.Group(); t.position.set(0, 0, -1.5); B.add(t); C(M1, [0, 0, -.9], [.1, 1.9, .1], [-Math.PI / 2, 0, 0], t); E(GM, [0, 0, -1.95], [.08, .08, .08], t); C(M2, [0, .06, -.35], [.07, .5, .07], [-Math.PI / 2, 0, 0], t); U.tail = t; U.seatY = .34; U.seatZ = .05; break;
     }
     case 'shark': {
-      E(M1, [0, 0, 0], [.65, .6, 1.9]); E(M2, [0, -.32, .2], [.55, .3, 1.6]); C(M1, [0, .8, -.3], [.3, .8, .55], [-.3, 0, 0]);
-      for (const s of [-1, 1]) { E(M1, [s * .7, -.3, .5], [.6, .06, .3], B, [0, 0, s * .5]); E(GM, [s * .4, .15, 1.35], [.07, .07, .07]); }
-      for (const z of [.8, .3, -.2, -.7]) E(GS2, [0, .56, z], [.5, .05, .1]);
-      const t = new THREE.Group(); t.position.set(0, 0, -1.8); B.add(t); C(M1, [0, .4, -.3], [.15, .8, .4], [-2.6, 0, 0], t); C(M1, [0, -.35, -.25], [.12, .55, .35], [2.6, 0, 0], t); U.tail = t; U.seatY = .62; U.seatZ = .55; break;
+      B.add(megaBody(1.95, .62, .66, c1, def.c2, { tp: 1.4, tpk: .8, belly2: .8, stripe: true }));
+      for (const s of [-1, 1]) { fin([[0, 0], [.9, -.1], [1.0, -.5], [.55, -.18], [0, .1]], [s * .85, 1], [s * .45, -.3, .85], 'h', FM, B, s * .55); eye(s * .48, .16, 1.38, .075); for (let i = 0; i < 5; i++) mk(boxGeo, mat(0x0a0a14), [s * .57, .02, .72 - i * .1], [.01, .22, .015], B); fin([[0, 0], [.35, -.08], [.4, -.3], [0, -.12]], [s, 1], [s * .22, -.5, -.9], 'h', FM, B, s * .3); }
+      fin([[0, 0], [-.15, .75], [.18, .95], [.62, .0]], [1.1, 1], [0, .55, .05], 'v', FM); for (const z of [.7, .3, -.1, -.5]) E(GS2, [0, .58 - Math.abs(z) * .06, z], [.04, .04, .09]);
+      for (let i = 0; i < 12; i++) { const a = (i / 11 - .5) * 1.6; C(mat(0xffffff), [Math.sin(a) * .26, -.17, 1.68 + Math.cos(a) * .04 - Math.abs(a) * .1], [.03, .08, .03], [Math.PI, 0, 0]); }
+      E(mat(0x1b0a1f), [0, -.16, 1.5], [.28, .035, .36]);
+      const t = new THREE.Group(); t.position.set(0, 0, -1.8); B.add(t); fin([[0, 0], [-.1, .9], [.3, 1.1], [.28, .35], [.12, .1]], [1, 1], [0, 0, -.1], 'v', FM, t, -.35); fin([[0, 0], [-.05, -.55], [.22, -.7], [.18, -.1]], [1, 1], [0, 0, -.1], 'v', FM, t, .3); U.tail = t; U.seatY = .62; U.seatZ = .55; break;
     }
     case 'serpent': {
-      U.segs = []; for (let i = 0; i < 14; i++) { const r = .52 - i * .027, z = 1.4 - i * .42, o = E(i % 3 === 0 ? M2 : M1, [0, 0, z], [r, r, r * 1.1]); E(GM, [0, r * .92, 0], [.07, .07, .1], o); U.segs.push(o); }
-      for (const s of [-1, 1]) { C(GM, [s * .3, .55, 1.35], [.1, .5, .1], [-.5, 0, s * .3]); E(GM, [s * .3, .15, 1.85], [.08, .08, .08]); E(GS2, [s * .5, -.1, 1.7], [.03, .03, .6], B, [0, s * .6, 0]); }
+      U.segs = []; for (let i = 0; i < 16; i++) { const r = .5 - i * .026, z = 1.4 - i * .4, o = E(i % 3 === 0 ? M2 : M1, [0, 0, z], [r, r, r * 1.2]); E(GM, [0, r * .96, 0], [.06, .06, .1], o); const sp = C(FM2, [0, r * 1.1, 0], [r * .12, r * .9, r * .5], [0, 0, 0], o); for (const sd of [-1, 1]) E(M2, [sd * r * .94, -r * .1, r * .1], [.04, .12 * r / .5, .1], o); U.segs.push(o); }
+      const head = new THREE.Group(); head.position.set(0, .05, 1.78); B.add(head); E(M1, [0, 0, 0.1], [.46, .4, .6], head); E(M1, [0, -.12, .5], [.32, .15, .4], head); E(mat(0x1b0a1f), [0, -.2, .5], [.26, .04, .36], head); for (let i = 0; i < 6; i++) C(mat(0xffffff), [(i % 2 ? 1 : -1) * (.05 + (i >> 1) * .06), -.17, .62 - (i >> 1) * .08], [.025, .07, .025], [Math.PI, 0, 0], head);
+      for (const s of [-1, 1]) { eye(s * .34, .12, .2, .1, head); C(GM, [s * .26, .42, -.02], [.09, .75, .09], [-.7, 0, s * .35], head); for (const sg of [-1, 1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.012, .006, 1.1, 5), GM); w.position.set(s * .3, -.15 + sg * .05, .78); w.rotation.set(Math.PI / 2 + .3 * sg, 0, s * .6); head.add(w); } E(mat(0x0a0a14), [s * .1, .0, .66], [.03, .03, .03], head); }
       U.seatY = .62; U.seatZ = .55; break;
     }
     default: { // koi
-      E(M1, [0, 0, 0], [.6, .55, 1.5]); E(M2, [0, .35, .4], [.35, .2, .5]); E(M2, [.3, .2, -.5], [.25, .2, .4]);
-      for (const s of [-1, 1]) { E(GM, [s * .42, .2, 1.2], [.08, .08, .08]); E(GS2, [s * .3, -.1, 1.55], [.03, .03, .5], B, [0, s * .5, 0]); E(GS2, [s * .6, -.2, .3], [.5, .05, .3], B, [0, 0, s * .6]); for (let i = 0; i < 4; i++) E(GM, [s * .2, .5, .6 - i * .5], [.06, .06, .06]); }
-      const t = new THREE.Group(); t.position.set(0, 0, -1.45); B.add(t); E(GS2, [0, 0, -.7], [.12, .7, .7], t); E(GS2, [.3, 0, -.6], [.1, .5, .6], t, [0, .4, 0]); E(GS2, [-.3, 0, -.6], [.1, .5, .6], t, [0, -.4, 0]); U.tail = t; U.seatY = .6; U.seatZ = .1;
+      B.add(megaBody(1.5, .58, .6, c1, def.c2, { patch: new THREE.Color(def.c2), tp: 1.4, tpk: .72, belly2: .55 }));
+      for (const s of [-1, 1]) { eye(s * .43, .18, 1.12, .1); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.014, .006, 1.0, 5), GM); w.position.set(s * .2, -.14, 1.55); w.rotation.set(1.2 + i * .25, 0, s * (.5 + i * .3)); B.add(w); } fin([[0, 0], [.55, -.08], [.95, -.28], [.7, -.55], [.3, -.3], [0, -.2]], [s, 1], [s * .52, -.18, .4], 'h', FM2, B, s * .5); fin([[0, 0], [.3, -.05], [.5, -.3], [.1, -.14]], [s, 1], [s * .22, -.45, -.5], 'h', FM2, B, s * .3); for (let i = 0; i < 4; i++) E(GM, [s * .16, .54 - i * .02, .6 - i * .5], [.04, .04, .04]); }
+      fin([[0, 0], [-.2, .35], [-.5, .55], [-.9, .4], [-1.3, .1]], [1, 1.1], [0, .5, .8], 'v', FM2);
+      const t = new THREE.Group(); t.position.set(0, 0, -1.45); B.add(t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); t.children[t.children.length - 1].scale.y = -1; fin([[0, 0], [.3, -.5], [.8, -.9], [.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); fin([[0, 0], [-.3, -.5], [-.8, -.9], [-.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); U.tail = t; U.seatY = .6; U.seatZ = .1;
     }
   }
-  const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.2), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .3 + .03 * level })); aura.scale.setScalar(6 + level * .5); aura.position.y = .3; aura.userData.base = 6 + level * .5; g.add(aura); U.aura = aura;
-  if (level >= 5) { const ring = new THREE.Mesh(new THREE.TorusGeometry(2.5, .04, 8, 48), GM); ring.rotation.x = Math.PI / 2; ring.position.y = -.4; g.add(ring); U.ring = ring; }
+  const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .2 + .02 * level })); aura.scale.setScalar(5 + level * .4); aura.position.y = .3; aura.userData.base = 5 + level * .4; g.add(aura); U.aura = aura;
   g.userData = U; return g;
 }
 function animateMega(g, t) {
@@ -2050,7 +2097,7 @@ function confirmMegaName() {
   const def = MEGAS[MEGA.pendingSp], name = ($('nmInput').value.trim() || pick(['Bubbles', 'Sir Splash', 'Captain Fin', 'Moby', 'Nessie', 'Tsunami', 'Biscuit'])).slice(0, 14);
   const rec = { id: 'm' + Date.now(), sp: MEGA.pendingSp, name, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'sparkle' };
   save.megas.push(rec); if (!save.activeMega) save.activeMega = rec.id; persist(); if (save.activeMega === rec.id) buildMegaObj();
-  toast(`${name} the ${def.n} joins you! Press G to call it, M for the stable.`, 4200, '#6fe8ff'); netEvent({ k: 'mega', name: me.name, mega: name, sp: def.n }); setUI('play'); lockPointer();
+  toast(`${name} the ${def.n} joins you! HOW TO RIDE: face the sea, press G to call it, swim close, press G again to hop on. (M = stable)`, 7000, '#6fe8ff'); netEvent({ k: 'mega', name: me.name, mega: name, sp: def.n }); setUI('play'); lockPointer();
 }
 let stSel = null;
 function renderStable() {
@@ -2068,6 +2115,65 @@ function renderStable() {
   const tr = document.createElement('div'); tr.innerHTML = '<div class="lab">Swim trail</div>'; for (const [k, n] of Object.entries(TRAILS)) { const b = document.createElement('button'); b.className = 'opt' + (rec.trail === k ? ' on' : ''); b.textContent = n; b.onclick = () => { rec.trail = k; persist(); renderStable(); }; tr.appendChild(b); } box.appendChild(tr);
   const act = document.createElement('div'); act.style.marginTop = '8px'; const ab = document.createElement('button'); ab.textContent = rec.id === save.activeMega ? '★ Active Mega' : 'Make active'; ab.disabled = rec.id === save.activeMega; ab.onclick = () => { if (me.riding) dismountMega(); MEGA.summoned = false; save.activeMega = rec.id; persist(); buildMegaObj(); renderStable(); }; act.appendChild(ab); box.appendChild(act);
   body.appendChild(box);
+  // how to ride
+  const how = document.createElement('div'); how.className = 'card'; how.style.cssText = 'text-align:left;margin-top:8px;border:3px solid #6fe8ff'; how.innerHTML = '<div class="lab" style="color:#6fe8ff">🏄 HOW TO RIDE YOUR MEGA</div><div class="small">1. Close this screen and stand on the beach or dock, <b>facing the sea</b>.<br>2. Press <b>G</b>: your Mega bursts out of the water.<br>3. Swim or jump in close to it and press <b>G</b> again to hop on.<br>4. <b>WASD</b> steer · <b>Shift</b> boost · <b>Space</b> leap · <b>G</b> hop off.<br>Tip: ★ Make active picks which Mega you ride. Feed it so it stays fast!</div>'; body.insertBefore(how, body.firstChild);
+  // sell
+  const sell = document.createElement('div'); sell.style.marginTop = '8px'; const val = megaValue(rec), sb = document.createElement('button'); sb.className = 'opt'; sb.style.background = '#ffd43b'; sb.textContent = `💰 Sell ${rec.name} for $${val.toLocaleString()}`;
+  sb.onclick = () => { if (sellArm !== rec.id) { sellArm = rec.id; sb.textContent = `Really sell for $${val.toLocaleString()}? Click again`; setTimeout(() => { if (sellArm === rec.id) { sellArm = null; if (ui === 'stable') renderStable(); } }, 4000); } else { sellArm = null; sellMega(rec); } };
+  sell.appendChild(sb); box.appendChild(sell);
+  // trade (online rooms)
+  if (NET.role !== 'solo') {
+    const tr = document.createElement('div'); tr.style.marginTop = '8px'; tr.innerHTML = '<div class="lab">Trade with a player (price $0 = gift)</div>';
+    if (!remotes.size) tr.insertAdjacentHTML('beforeend', '<div class="small">Nobody else is in the room yet.</div>');
+    const pin = document.createElement('input'); pin.type = 'number'; pin.min = 0; pin.value = 0; pin.style.width = '110px'; tr.appendChild(pin);
+    for (const rp of remotes.values()) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = `🤝 Offer to ${rp.name}`; b.onclick = () => offerTrade(rec, rp, Math.max(0, Math.round(+pin.value || 0))); tr.appendChild(b); }
+    if (TRADE.out) tr.insertAdjacentHTML('beforeend', `<div class="small">Waiting for ${TRADE.out.toName} to answer… (the Mega is on hold)</div>`);
+    box.appendChild(tr);
+  }
+}
+let sellArm = null;
+const MEGA_BASE = [20000, 25000, 30000, 22000, 40000];
+const megaValue = rec => Math.round(MEGA_BASE[rec.sp] * (1 + .25 * (rec.level - 1)) / 100) * 100;
+function sellMega(rec) {
+  if (me.riding) { toast('Hop off your Mega first!', 1800, '#ffd43b'); return; } if (TRADE.out && TRADE.out.rec === rec) { toast('That Mega is part of a pending trade.', 1800, '#ffd43b'); return; }
+  const val = megaValue(rec); save.megas = save.megas.filter(m => m !== rec); if (save.activeMega === rec.id) { MEGA.summoned = false; save.activeMega = save.megas[0] ? save.megas[0].id : null; buildMegaObj(); }
+  save.gold += val; persist(); sfx.lvl(); toast(`Sold ${rec.name} for $${val.toLocaleString()}!`, 3200, '#ffd43b'); stSel = null; renderStable(); updateHUD();
+}
+/* mega trading: offer -> accept -> give (the seller only hands it over after the buyer says yes) */
+const TRADE = { out: null, in: null, give: null, done: new Set() };
+function offerTrade(rec, rp, price) {
+  if (TRADE.out) { toast('You already have an offer out.', 1600, '#ffd43b'); return; } if (me.riding && save.activeMega === rec.id) { toast('Hop off first!', 1600, '#ffd43b'); return; }
+  const tid = 't' + Date.now(); TRADE.out = { tid, rec, price, to: rp.id, toName: rp.name, t: 60 };
+  netEvent({ k: 'toffer', tid, to: rp.id, from: NET.myId, fname: me.name, rec: { sp: rec.sp, name: rec.name, hunger: rec.hunger, xp: rec.xp, level: rec.level, c1: rec.c1, glow: rec.glow, trail: rec.trail }, price });
+  toast(`Offer sent to ${rp.name}.`, 2000, '#6fe8ff'); if (ui === 'stable') renderStable();
+}
+function tradeBox() { let b = document.getElementById('tradeBox'); if (!b) { b = document.createElement('div'); b.id = 'tradeBox'; b.style.cssText = 'position:fixed;left:50%;top:90px;transform:translateX(-50%);z-index:50;background:#2b63e6;border:4px solid #ffd43b;border-radius:18px;padding:12px 18px;text-align:center;color:#fff;font-weight:800;box-shadow:0 6px 0 rgba(0,0,0,.35);display:none'; document.body.appendChild(b); } return b; }
+function showTradeIn() { const b = tradeBox(), t = TRADE.in; if (!t) { b.style.display = 'none'; return; } const d = MEGAS[t.rec.sp]; b.innerHTML = `<div>${d.e} <b>${t.fname}</b> offers you <b>${t.rec.name}</b> (${d.n}, Lv ${t.rec.level})${t.price ? ` for <b>$${t.price.toLocaleString()}</b>` : ' as a <b>gift</b>'}!</div><div style="margin-top:8px"><button id="trY" style="margin-right:8px">Accept (Y)</button><button id="trN" class="sec">Decline (N)</button></div>`; b.style.display = 'block'; document.getElementById('trY').onclick = () => answerTrade(true); document.getElementById('trN').onclick = () => answerTrade(false); }
+function answerTrade(ok) {
+  const t = TRADE.in; if (!t) return;
+  if (ok && save.gold < t.price) { toast(`You need $${t.price.toLocaleString()} for that.`, 2200, '#ff8a8a'); ok = false; }
+  if (ok) { t.accepted = true; netEvent({ k: 'tacc', tid: t.tid, to: t.from, from: NET.myId }); toast('Accepted! Waiting for the Mega to arrive…', 2200, '#8ce99a'); setTimeout(() => { if (TRADE.in === t) { TRADE.in = null; showTradeIn(); } }, 25000); }
+  else { netEvent({ k: 'tdec', tid: t.tid, to: t.from }); TRADE.in = null; }
+  showTradeIn();
+}
+function tradeEvent(ev) {
+  if (ev.to !== NET.myId) return;
+  if (ev.k === 'toffer') { TRADE.in = { tid: ev.tid, from: ev.from, fname: ev.fname, rec: ev.rec, price: ev.price | 0 }; sfx.lvl(); showTradeIn(); setTimeout(() => { if (TRADE.in && TRADE.in.tid === ev.tid && !TRADE.in.accepted) { TRADE.in = null; showTradeIn(); } }, 60000); }
+  else if (ev.k === 'tdec') { if (TRADE.out && TRADE.out.tid === ev.tid) { toast(`${TRADE.out.toName} said no thanks.`, 2200, '#ffd43b'); TRADE.out = null; if (ui === 'stable') renderStable(); } }
+  else if (ev.k === 'tacc') {
+    const o = TRADE.out; if (!o || o.tid !== ev.tid) return; const rec = save.megas.find(m => m === o.rec);
+    if (!rec || (me.riding && save.activeMega === rec.id)) { toast('Trade cancelled.', 1800, '#ff8a8a'); TRADE.out = null; return; }
+    save.megas = save.megas.filter(m => m !== rec); if (save.activeMega === rec.id) { MEGA.summoned = false; save.activeMega = save.megas[0] ? save.megas[0].id : null; buildMegaObj(); }
+    save.gold += o.price; persist(); TRADE.give = { k: 'tgive', tid: o.tid, to: o.to, from: NET.myId, rec: { sp: rec.sp, name: rec.name, hunger: rec.hunger, xp: rec.xp, level: rec.level, c1: rec.c1, glow: rec.glow, trail: rec.trail }, price: o.price, tries: 0, wait: 0 };
+    toast(`${rec.name} traded to ${o.toName}${o.price ? ` for $${o.price.toLocaleString()}` : ''}!`, 3200, '#ffd43b'); sfx.lvl(); TRADE.out = null; stSel = null; if (ui === 'stable') renderStable();
+  }
+  else if (ev.k === 'tack') { if (TRADE.give && TRADE.give.tid === ev.tid) TRADE.give = null; }
+  else if (ev.k === 'tgive') {
+    if (TRADE.done.has(ev.tid)) { netEvent({ k: 'tack', tid: ev.tid, to: ev.from }); return; }
+    const t = TRADE.in; if (!t || t.tid !== ev.tid || !t.accepted) return; TRADE.done.add(ev.tid); netEvent({ k: 'tack', tid: ev.tid, to: ev.from }); const price = Math.min(t.price, save.gold); save.gold -= price;
+    const rec = Object.assign({}, ev.rec, { id: 'm' + Date.now() }); save.megas.push(rec); if (!save.activeMega) { save.activeMega = rec.id; buildMegaObj(); } persist();
+    toast(`${rec.name} the ${MEGAS[rec.sp].n} is yours! Press G near the sea to call it.`, 4200, '#6fe8ff'); sfx.lvl(); TRADE.in = null; showTradeIn(); updateHUD();
+  }
 }
 function openStable() { setUI('stable'); renderStable(); }
 /* =========================================================
@@ -2080,17 +2186,17 @@ function areaBonus() {
   if (save.maps.cove && Math.hypot(me.x - 85, me.z + 135) < 32) { mega *= 4; luck += .1; }
   return { luck, mega };
 }
-function makeSign(tex, w, h, x, y, z, ry, legs = true) { // ONE side has the artwork; the back is plain brown wood; two posts hold it up
+function makeSign(tex, w, h, x, y, z, ry, legs = true, bottomY = Y0) { // ONE side has the artwork; the back is plain brown wood; two posts stand BEHIND the board (nothing pokes through it)
   const g = new THREE.Group();
-  const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex })); front.position.z = .035; g.add(front);
-  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshToonMaterial({ color: 0x8a5a2e, gradientMap: toonGrad })); back.rotation.y = Math.PI; back.position.z = -.035; g.add(back);
-  deco(-w / 2 - .07, w / 2 + .07, -h / 2 - .07, h / 2 + .07, -.03, .03, mat(0x6b4423), g);
-  if (legs) { const top = h / 2 - .05, bot = Y0 - y, len = top - bot; for (const s of [-1, 1]) { const p = new THREE.Mesh(cylGeo, mat(0x7a4b21)); p.scale.set(.1, len, .1); p.position.set(s * (w / 2 - .2), (top + bot) / 2, -.02); g.add(p); } }
+  const front = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: tex })); front.position.z = .062; g.add(front);
+  const back = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshToonMaterial({ color: 0x8a5a2e, gradientMap: toonGrad })); back.rotation.y = Math.PI; back.position.z = -.062; g.add(back);
+  deco(-w / 2 - .07, w / 2 + .07, -h / 2 - .07, h / 2 + .07, -.055, .055, mat(0x6b4423), g);
+  if (legs) { const top = h / 2 - .1, bot = bottomY - y, len = top - bot; for (const s of [-1, 1]) { const px = s * (w / 2 - .25); const p = new THREE.Mesh(cylGeo, mat(0x7a4b21)); p.scale.set(.1, len, .1); p.position.set(px, (top + bot) / 2, -.17); g.add(p); mk(boxGeo, mat(0x5b3a1c), [px, h / 2 - .35, -.1], [.2, .22, .1], g); mk(boxGeo, mat(0x5b3a1c), [px, -h / 2 + .35, -.1], [.2, .22, .1], g); } }
   g.position.set(x, y, z); g.rotation.y = ry; scene.add(g); return g;
 }
-function bigSign(text, bg, w, h, x, y, z, ry) {
-  const t = canvasTex(512, 128, g => { g.fillStyle = bg; g.fillRect(0, 0, 512, 128); g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(8, 8, 496, 112); g.fillStyle = '#fff'; g.font = 'bold 56px Fredoka,"Trebuchet MS",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 68); });
-  return makeSign(t, w, h, x, y, z, ry, true);
+function bigSign(text, bg, w, h, x, y, z, ry, bottomY) {
+  const t = canvasTex(512, 128, g => { g.fillStyle = bg; g.fillRect(0, 0, 512, 128); g.strokeStyle = '#fff'; g.lineWidth = 8; g.strokeRect(8, 8, 496, 112); g.fillStyle = '#fff'; let fs = 56; g.font = `bold ${fs}px Fredoka,"Trebuchet MS",sans-serif`; while (g.measureText(text).width > 450 && fs > 20) { fs -= 2; g.font = `bold ${fs}px Fredoka,"Trebuchet MS",sans-serif`; } g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(text, 256, 68); });
+  return makeSign(t, w, h, x, y, z, ry, true, bottomY);
 }
 function post(x, z) { mk(cylGeo, mat(0x9a5a2a), [x, Y0 + .3, z], [.18, 3.0, .18], scene); }
 function buildOuter() {
@@ -2118,7 +2224,7 @@ function buildCove() {
 const MAPS = [
   { id: 'outer', n: 'Outer Dock', e: '🌉', price: 800, d: 'A long bridge to a far-out dock with richer water (+15% luck, Mega bites 1.5x).', build: buildOuter },
   { id: 'island', n: 'Treasure Island', e: '🏝️', price: 2200, d: 'A palm island far across the sea. Reach it by riding a Mega. Fishing there is lucky (+20%).', build: buildIsland },
-  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 5000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: buildCove }
+  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 1000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: buildCove }
 ];
 function buyMap(m) { if (save.gold < m.price || save.maps[m.id]) return; save.gold -= m.price; save.maps[m.id] = true; persist(); m.build(); sfx.lvl(); toast(`MAP EXPANDED: ${m.n} unlocked!`, 3200, '#ffd43b'); renderMarket(); }
 
@@ -2152,7 +2258,7 @@ function buildPlaza() {
   const sand = new THREE.Mesh(new THREE.PlaneGeometry(68, 36), new THREE.MeshToonMaterial({ map: sandTex, gradientMap: toonGrad })); sand.rotation.x = -Math.PI / 2; sand.position.set(0, Y0 + .03, 26); scene.add(sand);
   plankTop(3.5, 27.5, 9.6, 25, Y0 + .05); plankTop(-4.5, 4.5, 8, 12, Y0 + .05);
   // stall upgrades: big sign, roof posts, flower planters, chalkboard
-  bigSign("FIN'S FISH MARKET", '#e8590c', 7.4, 1.5, STALL.x, Y0 + 5.6, STALL.z - 1.6, 0);
+  bigSign("FIN'S FISH MARKET", '#e8590c', 7.4, 1.5, STALL.x, Y0 + 4.95, STALL.z - 3.0, 0, Y0 + 3.6);
   bigSign('FRESH CATCH! SELL HERE', '#1c3f2e', 3.1, .8, STALL.x - 6.2, Y0 + 1.5, STALL.z + 3.2, -.3);
   for (const [fx, fz] of [[3.9, 9.9], [27.1, 9.9], [3.9, 24.6], [27.1, 24.6], [STALL.x + 5, STALL.z + 2.5]]) { deco(fx - .6, fx + .6, Y0 + .05, Y0 + .55, fz - .6, fz + .6, mat(0xd9480f)); for (let i = 0; i < 9; i++) mk(sphGeo, mat(pick([0xff4d6d, 0xffd23a, 0xff9f43, 0xf783ac, 0xffffff, 0x9775fa])), [fx + rnd(-.45, .45), Y0 + .75 + rnd(0, .3), fz + rnd(-.45, .45)], [.17, .17, .17], scene); mk(sphGeo, mat(0x2fcf44), [fx, Y0 + .65, fz], [.55, .22, .55], scene); }
   // torches, umbrellas, palms
@@ -2183,7 +2289,7 @@ function updatePlaza(dt) {
   for (const c of plaza.crabs) {
     if (NET.role === 'client' || c.fly || c.dead > 0 || c.stun > 0) continue;
     const p = c.g.position; let tx = me.x, tz = me.z, d = Math.hypot(tx - p.x, tz - p.z); for (const rp of remotes.values()) { if (!rp.init) continue; const dd = Math.hypot(rp.x - p.x, rp.z - p.z); if (dd < d) { d = dd; tx = rp.x; tz = rp.z; } } c.t -= dt;
-    if (c.cur && d < 10 && d > 2.2 && !me.riding && !me.swim) { c.dx = (tx - p.x) / d; c.dz = (tz - p.z) / d; c.sp = 1.7; c.t = .5; } else if (c.t <= 0) { const a = rnd(0, TAU); c.dx = Math.cos(a); c.dz = Math.sin(a); c.sp = Math.random() < .45 ? 0 : 1.3; c.t = rnd(.8, 2.6); }
+    if (c.rage > 0) c.rage -= dt; if ((c.rage > 0 || (c.cur && d < 10)) && d > (c.rage > 0 ? 1.1 : 2.2) && !me.riding && !me.swim) { c.dx = (tx - p.x) / d; c.dz = (tz - p.z) / d; c.sp = c.rage > 0 ? 4.4 : 1.7; c.t = .5; } else if (c.t <= 0) { const a = rnd(0, TAU); c.dx = Math.cos(a); c.dz = Math.sin(a); c.sp = Math.random() < .45 ? 0 : 1.3; c.t = rnd(.8, 2.6); }
     let nx = p.x + c.dx * c.sp * dt, nz = p.z + c.dz * c.sp * dt;
     if (nx < -30 || nx > 30) { c.dx *= -1; nx = clamp(nx, -30, 30); } if (nz < 14 || nz > 42) { c.dz *= -1; nz = clamp(nz, 14, 42); }
     if ((nx > 9 && nx < 19.5 && nz > 10.5 && nz < 15.5) || Math.hypot(nx, nz - 28) < 4.2) { c.dx *= -1; c.dz *= -1; nx = p.x; nz = p.z; }
@@ -2297,6 +2403,45 @@ function doKick() {
   if (hit) { const n = save.crabs || 0; toast(pick(KICK_LINES), 1400, '#ffd43b'); if (n && n % 5 === 0) toast(`${n} crabs kicked! The crabs have noticed you.`, 2800, '#ff8a8a'); persist(); }
   else if (Math.random() < .5) toast('You kick the air. Dramatic.', 1200);
 }
+/* =========================================================
+   CHAOS: random events (the host picks one and tells everybody, each screen plays it)
+========================================================= */
+const chaos = { t: 30, fx: [] };
+const CHAOS_TYPES = ['rain', 'wave', 'barrels', 'gull', 'crabs'];
+function knockMe(dx, dz, pw) { if (me.riding) return; const d = Math.hypot(dx, dz) || 1; me.kx = dx / d * pw; me.kz = dz / d * pw; me.knockT = .55; me.wob = 1.3; }
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ t >>> 15, t | 1); t ^= t + Math.imul(t ^ t >>> 7, t | 61); return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function runChaos(type, seed) {
+  const R = rng(seed || 1); sfx.honk();
+  if (type === 'rain') { toast('🐟 FISH RAIN! Grab them before they flop away!', 3600, '#6fe8ff');
+    for (let i = 0; i < 26; i++) { const sp = FISH.filter(q => q.shape !== 4 && q.r < 3); const idx = FISH.indexOf(sp[(R() * sp.length) | 0]), m = makeFish3D(FISH[idx]); m.scale.setScalar(1.1); m.position.set(R() * 16 - 8, 24 + R() * 22, R() * 70 - 40); scene.add(m); chaos.fx.push({ k: 'fish', m, idx, kg: +(FISH[idx].min + (FISH[idx].max - FISH[idx].min) * R() * .6).toFixed(1), vy: 0, vx: (R() - .5) * 2, vz: (R() - .5) * 2, life: 16, st: 0, spin: R() * 6 }); } }
+  else if (type === 'wave') { toast('🌊 ROGUE WAVE! Hold on to something!', 3600, '#4dabf7'); const w = new THREE.Mesh(new THREE.BoxGeometry(160, 4.5, 2.2), new THREE.MeshToonMaterial({ color: 0x74d8ff, transparent: true, opacity: .8, gradientMap: toonGrad })); w.position.set(0, 1.2, -170); scene.add(w); const foam = new THREE.Mesh(new THREE.BoxGeometry(160, .6, 2.6), new THREE.MeshBasicMaterial({ color: 0xffffff })); foam.position.y = 2.3; w.add(foam); chaos.fx.push({ k: 'wave', m: w, hit: false }); }
+  else if (type === 'barrels') { toast('🛢️ BARREL BOMBS! Jump or get bowled over!', 3600, '#ff8a3d'); for (let i = 0; i < 9; i++) { const b = new THREE.Group(); mk(cylGeo, mat(0xc0392b), [0, 0, 0], [.55, .85, .55], b); mk(cylGeo, mat(0x333333), [0, .3, 0], [.57, .06, .57], b); mk(cylGeo, mat(0x333333), [0, -.3, 0], [.57, .06, .57], b); mk(sphGeo, mat(0xffd43b), [0, 0, .56], [.18, .18, .03], b); b.rotation.z = Math.PI / 2; const g = new THREE.Group(); g.add(b); g.position.set(R() * 7 - 3.5, Y0 + .9, -38 - i * 5); scene.add(g); chaos.fx.push({ k: 'barrel', m: g, b, vz: 9 + R() * 3, vy: 0, vx: (R() - .5) * 1.4 }); } }
+  else if (type === 'gull' && save) { const it = bucket.length ? bucket.splice((R() * bucket.length) | 0, 1)[0] : null; selSlot = clamp(selSlot, 0, Math.max(0, bucket.length - 1)); lastHudKey = ''; toast(it ? `🐦 A SEAGULL STOLE YOUR ${FISH[it.idx].n.toUpperCase()}!` : '🐦 A seagull swooped in... and left empty-handed.', 3400, '#ff8a8a'); const src = plaza.gulls[0]; if (src) { const g = src.g.clone(true); g.scale.setScalar(2.2); g.position.set(me.x, me.y + 14, me.z + 12); scene.add(g); chaos.fx.push({ k: 'gull', m: g, t: 0 }); sfx.squeak(); } }
+  else if (type === 'crabs') { toast('🦀 CRAB STAMPEDE!', 3200, '#ff6b6b'); if (NET.role !== 'client') for (const c of plaza.crabs) { c.rage = 14; c.dead = 0; c.g.visible = true; } }
+}
+function updateChaos(dt) {
+  if (TRADE.give) { const g = TRADE.give; g.wait -= dt; if (g.wait <= 0) { if (g.tries++ < 14) { netEvent(g); g.wait = 1.5; } else TRADE.give = null; } }
+  if (TRADE.out) { TRADE.out.t -= dt; if (TRADE.out.t <= 0) { TRADE.out = null; toast('Trade offer expired.', 1600, '#ffd43b'); if (ui === 'stable') renderStable(); } }
+  if (started && ui === 'play' && NET.role !== 'client') { chaos.t -= dt; if (chaos.t <= 0) { chaos.t = 38 + Math.random() * 40; const t = CHAOS_TYPES[(Math.random() * CHAOS_TYPES.length) | 0], seed = (Math.random() * 1e9) | 0; netEvent({ k: 'chaos', t, seed }); runChaos(t, seed); } }
+  for (let i = chaos.fx.length - 1; i >= 0; i--) {
+    const f = chaos.fx[i]; let dead = false;
+    if (f.k === 'fish') {
+      f.life -= dt; if (f.st === 0) { f.vy -= 24 * dt; f.m.position.y += f.vy * dt; f.m.position.x += f.vx * dt; f.m.position.z += f.vz * dt; f.m.rotation.z += f.spin * dt; const g = Math.max(terrainH(f.m.position.x, f.m.position.z) + .25, Y0 + .25 * (onLandPad(f.m.position.x, f.m.position.z, 0) ? 1 : -9)); if (f.m.position.y <= (onLandPad(f.m.position.x, f.m.position.z, 0) ? Y0 + .3 : Math.max(.2, terrainH(f.m.position.x, f.m.position.z) + .3))) { f.m.position.y = onLandPad(f.m.position.x, f.m.position.z, 0) ? Y0 + .3 : Math.max(.2, terrainH(f.m.position.x, f.m.position.z) + .3); f.st = terrainH(f.m.position.x, f.m.position.z) > 0 || onLandPad(f.m.position.x, f.m.position.z, 0) ? 1 : 2; if (f.st === 2) { splash(f.m.position.x, .1, f.m.position.z, 8, 2); ripple(f.m.position.x, f.m.position.z); dead = true; } } }
+      else { f.m.rotation.z = Math.sin(time * 18 + f.spin) * .5; f.m.position.y += Math.abs(Math.sin(time * 9 + f.spin)) * dt * .8 - dt * .4; if (Math.hypot(f.m.position.x - me.x, f.m.position.z - me.z) < 1.6 && Math.abs(f.m.position.y - me.y) < 3 && !me.swim && !me.riding) { if (bucket.length >= bucketCap()) { if (Math.random() < .02) toast('Bucket full!', 900, '#ffd43b'); } else { addToBucket(f.idx, f.kg); dead = true; sfx.good(); } } }
+      if (f.life <= 0) dead = true; if (dead) scene.remove(f.m);
+    } else if (f.k === 'wave') {
+      f.m.position.z += 46 * dt; if (!f.hit && Math.abs(me.z - f.m.position.z) < 3 && me.y < 5 && !me.riding) { f.hit = true; knockMe(0, 1, 17); me.wob = 1.5; splash(me.x, me.y, me.z, 40, 7); sfx.splashS(); toast('SPLASH!', 1200, '#4dabf7'); }
+      if (f.m.position.z > 60) { scene.remove(f.m); dead = true; }
+    } else if (f.k === 'barrel') {
+      const p = f.m.position; p.z += f.vz * dt; p.x += f.vx * dt; f.vy -= 30 * dt; p.y += f.vy * dt; if (p.y < Y0 + .9) { p.y = Y0 + .9; f.vy = 7 + Math.random() * 2; sfx.thunk(); } f.b.rotation.y += f.vz * dt * .9; f.m.rotation.y = 0;
+      if (Math.hypot(p.x - me.x, p.z - me.z) < 1.5 && Math.abs(p.y - me.y - 1) < 1.8 && !me.riding && !f.hit) { f.hit = true; knockMe(me.x - p.x + f.vx, f.vz * .6 + 1, 14); toast('BONK!', 900, '#ff8a3d'); sfx.thunk(); }
+      if (p.z > 12) { splash(p.x, Y0, p.z, 18, 4); scene.remove(f.m); dead = true; }
+    } else if (f.k === 'gull') {
+      f.t += dt; const u = f.t / 4; f.m.position.x += dt * 9; f.m.position.z -= dt * 3; f.m.position.y += (f.t < 1 ? -9 * dt : 8 * dt); f.m.rotation.y = Math.PI / 2; if (u >= 1) { scene.remove(f.m); dead = true; }
+    }
+    if (dead) chaos.fx.splice(i, 1);
+  }
+}
 function updateFun(dt) {
   // kick timing + the pose
   if (me.kickT > 0) { me.kickT -= dt; if (me.kickHit && me.kickT < .22) { me.kickHit = false; doKick(); } }
@@ -2375,7 +2520,7 @@ function update(dt) {
     if (eatT > 0 || has('disco')) { /* handled in poses for remotes */ }
     if (me.y > Y0 + .05 && has('rocket') === false && me.grounded === false && me.vy < -15) { splash(me.x, Y0, me.z, 14, 3); }
   }
-  updateRemotes(dt); updateParts(dt); updateDetail(dt); updateMega(dt); updatePlaza(dt); updateFun(dt);
+  updateRemotes(dt); updateParts(dt); updateDetail(dt); updateMega(dt); updatePlaza(dt); updateFun(dt); updateChaos(dt);
   updateFin(dt);
   pressedQ.length = 0; if (started) { updateCamera(dt); updateHUD(); } else { camera.position.set(Math.sin(time * .15) * 10, 4.2, 30); camera.rotation.set(-.05, Math.sin(time * .15) * .4, 0); }
 }
@@ -2383,10 +2528,11 @@ let last = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt);
+  if (window.__cam) { camera.position.copy(window.__cam.p); camera.lookAt(window.__cam.t); }
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 buildDetail(); buildShore(); buildPlaza(); buildIsland360(); addFun(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { makeFish3D, buildHat,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
