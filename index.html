@@ -1107,7 +1107,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261102204840';
+const GAME_BUILD = '20261102205008';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2734,7 +2734,7 @@ function buildPlaza() {
   // seaside fountain with a golden koi spitting water
   { const cx = 0, cz = 28; const basin = new THREE.Mesh(smoothCyl, mat(0xdcd6ee)); basin.scale.set(3.4, .7, 3.4); basin.position.set(cx, Y0 + .35, cz); scene.add(basin);
     const water = new THREE.Mesh(smoothCyl, new THREE.MeshBasicMaterial({ color: new THREE.Color(.3, 1.2, 1.5) })); water.scale.set(3.0, .05, 3.0); water.position.set(cx, Y0 + .76, cz); scene.add(water);
-    mk(smoothCyl, mat(0xdcd6ee), [cx, Y0 + 1.2, cz], [.45, 1.0, .45], scene); const fish = makeFish3D(FISH[22]); fish.scale.setScalar(2.6); fish.position.set(cx, Y0 + 2.8, cz); fish.rotation.z = 1.1; scene.add(fish); plaza.fish = fish; addCol(cx - 3.5, cx + 3.5, cz - 3.5, cz + 3.5); }
+    mk(smoothCyl, mat(0xdcd6ee), [cx, Y0 + 1.2, cz], [.45, 1.0, .45], scene); const fish = makeFish3D(FISH[22]); fish.scale.set(2.8, 2.8, 3.6); fish.position.set(cx, Y0 + 2.8, cz); fish.rotation.set(0, 0, 1.0); scene.add(fish); plaza.fish = fish; addCol(cx - 3.5, cx + 3.5, cz - 3.5, cz + 3.5); }
   // warm point lights so the plaza glows
   for (const [x, y, z] of [[8, Y0 + 3, 18], [22, Y0 + 3, 18], [15, Y0 + 4, 12], [0, Y0 + 3, 20]]) { const l = new THREE.PointLight(0xffb566, 1.7, 17, 2); l.position.set(x, y, z); scene.add(l); }
   // starfish + shells
@@ -2751,7 +2751,7 @@ function buildPlaza() {
 function updatePlaza(dt) {
   for (const t of plaza.torches) { t.f.scale.set(1.5 + Math.sin(time * 19 + t.p) * .18 + Math.random() * .12, 2.0 + Math.sin(time * 14 + t.p) * .3 + Math.random() * .15, 1); }
   if (plaza.beam) plaza.beam.rotation.y = time * 1.1;
-  if (plaza.fish) { plaza.fish.rotation.y += dt * .5; plaza.fish.position.y = Y0 + 2.8 + Math.sin(time * 2) * .08; plaza.sprayT -= dt; if (plaza.sprayT <= 0) { plaza.sprayT = .07; splash(plaza.fish.position.x + Math.sin(plaza.fish.rotation.y) * .5, Y0 + 3.9, plaza.fish.position.z, 2, 1.3); } }
+  if (plaza.fish) { plaza.fish.rotation.y = Math.sin(time * .6) * .45; plaza.fish.rotation.z = 1.0 + Math.sin(time * 2.1) * .07; plaza.fish.position.y = Y0 + 2.8 + Math.sin(time * 2) * .08; plaza.sprayT -= dt; if (plaza.sprayT <= 0) { plaza.sprayT = .07; splash(plaza.fish.position.x + Math.sin(plaza.fish.rotation.y) * .5, Y0 + 3.9, plaza.fish.position.z, 2, 1.3); } }
   for (const c of plaza.crabs) {
     if (NET.role === 'client' || c.fly || c.dead > 0 || c.stun > 0) continue;
     const p = c.g.position; let tx = me.x, tz = me.z, d = Math.hypot(tx - p.x, tz - p.z); for (const rp of remotes.values()) { if (!rp.init) continue; const dd = Math.hypot(rp.x - p.x, rp.z - p.z); if (dd < d) { d = dd; tx = rp.x; tz = rp.z; } } c.t -= dt;
