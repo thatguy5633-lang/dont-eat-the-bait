@@ -17,6 +17,11 @@ A third-person, up-to-8-player fishing game. The game is `index.html` plus `simp
 ## Online rooms
 Click **Host online room** and share the 4-letter code. Friends click **Join room** and type it in. Rooms are relayed through free public MQTT brokers over secure WebSockets (EMQX / HiveMQ), so they work on home, school and most office networks without any WebRTC. Crabs, the beach ball, kicks and shoves are shared with everyone in the room. Pause (Esc) → Main menu → Leave room to exit a room.
 
+## Extra fun (and challenge)
+- **Difficulty:** Chill, Normal, Hard or Insane (title screen or pause menu). Harder modes mean tougher fights, snappier lines, a shorter hook window, more chaos and rarer BOSS fish, but more cash and XP.
+- **Boss fish** (👹): rare, huge, angry fish worth 5x.
+- **Fin's quests**, **sea treasure chests**, a **cannon** and **bounce pads** on the beach, **emotes** (V), **combos**, and more chaos events (meteors, low gravity, party time).
+
 ## Phones and tablets
 The game detects touch screens automatically: left thumb stick to move, drag the view to look, big 🎣 button to cast or hold to reel, plus jump, eat, kick, shove, Mega, boost and menu buttons. Tap the bottom bar to pick your rod or a fish. Landscape works best.
 

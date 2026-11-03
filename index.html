@@ -139,12 +139,12 @@
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
   <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button></div>
-  <div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
+  <div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
 <div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub" id="pauseSub">The fish will wait. (Online players keep fishing!)</div>
-<div id="pauseMain"><div><button id="btnResume">Resume</button></div>
+<div id="pauseMain"><div><button id="btnResume">Resume</button></div><div id="pauseDiff" style="margin:8px 0"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button id="btnDict" class="sec">📖 Fish Dictionary</button><button id="btnStable" class="sec">🐋 Mega Stable</button><button id="btnSkills" class="sec">⭐ Skills</button><button id="btnMenu" class="sec">🏠 Main menu</button></div></div>
 <div id="menuAsk" style="display:none"><div class="sub" id="menuAskTxt"></div><div><button id="btnLeave" style="background:#ff6b6b;box-shadow:0 4px 0 #c92a2a">🚪 Leave room &amp; go to main menu</button></div><div style="margin-top:8px"><button id="btnStay" class="sec">Stay in the room</button></div></div>
 </div></div>
@@ -1161,7 +1161,9 @@ function startFight() {
   const zz = fishZone(); const ROD_MEGA = [.04, .12, .3, .6, 1, 1.4]; let mc = (zz === 'f' ? .0006 : zz === 'm' ? .0002 : .00005) * (1 + st.luck * 3) * (F.bait === 'mega' ? 6 : 1) * areaBonus().mega * ROD_MEGA[Math.min(5, save.rod)];
   if (Math.random() < mc) { const mi = pickMegaSp(); F.mega = { sp: mi }; F.idx = -1; F.kg = 0; sp = { n: MEGAS[mi].n, style: pick(['tension', 'direction', 'rhythm']), diff: .94 }; toast('SOMETHING HUGE is on the line!!', 2800, '#ff5a8a'); sfx.lvl(); }
   else { F.idx = pickFish(zz, F.bait, st.luck); sp = FISH[F.idx]; F.kg = rollKg(sp, st.luck); }
-  const G = { style: sp.style, diff: sp.diff, prog: .0, strikes: 0, maxStrikes: 3 + (save.rod >= 3 ? 1 : 0), t: .4, stress: 0, time: 0 };
+  const dm = DF(); F.bossFish = false; sp = Object.assign({}, sp, { diff: clamp(sp.diff + dm.fight, .05, 1.25) });
+  if (!F.mega && FISH[F.idx].shape !== 4 && Math.random() < dm.boss) { F.bossFish = true; sp.diff = clamp(sp.diff + .22, .3, 1.3); F.kg = +(F.kg * 1.8).toFixed(2); toast('👹 BOSS FISH on the line!! It is HUGE and angry!', 3000, '#ff6b6b'); sfx.lvl(); }
+  const G = { style: sp.style, diff: sp.diff, sm: dm.stress, prog: .0, strikes: 0, maxStrikes: 3 + (save.rod >= 3 ? 1 : 0), t: .4, stress: 0, time: 0 };
   const rodEase = .75 + .25 * st.line, reel = st.reel;
   switch (sp.style) {
     case 'tension': G.lo = .35; G.hi = .7 + Math.min(.08, (st.line - 1) * .05); G.surge = 0; G.nextSurge = rnd(.6, 1.4); G.prog = .25; G.rate = .13 * reel * (1 - sp.diff * .35); break;
@@ -1179,7 +1181,7 @@ function startFight() {
 function endFight(win) {
   const sp = F.mega ? { n: MEGAS[F.mega.sp].n } : FISH[F.idx]; $('fight').style.display = 'none';
   if (fightFish) { scene.remove(fightFish); fightFish = null; }
-  if (win) { F.state = 'landing'; F.flyT = 0; sfx.catchF(); F.lastCatch = { idx: F.idx, kg: F.kg, mega: F.mega }; splash(F.bx, .1, F.bz, 40, 5.5); ripple(F.bx, F.bz); }
+  if (win) { F.state = 'landing'; F.flyT = 0; sfx.catchF(); F.lastCatch = { idx: F.idx, kg: F.kg, mega: F.mega, boss: F.bossFish }; splash(F.bx, .1, F.bz, 40, 5.5); ripple(F.bx, F.bz); }
   else { toast(`The ${sp.n} got away!`, 1800, '#ff8a8a'); sfx.bad(); resetFishing(); }
 }
 function updateFight(dt) {
@@ -1190,7 +1192,7 @@ function updateFight(dt) {
     case 'tension': {
       G.nextSurge -= dt; if (G.nextSurge <= 0) { G.surge = .5 + G.diff * .4; G.nextSurge = rnd(1.2, 2.4) - G.diff * .6; G.surgeT = rnd(.5, .9); }
       let force = (mouse.down ? 1.0 : -.75); if (G.surgeT > 0) { G.surgeT -= dt; force += G.surge; }
-      G.t = clamp(G.t + force * dt * (.8 + G.diff * .3) / (.9 + .1 * st.line), -.1, 1.05);
+      G.t = clamp(G.t + force * dt * (.8 + G.diff * .3) * (force > 0 ? G.sm : 1) / (.9 + .1 * st.line), -.1, 1.05);
       if (G.t >= G.lo && G.t <= G.hi) G.prog += G.rate * dt; else if (G.t > G.hi) { G.prog += G.rate * .3 * dt; } else if (G.t < .12) G.prog -= .1 * dt;
       stress = G.t; if (G.t >= 1) { toast('The line snapped!', 1800, '#ff8a8a'); endFight(false); return; }
       if (mouse.down && Math.random() < .05) sfx.tick();
@@ -1234,11 +1236,11 @@ function updateFight(dt) {
   $('fProg').firstElementChild.style.width = clamp(G.prog, 0, 1) * 100 + '%';
   $('fStrikes').textContent = (G.style === 'timing' || G.style === 'rhythm') ? '❌'.repeat(G.strikes) + '⭕'.repeat(G.maxStrikes - G.strikes) : '';
 }
-function addToBucket(idx, kg) {
+function addToBucket(idx, kg, boss) {
   const sp = FISH[idx], first = !save.book[idx]; const b = save.book[idx] || (save.book[idx] = { n: 0, best: 0, fx: false }); b.n++; b.best = Math.max(b.best, kg);
-  const lv = fishLevel(sp, kg); let xp = Math.round((10 + 14 * sp.r * sp.r + kg * 1.5) * (xpBoost ? 3 : 1) * comboBump()); xpBoost = false;
+  const lv = fishLevel(sp, kg); let xp = Math.round((10 + 14 * sp.r * sp.r + kg * 1.5) * (xpBoost ? 3 : 1) * comboBump() * DF().xp * (boss ? 3 : 1)); xpBoost = false;
   save.xp += xp; let lvUp = false; while (save.xp >= xpNeed(save.level)) { save.xp -= xpNeed(save.level); save.level++; lvUp = true; }
-  bucket.push({ idx, kg }); selSlot = bucket.length - 1; afterCatch(idx, kg);
+  bucket.push({ idx, kg, boss: !!boss }); selSlot = bucket.length - 1; afterCatch(idx, kg); if (boss) { confetti(me.x, me.y + .6, me.z, 50); toast('👹 You beat a BOSS fish! Worth 5x!', 2800, '#ff6b6b'); }
   toast(`CAUGHT! ${sp.n} · ${lbs(kg)} lbs · Lv ${lv}`, 2600, R_COL[sp.r]); if (first) { toast('NEW FISH! Added to your Fish Dictionary 📖', 2600, '#ffd43b'); drawSign(); }
   if (lvUp) { sfx.lvl(); toast(`LEVEL UP! You are level ${save.level}. Skill point earned! Press T to spend it.`, 3400, '#ffd43b'); }
   netEvent({ k: 'catch', name: me.name, fish: sp.n, kg, r: sp.r }); persist();
@@ -1268,7 +1270,7 @@ function updateFishing(dt) {
       F.t += dt; F.bx = F.tx; F.bz = F.tz; F.by = waveH(F.tx, F.tz, time) + .05;
       if (F.state === 'wait') {
         while (F.nibI < F.nib.length && F.t >= F.nib[F.nibI]) { F.nibI++; F.by -= .15; sfx.nibble(); ripple(F.tx, F.tz); splash(F.tx, .1, F.tz, 3, 1); F.dip = .3; }
-        if (F.t >= F.biteAt) { F.state = 'bite'; F.bt = stats().hook; F.t = 0; sfx.bite(); $('bang').style.display = 'block'; splash(F.tx, .1, F.tz, 14, 2.6); }
+        if (F.t >= F.biteAt) { F.state = 'bite'; F.bt = stats().hook * DF().hook; F.t = 0; sfx.bite(); $('bang').style.display = 'block'; splash(F.tx, .1, F.tz, 14, 2.6); }
         if (canAct && (mouse.pressed || mouse.rpressed)) { resetFishing(); toast('Reeled in.', 800); }
       } else {
         F.bt -= dt; F.by -= .25 + Math.sin(time * 30) * .06;
@@ -1294,7 +1296,7 @@ function updateFishing(dt) {
       F.bx = lerp(F.bx, _w.x, u * u); F.bz = lerp(F.bz, _w.z, u * u); F.by = lerp(F.by, _w.y, u * u) + Math.sin(u * Math.PI) * 1.2;
       if (u >= 1) {
         const c = F.lastCatch; if (c.mega) { resetFishing(); F.state = 'idle'; showMegaCatch(c.mega.sp); break; } resetFishing(); F.state = 'show'; F.showT = 2.8; myBobber.visible = false; myLine.visible = false;
-        const sp = FISH[c.idx]; addToBucket(c.idx, c.kg);
+        const sp = FISH[c.idx]; addToBucket(c.idx, c.kg, c.boss);
       }
       break;
     }
@@ -1659,7 +1661,7 @@ function setUI(s) {
   ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills' };
   for (const k of Object.values(ov)) $(k).style.display = 'none';
   if (ov[s]) $(ov[s]).style.display = 'flex';
-  if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; }
+  if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; renderDiff(); }
   $('hud').style.display = started ? 'block' : 'none';
   document.body.classList.toggle('playing', s === 'play' && started);
   document.documentElement.style.cursor = s === 'play' && !TOUCH ? 'none' : ''; canvas.style.cursor = s === 'play' ? 'none' : '';
@@ -1694,7 +1696,17 @@ function updateHUD() {
 function drawIcon(i, found) { return `<img src="${found ? ICON[i] : ICON_SIL[i]}">`; }
 /* ---- market ---- */
 let mTab = 'sell';
-function sellPrice(it) { const sp = FISH[it.idx]; return Math.round(sp.price * (.7 + .6 * clamp((it.kg - sp.min) / Math.max(.01, sp.max - sp.min), 0, 1)) * (has('goldtouch') ? 2 : 1)); }
+const DIFFS = [
+  { n: 'Chill', e: '🧘', fight: -.12, stress: .8, hook: 1.4, pay: .8, xp: .8, chaos: .6, boss: 0, d: 'Easier fights, a long window to hook bites, calmer chaos. 0.8x cash and XP.' },
+  { n: 'Normal', e: '🎣', fight: 0, stress: 1, hook: 1, pay: 1, xp: 1, chaos: 1, boss: .03, d: 'The standard game. Rare BOSS fish can show up.' },
+  { n: 'Hard', e: '🔥', fight: .1, stress: 1.3, hook: .8, pay: 1.6, xp: 1.4, chaos: 1.5, boss: .06, d: 'Tougher fish, lines snap faster, shorter hook window, more chaos and more bosses. 1.6x cash, 1.4x XP.' },
+  { n: 'Insane', e: '💀', fight: .2, stress: 1.7, hook: .6, pay: 2.5, xp: 2, chaos: 2.2, boss: .1, d: 'Brutal fights, razor-thin hook window and constant chaos. 2.5x cash, 2x XP. Good luck.' }
+];
+const DF = () => DIFFS[save.diff == null ? 1 : save.diff];
+function renderDiff() {
+  for (const id of ['diffBox', 'pauseDiff']) { const box = document.getElementById(id); if (!box) continue; box.innerHTML = '<div class="lab">Difficulty</div>'; DIFFS.forEach((d, i) => { const b = document.createElement('button'); b.className = 'opt' + ((save.diff == null ? 1 : save.diff) === i ? ' on' : ''); b.textContent = `${d.e} ${d.n}`; b.onclick = () => { save.diff = i; persist(); renderDiff(); toast(`Difficulty: ${d.n}`, 1400, '#ffd43b'); }; box.appendChild(b); }); const t = document.createElement('div'); t.className = 'small'; t.textContent = DF().d; box.appendChild(t); }
+}
+function sellPrice(it) { const sp = FISH[it.idx]; return Math.round(sp.price * (.7 + .6 * clamp((it.kg - sp.min) / Math.max(.01, sp.max - sp.min), 0, 1)) * (has('goldtouch') ? 2 : 1) * (it.boss ? 5 : 1) * DF().pay); }
 function renderMarket() {
   $('mGold').textContent = `💰 $${save.gold}`; const body = $('mBody'); body.innerHTML = '';
   document.querySelectorAll('#market .tabs button').forEach(b => b.classList.toggle('on', b.dataset.t === mTab));
@@ -2710,7 +2722,7 @@ function runChaos(type, seed, cx = 0, cz = -5) {
 function updateChaos(dt) {
   if (TRADE.give) { const g = TRADE.give; g.wait -= dt; if (g.wait <= 0) { if (g.tries++ < 14) { netEvent(g); g.wait = 1.5; } else TRADE.give = null; } }
   if (TRADE.out) { TRADE.out.t -= dt; if (TRADE.out.t <= 0) { TRADE.out = null; toast('Trade offer expired.', 1600, '#ffd43b'); if (ui === 'stable') renderStable(); } }
-  if (started && ui === 'play' && NET.role !== 'client') { chaos.t -= dt; if (chaos.t <= 0) { chaos.t = 38 + Math.random() * 40; const t = CHAOS_TYPES[(Math.random() * CHAOS_TYPES.length) | 0], seed = (Math.random() * 1e9) | 0; netEvent({ k: 'chaos', t, seed }); runChaos(t, seed); } }
+  if (started && ui === 'play' && NET.role !== 'client') { chaos.t -= dt; if (chaos.t <= 0) { chaos.t = (38 + Math.random() * 40) / DF().chaos; const t = CHAOS_TYPES[(Math.random() * CHAOS_TYPES.length) | 0], seed = (Math.random() * 1e9) | 0; netEvent({ k: 'chaos', t, seed }); runChaos(t, seed); } }
   for (let i = chaos.fx.length - 1; i >= 0; i--) {
     const f = chaos.fx[i]; let dead = false;
     if (f.k === 'fish') {
@@ -2893,7 +2905,7 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt);
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
-buildDetail(); buildShore(); buildPlaza(); buildIsland360(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
+buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
 window.__game = { fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
