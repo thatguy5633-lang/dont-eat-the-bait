@@ -119,7 +119,7 @@
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
-<div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub">The fish will wait. (Online players keep fishing!)</div><div><button id="btnResume">Resume</button></div><div><button id="btnDict" class="sec">📖 Fish Dictionary</button></div><div><button id="btnStable" class="sec">🐋 Mega Stable</button></div><div><button id="btnSkills" class="sec">⭐ Skills</button></div></div></div>
+<div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub">The fish will wait. (Online players keep fishing!)</div><div><button id="btnResume">Resume</button></div><div><button id="btnDict" class="sec">📖 Fish Dictionary</button></div><div><button id="btnStable" class="sec">🐋 Mega Stable</button></div><div><button id="btnSkills" class="sec">⭐ Skills</button></div><div style="margin-top:10px"><button id="btnMenu" class="sec">🏠 Main menu</button></div></div></div>
 
 <div class="ov" id="market"><div class="box" style="width:min(780px,96vw)">
   <h2>🐟 Fin's Fish Market</h2>
@@ -1602,6 +1602,13 @@ function openSkills() { setUI('skills'); renderSkills(); }
 function closeSkills() { if (skillsFrom === 'pause') { skillsFrom = null; setUI('pause'); } else { skillsFrom = null; setUI('play'); lockPointer(); } }
 $('btnSkills').onclick = () => { skillsFrom = 'pause'; openSkills(); };
 $('skClose').onclick = closeSkills;
+/* Main menu: save, leave any online room, and return to the title screen (Solo / Host / Join) */
+$('btnMenu').onclick = () => {
+  if (NET.role !== 'solo' && !confirm('Leave this room and go back to the main menu?')) return;
+  persist(); try { if (NET.peer) NET.peer.destroy(); } catch (e) { }
+  try { document.exitPointerLock(); } catch (e) { }
+  location.reload();
+};
 $('nmOk').onclick = confirmMegaName;
 $('nmInput').addEventListener('keydown', e => { if (e.key === 'Enter') confirmMegaName(); });
 
