@@ -139,7 +139,7 @@
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
   <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button></div>
-  <div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
+  <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
@@ -1107,6 +1107,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
+const GAME_BUILD = '20261102204840';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1480,7 +1481,7 @@ function updateCamera(dt) {
   let yawOff = 0, roll = 0, fov = 68, pitch = me.pitch;
   if (has('dizzy')) { yawOff += Math.sin(time * .9) * .25; roll = Math.sin(time * 1.7) * .22; pitch += Math.sin(time * 1.3) * .12; }
   if (has('disco')) { roll += Math.sin(time * 6) * .08; fov += Math.sin(time * 6) * 4; yawOff += Math.sin(time * 1.5) * .35; }
-  if (has('zoomies')) fov += 14; if (has('tiny')) fov -= 4; if (nausea > 0) { roll += Math.sin(time * 3) * .1; }
+  if (me.riding && MEGA.boost) fov += 12; if (has('zoomies')) fov += 14; if (has('tiny')) fov -= 4; if (nausea > 0) { roll += Math.sin(time * 3) * .1; }
   if (F.state === 'fight' && F.G) { pitch += (Math.random() - .5) * .01 * F.G.stress * 4; }
   const cy_ = me.yaw + yawOff, cp = Math.cos(pitch), sp = Math.sin(pitch);
   const cx = tx - Math.sin(cy_) * cp * dist, cz = tz - Math.cos(cy_) * cp * dist, cyy = Math.max((me.riding || me.passenger || me.swim) ? .6 : Y0 + .4, ty - sp * dist + .6 * sc);
@@ -1527,6 +1528,7 @@ function updateRemoteMega(rp, dt) {
   const k = Math.min(1, 10 * dt); rp.mx += (mg.x - rp.mx) * k; rp.mz += (mg.z - rp.mz) * k; rp.ma = lerpAngle(rp.ma, mg.a, k);
   const o = rp.megaObj, sc = megaScaleOf(mg.s, mg.l), surf = waveH(rp.mx, rp.mz, time); o.visible = true; rp.megaTag.visible = true;
   o.position.set(rp.mx, surf + .15 + mg.y + Math.sin(time * 2) * .08, rp.mz); o.rotation.set(0, rp.ma, 0); o.scale.setScalar(sc); animateMega(o, time); rp.megaTag.position.set(rp.mx, surf + 3.4 * sc + mg.y, rp.mz);
+  megaAmbientFx(MEGAS[mg.s], rp.mx, surf + mg.y, rp.mz, sc, mg.g);
   if (mg.r && Math.random() < .5) emitTrail(rp.mx - Math.sin(rp.ma) * 1.8 * sc, surf + .2 + mg.y, rp.mz - Math.cos(rp.ma) * 1.8 * sc, mg.t || 'sparkle', mg.g);
 }
 function removeRemote(id) { const rp = remotes.get(id); if (!rp) return; if (rp.megaObj) { scene.remove(rp.megaObj); scene.remove(rp.megaTag); } rp.ch.destroy(); scene.remove(rp.tag); scene.remove(rp.rod); scene.remove(rp.held.g); scene.remove(rp.bob); scene.remove(rp.line); remotes.delete(id); NET.players.delete(id); }
@@ -1658,7 +1660,18 @@ class MPeer {
   destroy() { for (const c of [...this.conns.values()]) c.close(); clearInterval(this._hb); setTimeout(() => { this.cls.forEach(cl => { try { cl.end(true); } catch (e) { } }); }, 400); }
 }
 function leaveWithNotice(msg) { try { sessionStorage.setItem('deb_notice', msg); } catch (e) { } location.reload(); }
-const BUILD = 'online v2'; function setStatus(t) { $('menuStatus').textContent = t; }
+const BUILD = 'online v2'; let updateReady = null;
+async function checkUpdate(manual) {
+  const btn = document.getElementById('btnUpdate'), info = document.getElementById('updInfo'); if (!btn) return;
+  if (updateReady) { info.textContent = 'Loading the update…'; location.href = location.pathname + '?v=' + updateReady; return; }
+  if (manual) info.textContent = 'Checking…';
+  try {
+    const r = await fetch(location.pathname + '?chk=' + Date.now(), { cache: 'no-store' }); const t = await r.text(), m = t.match(/const GAME_BUILD = '(\d+)'/);
+    if (m && m[1] !== GAME_BUILD && m[1] > GAME_BUILD) { updateReady = m[1]; btn.textContent = '⬇️ Update ready! Tap to load'; btn.style.background = '#ffd43b'; btn.style.color = '#14213d'; info.textContent = 'A newer version is out.'; }
+    else if (manual) info.textContent = `You're up to date (build ${GAME_BUILD.slice(0, 8)}).`;
+  } catch (e) { if (manual) info.textContent = "Couldn't check (are you offline?)."; }
+}
+function setStatus(t) { $('menuStatus').textContent = t; }
 try { const n = sessionStorage.getItem('deb_notice'); if (n) { setStatus(n); sessionStorage.removeItem('deb_notice'); } } catch (e) { }
 function randCode() { const a = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let c = ''; for (let i = 0; i < 4; i++) c += a[(Math.random() * a.length) | 0]; return c; }
 function hostRoom() {
@@ -1901,6 +1914,7 @@ $('btnMenu').onclick = () => {
   $('pauseMain').style.display = 'none'; $('menuAsk').style.display = '';
 };
 $('btnLeave').onclick = goMainMenu;
+$('btnUpdate').onclick = () => checkUpdate(true); setTimeout(() => checkUpdate(false), 2500);
 function syncSoundBtn() { $('btnSound').textContent = save.mute ? '🔇 Sound: OFF' : '🔊 Sound: ON'; }
 $('btnSound').onclick = () => { setMute(!save.mute); syncSoundBtn(); };
 $('btnStay').onclick = () => { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; };
@@ -2251,9 +2265,13 @@ function makeMega(def, c1, glowCol, level = 1) {
   }
   if (def.seats === 2 && !U.seat2 && U.seat2 !== null) U.seat2 = [0, U.seatY, U.seatZ - 1.0]; if (def.seats !== 2) U.seat2 = null;
   const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .2 + .02 * level })); aura.scale.setScalar(5 + level * .4); aura.position.y = .3; aura.userData.base = 5 + level * .4; g.add(aura); U.aura = aura;
+  // orbiting glow motes (more of them as your Mega levels up) and a heartbeat in its glowing spots
+  U.motes = []; const nm = 5 + Math.min(10, level * 2); for (let i = 0; i < nm; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(2.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); m.scale.setScalar(.28 + Math.random() * .22); g.add(m); U.motes.push({ m, a: Math.random() * TAU, r: 1.1 + Math.random() * 1.3, h: Math.random() * 1.6 - .4, s: .6 + Math.random() * 1.2 }); }
+  U.gm = GM; U.gmBase = GM.color.clone();
   g.userData = U; return g;
 }
 function animateMega(g, t) {
+  { const U0 = g.userData; if (U0.motes) for (const q of U0.motes) { const a = q.a + t * q.s; q.m.position.set(Math.cos(a) * q.r, .3 + q.h + Math.sin(t * 2 + q.a) * .25, Math.sin(a) * q.r * 1.5); q.m.material.opacity = .55 + Math.sin(t * 4 + q.a) * .35; } if (U0.gm) U0.gm.color.copy(U0.gmBase).multiplyScalar(1 + Math.sin(t * 3.2) * .3); }
   const U = g.userData; if (U.tail) U.tail.rotation.y = Math.sin(t * 3.2) * .35;
   if (U.segs) U.segs.forEach((s, i) => { s.position.x = Math.sin(t * 3 - i * .55) * (.05 + i * .045); });
   if (U.tents) U.tents.forEach((tg, i) => { tg.rotation.x = Math.sin(t * 2 + i) * .25; });
@@ -2285,7 +2303,7 @@ function summonMega(rec) {
   let spot = null; for (let d = 6; d < 60 && !spot; d += 1.5) for (const off of [0, .5, -.5, 1, -1, 1.6, -1.6, 2.3, -2.3, 3]) { const a = me.yaw + off, tx = me.x + Math.sin(a) * d, tz = me.z + Math.cos(a) * d; if (isWater(tx, tz, 3)) { spot = [tx, tz]; break; } }
   if (!spot) { toast('No open water in front of you. Turn toward the sea!', 2200, '#ffd43b'); return; }
   MEGA.x = spot[0]; MEGA.z = spot[1]; MEGA.y = 0; MEGA.vx = MEGA.vz = MEGA.vy = 0; MEGA.yaw = Math.atan2(me.x - MEGA.x, me.z - MEGA.z); MEGA.summoned = true; MEGA.obj.visible = true; MEGA.tag.visible = true;
-  splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); sfx.roar(); sfx.bigSplash(); toast(`${rec.name} bursts out of the water! Swim up close and press G to ride.`, 3200, '#6fe8ff');
+  splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); megaEntrance(MEGAS[rec.sp], MEGA.x, MEGA.z); sfx.bigSplash(); toast(`${rec.name} bursts out of the water! Swim up close and press G to ride.`, 3200, '#6fe8ff');
 }
 function nearestWalk(x, z) { let best = null; for (const w of walkRects) { const px = clamp(x, w.x0 + .9, w.x1 - .9), pz = clamp(z, w.z0 + .9, w.z1 - .9), d = Math.hypot(px - x, pz - z); if (!best || d < best.d) best = { x: px, z: pz, d }; } return best; }
 function toggleMega() {
@@ -2334,7 +2352,7 @@ function updateRide(dt) {
   const fishingNow = megaCanFish(MEGAS[rec.sp]) && F.state !== 'idle' && F.state !== 'show'; if (fishingNow) { ix = 0; iz = 0; }
   const fx = Math.sin(me.yaw), fz = Math.cos(me.yaw), rx = -Math.cos(me.yaw), rz = Math.sin(me.yaw);
   let dx = fx * iz + rx * ix, dz = fz * iz + rz * ix; const len = Math.hypot(dx, dz); if (len > 1) { dx /= len; dz /= len; }
-  const moving = len > .05, boost = (keys.ShiftLeft || keys.ShiftRight) && moving, spd = megaSpeed(rec) * (boost ? 1.7 : 1);
+  const moving = len > .05, boost = (keys.ShiftLeft || keys.ShiftRight) && moving, spd = megaSpeed(rec) * (boost ? 1.7 : 1); MEGA.boost = boost;
   const tvx = dx * spd, tvz = dz * spd, ddx = tvx - MEGA.vx, ddz = tvz - MEGA.vz, dd = Math.hypot(ddx, ddz), mx = (moving ? 11 : 5) * dt;
   if (dd > mx) { MEGA.vx += ddx / dd * mx; MEGA.vz += ddz / dd * mx; } else { MEGA.vx = tvx; MEGA.vz = tvz; }
   const sp = Math.hypot(MEGA.vx, MEGA.vz); if (sp > .8) MEGA.yaw = lerpAngle(MEGA.yaw, Math.atan2(MEGA.vx, MEGA.vz), 3.2 * dt);
@@ -2348,6 +2366,20 @@ function updateRide(dt) {
   me.x = MEGA.x + Math.sin(MEGA.yaw) * U.seatZ * sc; me.z = MEGA.z + Math.cos(MEGA.yaw) * U.seatZ * sc; me.y = surf + MEGA.y + U.seatY * sc; me.vx = MEGA.vx; me.vz = MEGA.vz; me.spd = sp; me.vy = 0; me.grounded = false;
   me.walk += sp * dt * .4; me.sc += (1 - me.sc) * Math.min(1, 3 * dt);
 }
+function megaAmbientFx(def, x, y, z, sc, glow) {
+  const a = def.area || 'any', r = Math.random(), px = x + rnd(-1.2, 1.2) * sc, pz = z + rnd(-1.2, 1.2) * sc;
+  if (a === 'lava') { if (r < .5) emitTrail(px, y + .8 * sc, pz, 'flame', '#ff6a1a'); }
+  else if (a === 'storm') { if (r < .4) emitTrail(px, y + rnd(.3, 2) * sc, pz, 'sparkle', '#fff27a'); if (r < .004 && started) makeBolt(x + rnd(-6, 6), 48, z + rnd(-6, 6), x + rnd(-1, 1), y + .5, z + rnd(-1, 1), false); }
+  else if (a === 'cove' || a === 'outer') { if (r < .35) emitTrail(px, y + .5 * sc, pz, 'bubble', '#cfeeff'); }
+  else if (a === 'island') { if (r < .3) emitTrail(px, y + 1.2 * sc, pz, 'sparkle', '#9dff7a'); }
+  else if (r < .22) emitTrail(px, y + 1 * sc, pz, 'sparkle', glow);
+}
+function megaEntrance(def, x, z) {
+  const a = def.area || 'any'; confetti(x, 1, z, 28); sfx.roar();
+  if (a === 'storm') { makeBolt(x, 52, z, x, .3, z, true); makeBolt(x + 4, 52, z - 3, x + 4, .3, z - 3, true); }
+  else if (a === 'lava') for (let i = 0; i < 40; i++) emitTrail(x + rnd(-2, 2), rnd(.5, 4), z + rnd(-2, 2), 'flame', '#ff6a1a');
+  else for (let i = 0; i < 30; i++) emitTrail(x + rnd(-2.5, 2.5), rnd(.3, 3), z + rnd(-2.5, 2.5), 'bubble', '#cfeeff');
+}
 function updateMega(dt) {
   const rec = MEGA.rec;
   for (const m of save.megas) m.hunger = Math.max(0, m.hunger - dt * .04);
@@ -2358,9 +2390,10 @@ function updateMega(dt) {
   if (!MEGA.ridden) { const d = Math.hypot(me.x - MEGA.x, me.z - MEGA.z); if (d < 40 && d > 4) MEGA.yaw = lerpAngle(MEGA.yaw, Math.atan2(me.x - MEGA.x, me.z - MEGA.z), 1.5 * dt); MEGA.vx *= .95; MEGA.vz *= .95; }
   const turn = MEGA.ridden ? clamp((Math.atan2(MEGA.vx, MEGA.vz) - MEGA.yaw), -1, 1) * Math.min(1, me.spd / 8) : 0;
   o.position.set(MEGA.x, surf + .15 + MEGA.y + Math.sin(time * 2) * .08, MEGA.z); o.rotation.set(-clamp(MEGA.vy * .04, -.45, .45) * (MEGA.ridden ? 1 : 0), MEGA.yaw, -turn * .35 * 0 + turn * .3); o.scale.setScalar(sc); animateMega(o, time);
-  MEGA.tag.position.set(MEGA.x, surf + 3.4 * sc + MEGA.y, MEGA.z);
+  MEGA.tag.position.set(MEGA.x, surf + 3.4 * sc + MEGA.y, MEGA.z); megaAmbientFx(MEGAS[rec.sp], MEGA.x, surf + MEGA.y, MEGA.z, sc, rec.glow);
   if (MEGA.ridden) {
     const sp = Math.hypot(MEGA.vx, MEGA.vz), tailX = MEGA.x - Math.sin(MEGA.yaw) * 1.8 * sc, tailZ = MEGA.z - Math.cos(MEGA.yaw) * 1.8 * sc;
+    if (sp > 6) for (let i = 0; i < 2; i++) emitTrail(tailX + rnd(-1, 1), surf + .3, tailZ + rnd(-1, 1), 'bubble', '#ffffff');
     if (sp > 1.5) { const n = sp > 14 ? 3 : 1; for (let i = 0; i < n; i++) emitTrail(tailX, surf + .2 + MEGA.y, tailZ, rec.trail || 'sparkle', rec.glow); MEGA.ripT -= dt; if (MEGA.ripT <= 0 && MEGA.y < .2) { MEGA.ripT = .22; ripple(tailX, tailZ); } }
     if (MEGA.y > .3) emitTrail(MEGA.x, surf + MEGA.y, MEGA.z, rec.trail || 'sparkle', rec.glow);
   }
@@ -2509,6 +2542,8 @@ function buildOuter() {
 }
 function buildIsland() {
   const cx = ISL.x, cz = ISL.z, R = ISL.r;
+  makePortal(-12.5, -31.5, '#ffd23a', '🏝️ TREASURE ISLAND', { x: cx, z: cz + R + 6, yaw: Math.PI });
+  makePortal(cx, cz + R + 12, '#ffd23a', 'Back to the pier', { x: -12.5, z: -29, yaw: Math.PI });
   const sandTex = canvasTex(256, 256, g => { g.fillStyle = '#f3d98e'; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 1800; i++) { g.fillStyle = Math.random() < .5 ? 'rgba(205,150,70,.3)' : 'rgba(255,240,180,.5)'; g.fillRect(Math.random() * 256, Math.random() * 256, 2, 2); } for (let i = 0; i < 22; i++) { g.strokeStyle = 'rgba(210,160,80,.25)'; g.lineWidth = 3; g.beginPath(); const y = Math.random() * 256; g.moveTo(0, y); g.bezierCurveTo(80, y + 14, 170, y - 14, 256, y); g.stroke(); } }); sandTex.wrapS = sandTex.wrapT = THREE.RepeatWrapping; sandTex.repeat.set(10, 10);
   const sand = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.6, 1, 56, 1, true), mat(0xe9c477)); sand.scale.set(R, Y0 + 6, R); sand.position.set(cx, (Y0 - 6) / 2, cz); scene.add(sand);
   const top = new THREE.Mesh(new THREE.CircleGeometry(R - .6, 56), new THREE.MeshToonMaterial({ map: sandTex, gradientMap: toonGrad })); top.rotation.x = -Math.PI / 2; top.position.set(cx, Y0 + .02, cz); scene.add(top);
@@ -2546,6 +2581,8 @@ function buildIsland() {
   bigSign('TREASURE ISLAND', '#c2790c', 5, 1, cx, Y0 + 3.6, cz + R + 1.5, 0); enableShadows(scene);
 }
 function buildCove() {
+  makePortal(12.5, -31.5, '#2fe8e8', '🌊 MEGA COVE', { x: 60, z: -128, yaw: Math.PI / 2 });
+  makePortal(68, -148, '#2fe8e8', 'Back to the pier', { x: 12.5, z: -29, yaw: Math.PI });
   const cx = 85, cz = -135, lagoon = new THREE.Mesh(new THREE.CircleGeometry(36, 64), new THREE.MeshBasicMaterial({ color: new THREE.Color(.2, 1.4, 1.5), transparent: true, opacity: .45, depthWrite: false })); lagoon.rotation.x = -Math.PI / 2; lagoon.position.set(cx, .09, cz); scene.add(lagoon);
   for (let i = 0; i < 34; i++) { const a = i / 34 * Math.PI * 2; if (Math.cos(a) < -.72) continue; const rx = cx + Math.cos(a) * 38, rz = cz + Math.sin(a) * 38, s = rnd(3, 5.6); const r = new THREE.Mesh(new THREE.IcosahedronGeometry(1, 1), mat(0x6c5b7b)); r.scale.set(s, s * rnd(.8, 1.4), s); r.position.set(rx, s * .3, rz); scene.add(r); swimBlockers.push({ x: rx, z: rz, r: s }); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(.4, 1.4, 1.6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.set(5, 9, 1); gl.position.set(rx, s + 1.5, rz); scene.add(gl); }
   walkRects.push({ x0: 52, x1: 72, z0: -152, z1: -118 }); plankTop(52, 72, -152, -118, Y0); for (let z = -151; z <= -119; z += 4) { post(52.2, z); if (z % 8 === 3) lantern(52.2, Y0 + 2.15, z); } for (let x = 54; x <= 71; x += 4) { post(x, -152.2); post(x, -117.8); } foamStrip(51.6, -152, 51.6, -118, 1.8);
