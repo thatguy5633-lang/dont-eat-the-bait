@@ -408,8 +408,8 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 1.75));
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.2;
 const scene = new THREE.Scene();
 const FOG = 0xcdeeff;
-scene.fog = new THREE.Fog(FOG, 140, 900);
-const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 900);
+scene.fog = new THREE.Fog(FOG, 140, 1100); const WORLD_H = 5200;   // the sea is ~10,000 steps across
+const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 1800);
 camera.rotation.order = 'YXZ'; scene.add(camera);
 scene.add(new THREE.HemisphereLight(0xd6e8ff, 0xb6a58c, 1.15));
 const sun = new THREE.DirectionalLight(0xfff0d6, 2.7); sun.position.set(-50, 42, -70); scene.add(sun); scene.add(sun.target);
@@ -451,11 +451,12 @@ function deco(x0, x1, y0, y1, z0, z1, m, parent = scene) {
 function canvasTex(w, h, draw, srgb = true) { const c = document.createElement('canvas'); c.width = w; c.height = h; draw(c.getContext('2d'), c); const t = new THREE.CanvasTexture(c); if (srgb) t.colorSpace = THREE.SRGBColorSpace; return t; }
 
 /* ---------- sky ---------- */
+const SKYOBJ = {};
 {
   const tex = canvasTex(4, 256, g => { const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#1a7dff'); gr.addColorStop(.45, '#4fc3ff'); gr.addColorStop(.7, '#bfeaff'); gr.addColorStop(1, '#ffe9a8'); g.fillStyle = gr; g.fillRect(0, 0, 4, 256); });
-  const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 24, 16), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })); sky.rotation.y = 0; scene.add(sky);
-  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(40, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3.3, 2), fog: false })); sunDisc.position.set(-190, 85, -520); sunDisc.lookAt(0, 0, 0); scene.add(sunDisc);
-  const halo = new THREE.Mesh(new THREE.CircleGeometry(95, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, .6), fog: false, transparent: true, opacity: .3, depthWrite: false })); halo.position.set(-190, 85, -515); halo.lookAt(0, 0, 0); scene.add(halo);
+  const sky = new THREE.Mesh(new THREE.SphereGeometry(700, 24, 16), new THREE.MeshBasicMaterial({ map: tex, side: THREE.BackSide, fog: false, depthWrite: false })); sky.rotation.y = 0; scene.add(sky); SKYOBJ.sky = sky;
+  const sunDisc = new THREE.Mesh(new THREE.CircleGeometry(40, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(4, 3.3, 2), fog: false })); sunDisc.position.set(-190, 85, -520); sunDisc.lookAt(0, 0, 0); scene.add(sunDisc); SKYOBJ.sun = sunDisc;
+  const halo = new THREE.Mesh(new THREE.CircleGeometry(95, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.6, 1.1, .6), fog: false, transparent: true, opacity: .3, depthWrite: false })); halo.position.set(-190, 85, -515); halo.lookAt(0, 0, 0); scene.add(halo); SKYOBJ.halo = halo;
 }
 const clouds = [];
 for (let i = 0; i < 16; i++) {
@@ -470,8 +471,12 @@ const waterGeo = new THREE.PlaneGeometry(900, 900, 70, 70); waterGeo.rotateX(-Ma
 const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ color: 0x1a8fb8, transparent: true, opacity: 0.88, roughness: .16, metalness: .12 }));
 scene.add(water);
 const wpos = waterGeo.attributes.position; const wbase = new Float32Array(wpos.array);
-function updateWater(t) { for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3], z = wbase[i * 3 + 2]; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; waterGeo.computeVertexNormals(); }
-mk(new THREE.PlaneGeometry(900, 900), mat(0xffe39a), [0, -7, 0], null, scene).rotation.x = -Math.PI / 2;
+const WSTEP = 900 / 70, farWater = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshStandardMaterial({ color: 0x2e96b6, roughness: .2, metalness: .1 })); farWater.rotation.x = -Math.PI / 2; farWater.position.y = -.4; scene.add(farWater);
+function updateWater(t) {   // the detailed sea follows the player (snapped to the wave grid), so the ocean can be endless
+  const ox = Math.round(camera.position.x / WSTEP) * WSTEP, oz = Math.round(camera.position.z / WSTEP) * WSTEP; water.position.set(ox, 0, oz); seabed.position.set(ox, -7, oz); farWater.position.x = camera.position.x; farWater.position.z = camera.position.z;
+  for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; waterGeo.computeVertexNormals();
+}
+const seabed = mk(new THREE.PlaneGeometry(900, 900), mat(0xffe39a), [0, -7, 0], null, scene); seabed.rotation.x = -Math.PI / 2;
 
 /* =========================================================
    WORLD
@@ -1471,7 +1476,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104115502';
+const GAME_BUILD = '20261104115709';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1811,7 +1816,7 @@ function updatePlayer(dt) {
   if (me.swim) {
     for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + .6; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
     for (const w of walkRects) { if (w.x0 === -34) continue; const pad = .6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), rr = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, rr, t, b); if (m === l) nx -= l; else if (m === rr) nx += rr; else if (m === t) nz -= t; else nz += b; } }
-    nx = clamp(nx, -298, 298); nz = clamp(nz, -325, 128);
+    nx = clamp(nx, -WORLD_H, WORLD_H); nz = clamp(nz, -WORLD_H, 128);
   } else if (!air) { if (walkG(nx, me.z) < -.5) { nx = me.x; me.vx = 0; } if (walkG(nx, nz) < -.5) { nz = me.z; me.vz = 0; } }
   me.x = nx; me.z = nz;
   if (!me.swim) for (let it = 0; it < 2; it++) for (const c of colliders) {
@@ -2841,7 +2846,7 @@ const MEGA = { obj: null, rec: null, tag: null, x: 0, z: 0, y: 0, yaw: 0, vx: 0,
 const activeMegaRec = () => save.megas.find(m => m.id === save.activeMega) || null;
 function megaSpeed(rec) { const hm = rec.hunger <= 0 ? .5 : rec.hunger < 20 ? .75 : 1; return 9 * MEGAS[rec.sp].spd * (1 + .08 * (rec.level - 1)) * hm; }
 function onLandPad(x, z, pad) { return walkRects.some(w => x >= w.x0 - pad && x <= w.x1 + pad && z >= w.z0 - pad && z <= w.z1 + pad); }
-function isWater(x, z, pad = 2) { if (onLandPad(x, z, pad)) return false; for (const c of swimBlockers) if (Math.hypot(x - c.x, z - c.z) < c.r + pad) return false; return Math.abs(x) < 440 && z > -440 && z < 130 && terrainH(x, z) < -.6; }
+function isWater(x, z, pad = 2) { if (onLandPad(x, z, pad)) return false; for (const c of swimBlockers) if (Math.hypot(x - c.x, z - c.z) < c.r + pad) return false; return Math.abs(x) < WORLD_H && z > -WORLD_H && z < 130 && terrainH(x, z) < -.6; }
 function buildMegaObj() {
   if (MEGA.obj) scene.remove(MEGA.obj); if (MEGA.tag) scene.remove(MEGA.tag); MEGA.obj = MEGA.tag = null;
   const rec = activeMegaRec(); MEGA.rec = rec; if (!rec) return;
@@ -2909,7 +2914,7 @@ function updateRide(dt) {
   let nx = MEGA.x + MEGA.vx * dt, nz = MEGA.z + MEGA.vz * dt;
   for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + 1.4; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
   for (const w of walkRects) { const pad = 1.6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), r = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, r, t, b); if (m === l) nx -= l; else if (m === r) nx += r; else if (m === t) nz -= t; else nz += b; } }
-  if (terrainH(nx, nz) > -.3) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -298, 298); nz = clamp(nz, -325, 128); MEGA.x = nx; MEGA.z = nz;
+  if (terrainH(nx, nz) > -.3) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -WORLD_H, WORLD_H); nz = clamp(nz, -WORLD_H, 128); MEGA.x = nx; MEGA.z = nz;
   if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = 10 + (boost ? 3 : 0); sfx.megaLeap(); splash(MEGA.x, .1, MEGA.z, 22, 5); megaLeapRain(); }
   MEGA.vy -= 24 * dt; MEGA.y += MEGA.vy * dt; if (MEGA.y < 0) { if (MEGA.vy < -6) { splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); sfx.splashS(); } MEGA.y = 0; MEGA.vy = 0; }
   const sc = megaScaleOf(rec.sp, rec.level), U = MEGA.obj.userData, surf = waveH(MEGA.x, MEGA.z, time) + .1;
@@ -3143,7 +3148,7 @@ function buildCove() {
 /* =========================================================
    LAVA WORLD + LIGHTNING WORLD: warp there from the pier once bought
 ========================================================= */
-const LAVA = { x: -175, z: -215, r: 62 }, STORM = { x: 175, z: -215, r: 62 }, ISL = { x: -78, z: -100, r: 34 };
+const LAVA = { x: -2600, z: -3000, r: 62 }, STORM = { x: 2600, z: -3000, r: 62 }, ISL = { x: -78, z: -100, r: 34 };
 const portals = [], bolts = [], worldFx = { thT: 2, strikeT: 3, portalCool: 0, lavaTex: [], embers: null, rain: null, flicker: null, cloudLight: null, stormOn: false, flash: null, parts: [], spin: [], sway: [], bob: [] };
 function makePortal(x, z, color, name, dest) {
   const g = new THREE.Group(), c = new THREE.Color(color), hdr = c.clone().multiplyScalar(2.6);
@@ -3250,10 +3255,10 @@ function buildStorm() {
 const ZBASE = { I: [0, 0, 0, 12, 8, 3], T: [0, 0, 0, 10, 9, 4], C: [0, 0, 0, 8, 10, 5], A: [0, 0, 0, 6, 10, 7] };
 const streakTex = (bg, cols, n, wid, dots) => { const t = canvasTex(256, 256, g => { g.fillStyle = bg; g.fillRect(0, 0, 256, 256); for (let i = 0; i < n; i++) { g.strokeStyle = cols[i % cols.length]; g.lineWidth = 1 + Math.random() * wid; g.globalAlpha = .3 + Math.random() * .6; g.beginPath(); const x = Math.random() * 256, y = Math.random() * 256; g.moveTo(x, y); g.bezierCurveTo(x + Math.random() * 80 - 40, y + Math.random() * 80 - 40, x + Math.random() * 80 - 40, y + Math.random() * 80 - 40, x + Math.random() * 100 - 50, y + Math.random() * 100 - 50); g.stroke(); } g.globalAlpha = 1; for (let i = 0; i < (dots || 0); i++) { g.fillStyle = cols[i % cols.length]; g.beginPath(); g.arc(Math.random() * 256, Math.random() * 256, Math.random() * 2 + .5, 0, TAU); g.fill(); } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(9, 9); return t; };
 const NEWW = [
-  { id: 'frost', zn: 'I', n: 'Frost World', e: '❄️', x: -330, z: -340, r: 62, col: '#8fd8ff', price: 1500000, req: 'storm', hz: '🥶 BRRR! The frozen sea throws you back.', rock: 0x9fc4dc, dock: 0x6f93b0, dock2: 0xbfd9ea, sign: '#1f6a9a', lakeCol: [1.3, 1.5, 1.8], lake: () => streakTex('#0b2a45', ['#bfe9ff', '#ffffff', '#6fc3ff'], 80, 5), d: 'Ice spires, snow and a glowing aurora. Cold, slow bites and 6 super-rare ice fish. Unlocks after Lightning World.' },
-  { id: 'toxic', zn: 'T', n: 'Toxic World', e: '☣️', x: -110, z: -375, r: 62, col: '#7dff4d', price: 4000000, req: 'frost', hz: '🤢 BLEURGH! The toxic sludge spits you out.', rock: 0x4a5a2a, dock: 0x3a4a22, dock2: 0x7a8a4a, sign: '#2a6a10', lakeCol: [1.3, 1.7, 1.1], lake: () => streakTex('#102a0a', ['#7dff4d', '#c8ff3a', '#2fbf2f'], 80, 6), d: 'A bubbling green swamp with giant mushrooms and mutant fish. Unlocks after Frost World.' },
-  { id: 'cosmic', zn: 'C', n: 'Cosmic World', e: '🌌', x: 110, z: -375, r: 62, col: '#b78bff', price: 10000000, req: 'toxic', hz: '🌀 WHOOSH! The cosmic sea bounces you away.', rock: 0x3a2a6a, dock: 0x2a2250, dock2: 0x5a4a9a, sign: '#4a2aa0', lakeCol: [1.5, 1.3, 2], lake: () => streakTex('#07041a', ['#b78bff', '#ff6bd6', '#6ad7ff'], 50, 3, 240), d: 'Planets, stars and a galaxy sea. Fish from outer space. Unlocks after Toxic World.' },
-  { id: 'abyss', zn: 'A', n: 'The Abyss', e: '🌑', x: 330, z: -340, r: 62, col: '#2fe0d0', price: 25000000, req: 'cosmic', hz: '🌊 The deep pushes you back up to the dock.', rock: 0x14283a, dock: 0x10202c, dock2: 0x2a4a5c, sign: '#0a4a5a', lakeCol: [1.2, 1.6, 1.8], lake: () => streakTex('#01060f', ['#2fe0d0', '#2f78ff', '#1a3a6a'], 60, 4, 70), d: 'The deepest, darkest water. Glowing jellies, sunken pillars and the Kraken of the Deep, the final fish. Unlocks after Cosmic World.' }
+  { id: 'frost', zn: 'I', n: 'Frost World', e: '❄️', x: -4400, z: -1500, r: 62, col: '#8fd8ff', price: 1500000, req: 'storm', hz: '🥶 BRRR! The frozen sea throws you back.', rock: 0x9fc4dc, dock: 0x6f93b0, dock2: 0xbfd9ea, sign: '#1f6a9a', lakeCol: [1.3, 1.5, 1.8], lake: () => streakTex('#0b2a45', ['#bfe9ff', '#ffffff', '#6fc3ff'], 80, 5), d: 'Ice spires, snow and a glowing aurora. Cold, slow bites and 6 super-rare ice fish. Unlocks after Lightning World.' },
+  { id: 'toxic', zn: 'T', n: 'Toxic World', e: '☣️', x: -1500, z: -4600, r: 62, col: '#7dff4d', price: 4000000, req: 'frost', hz: '🤢 BLEURGH! The toxic sludge spits you out.', rock: 0x4a5a2a, dock: 0x3a4a22, dock2: 0x7a8a4a, sign: '#2a6a10', lakeCol: [1.3, 1.7, 1.1], lake: () => streakTex('#102a0a', ['#7dff4d', '#c8ff3a', '#2fbf2f'], 80, 6), d: 'A bubbling green swamp with giant mushrooms and mutant fish. Unlocks after Frost World.' },
+  { id: 'cosmic', zn: 'C', n: 'Cosmic World', e: '🌌', x: 1500, z: -4600, r: 62, col: '#b78bff', price: 10000000, req: 'toxic', hz: '🌀 WHOOSH! The cosmic sea bounces you away.', rock: 0x3a2a6a, dock: 0x2a2250, dock2: 0x5a4a9a, sign: '#4a2aa0', lakeCol: [1.5, 1.3, 2], lake: () => streakTex('#07041a', ['#b78bff', '#ff6bd6', '#6ad7ff'], 50, 3, 240), d: 'Planets, stars and a galaxy sea. Fish from outer space. Unlocks after Toxic World.' },
+  { id: 'abyss', zn: 'A', n: 'The Abyss', e: '🌑', x: 4400, z: -1500, r: 62, col: '#2fe0d0', price: 25000000, req: 'cosmic', hz: '🌊 The deep pushes you back up to the dock.', rock: 0x14283a, dock: 0x10202c, dock2: 0x2a4a5c, sign: '#0a4a5a', lakeCol: [1.2, 1.6, 1.8], lake: () => streakTex('#01060f', ['#2fe0d0', '#2f78ff', '#1a3a6a'], 60, 4, 70), d: 'The deepest, darkest water. Glowing jellies, sunken pillars and the Kraken of the Deep, the final fish. Unlocks after Cosmic World.' }
 ];
 function buildWorld(w) {
   const P = w.req === 'storm' ? STORM : NEWW.find(q => q.id === w.req), cx = w.x, cz = w.z, C = new THREE.Color(w.col), H = C.clone().multiplyScalar(2.4);
@@ -3700,8 +3705,8 @@ function updateMeAvatar(dt) {
 }
 function update(dt) {
   time += dt;
-  updateWater(time);
-  for (const c of clouds) { if (c.userData.b) { c.position.y = waveH(c.position.x, c.position.z, time) + .1; } else { c.position.x += dt * 1.5; if (c.position.x > 450) c.position.x = -450; } }
+  updateWater(time); { const cp = camera.position; SKYOBJ.sky.position.copy(cp); SKYOBJ.sun.position.set(cp.x - 190, 85, cp.z - 520); SKYOBJ.sun.lookAt(cp.x, 0, cp.z); SKYOBJ.halo.position.set(cp.x - 190, 85, cp.z - 515); SKYOBJ.halo.lookAt(cp.x, 0, cp.z); }
+  for (const c of clouds) { if (c.userData.b) { c.position.y = waveH(c.position.x, c.position.z, time) + .1; } else { c.position.x += dt * 1.5; const dx = c.position.x - camera.position.x, dz = c.position.z - camera.position.z; if (dx > 450) c.position.x -= 900; else if (dx < -450) c.position.x += 900; if (dz > 450) c.position.z -= 900; else if (dz < -450) c.position.z += 900; } }
   if (started) {
     stickLook(dt); updatePlayer(dt); updateEffects(dt); updateMeAvatar(dt); updateFishing(dt); netTick(dt);
     if (eatT > 0 || has('disco')) { /* handled in poses for remotes */ }
