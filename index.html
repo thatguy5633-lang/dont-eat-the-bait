@@ -1482,7 +1482,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104154250';
+const GAME_BUILD = '20261104155533';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2632,7 +2632,7 @@ const AREA_NAMES = { any: 'Anywhere', outer: 'Outer Dock', island: 'Treasure Isl
 function megaArea() {
   const x = F.tx, z = F.tz; for (const w of NEWW) if (save.maps[w.id] && Math.hypot(x - w.x, z - w.z) < w.r + 4) return w.id;
   if (save.maps.lava && Math.hypot(x - LAVA.x, z - LAVA.z) < LAVA.r + 4) return 'lava'; if (save.maps.storm && Math.hypot(x - STORM.x, z - STORM.z) < STORM.r + 4) return 'storm';
-  if (save.maps.cove && Math.hypot(x - 85, z + 135) < 55) return 'cove'; if (save.maps.island && Math.hypot(x - ISL.x, z - ISL.z) < ISL.r + 14) return 'island'; if (save.maps.outer && z < -100 && Math.abs(x) < 40) return 'outer';
+  if (save.maps.cove && Math.hypot(x - COVE.x, z - COVE.z) < 55) return 'cove'; if (save.maps.island && Math.hypot(x - ISL.x, z - ISL.z) < ISL.r + 14) return 'island'; if (save.maps.outer && z < -100 && Math.abs(x) < 40) return 'outer';
   return 'any';
 }
 function pickMegaSp() {
@@ -3107,7 +3107,7 @@ function areaBonus() {
   let luck = 0, mega = 1;
   if (save.maps.outer && me.z < -100 && Math.abs(me.x) < 32) { luck += .15; mega *= 1.5; }
   if (save.maps.island && Math.hypot(me.x - ISL.x, me.z - ISL.z) < ISL.r + 10) luck += .2;
-  if (save.maps.cove && Math.hypot(me.x - 85, me.z + 135) < 55) { mega *= 4; luck += .1; }
+  if (save.maps.cove && Math.hypot(me.x - COVE.x, me.z - COVE.z) < 55) { mega *= 4; luck += .1; }
   const sb = seaBonus(); return { luck: luck + sb.luck, mega: mega * sb.mega };
 }
 function makeSign(tex, w, h, x, y, z, ry, legs = true, bottomY = Y0) { // ONE side has the artwork; the back is plain brown wood; two posts stand BEHIND the board (nothing pokes through it)
@@ -3179,7 +3179,7 @@ function buildIsland() {
   for (const [dx, dz] of [[18, -14], [-20, -4], [4, -24]]) { const tp = new THREE.Mesh(new THREE.CircleGeometry(2.2, 20), new THREE.MeshBasicMaterial({ color: new THREE.Color(.4, 1.3, 1.5), transparent: true, opacity: .7 })); tp.rotation.x = -Math.PI / 2; tp.position.set(cx + dx, Y0 + .05, cz + dz); scene.add(tp); }
   // a proper pier out the south side + the sign
   walkRects.push({ x0: cx - 3, x1: cx + 3, z0: cz + R - 1, z1: cz + R + 16 }); plankTop(cx - 3, cx + 3, cz + R - 1, cz + R + 16, Y0); for (let z = cz + R + 1; z <= cz + R + 15; z += 5) for (const sd of [-1, 1]) { post(cx + sd * 3.2, z); }
-  bigSign('TREASURE ISLAND', '#c2790c', 5, 1, cx, Y0 + 3.6, cz + R + 1.5, 0); enableShadows(scene);
+  bigSign('TREASURE ISLAND', '#c2790c', 5, 1, cx, Y0 + 3.6, cz + R + 1.5, 0); decorateTropicIsland(cx, cz, R, [[-6, -4, 11, 3.2], [8, 7, 8, 2.4], [-12, 10, 6, 1.8], [12, -9, 6.5, 2.0]]); enableShadows(scene);
 }
 function buildCove() {
   makePortal(12.5, -31.5, '#2fe8e8', '🌊 MEGA COVE', { x: 60, z: -128, yaw: Math.PI / 2 });
@@ -3192,7 +3192,7 @@ function buildCove() {
 /* =========================================================
    LAVA WORLD + LIGHTNING WORLD: warp there from the pier once bought
 ========================================================= */
-const LAVA = { x: -2600, z: -3000, r: 62 }, STORM = { x: 2600, z: -3000, r: 62 }, ISL = { x: -78, z: -100, r: 34 };
+const LAVA = { x: -2600, z: -3000, r: 62 }, STORM = { x: 2600, z: -3000, r: 62 }, ISL = { x: -760, z: -820, r: 34 }, COVE = { x: 935, z: -785 };   // the old islands used to sit right next to each other; now they are far apart
 const portals = [], bolts = [], worldFx = { thT: 2, strikeT: 3, portalCool: 0, lavaTex: [], embers: null, rain: null, flicker: null, cloudLight: null, stormOn: false, flash: null, parts: [], spin: [], sway: [], bob: [] };
 function makePortal(x, z, color, name, dest) {
   const g = new THREE.Group(), c = new THREE.Color(color), hdr = c.clone().multiplyScalar(2.6);
@@ -3361,7 +3361,7 @@ MEGAS.push(
 const MAPS = [
   { id: 'outer', n: 'Outer Dock', e: '🌉', price: 500, d: 'A long bridge to a far-out dock with richer water (+15% luck, Mega bites 1.5x).', build: buildOuter },
   { id: 'island', n: 'Treasure Island', e: '🏝️', price: 1000, d: 'A palm island far across the sea. Reach it by riding a Mega. Fishing there is lucky (+20%).', build: buildIsland },
-  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 2000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: buildCove },
+  { id: 'cove', n: 'Mega Cove', e: '🌊', price: 2000, d: 'A glowing lagoon with a landing dock. Mega bites are 4x more likely here. Reach it by Mega.', build: () => moveBuild(buildCove, COVE.x - 85, COVE.z + 135) },
   { id: 'lava', n: 'Lava World', e: '🌋', price: 100000, d: 'A volcano, a lake of lava and fish made of fire: Ember Minnows, Cinder Eels, Phoenix Koi and the Lava Leviathan. Step on the new portal at the pier to warp there.', build: buildLava },
   { id: 'storm', n: 'Lightning World', e: '⚡', price: 500000, d: 'A permanent thunderstorm with an electric sea. Home of the BEST fish in the game: Volt Eels, Plasma Pike, Stormcloud Rays and Zeus Marlin (Mythic!). Step on the portal at the pier to warp there.', build: buildStorm }
 ];
@@ -3635,7 +3635,7 @@ function isleH(I, x, z) {
 function islandH(x, z, b) { const list = ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return b; let h = b; for (const I of list) { const v = isleH(I, x, z); if (v > h) h = v; } return h; }
 function isleAt(x, z) { const list = ISLE_GRID && ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return null; for (const I of list) if (isleH(I, x, z) > .3) return I; return null; }
 function genOpenSea() {
-  const R = mulberry(20261103), fixed = [[0, 0, 320], [ISL.x, ISL.z, 120], [85, -135, 140], [LAVA.x, LAVA.z, 420], [STORM.x, STORM.z, 420]].concat(NEWW.map(w => [w.x, w.z, 420]));
+  const R = mulberry(20261103), fixed = [[0, 0, 320], [ISL.x, ISL.z, 120], [COVE.x, COVE.z, 140], [LAVA.x, LAVA.z, 420], [STORM.x, STORM.z, 420]].concat(NEWW.map(w => [w.x, w.z, 420]));
   const clear = (x, z, m) => fixed.every(f => Math.hypot(x - f[0], z - f[1]) > f[2] + m);
   for (let tries = 0; OSEA.isles.length < 72 && tries < 6000; tries++) {
     const x = (R() * 2 - 1) * (WORLD_H - 260), z = -WORLD_H + 260 + R() * (WORLD_H - 520), big = R() < .12, r = big ? 70 + R() * 50 : 24 + R() * 40;
@@ -3670,6 +3670,27 @@ function iFlush(list, geo, mat, g) {
   list.forEach((e, i) => { ID_ROT.position.set(e.p[0], e.p[1], e.p[2]); ID_ROT.scale.set(e.s[0], e.s[1], e.s[2]); if (e.q) ID_ROT.quaternion.copy(e.q); else { ID_ROT.quaternion.identity(); ID_ROT.rotation.set(e.rot ? e.rot[0] : 0, e.rot ? e.rot[1] : 0, e.rot ? e.rot[2] : 0); } ID_ROT.updateMatrix(); m.setMatrixAt(i, ID_ROT.matrix); if (e.col !== undefined) { c.set(e.col); m.setColorAt(i, c); } });
   m.instanceMatrix.needsUpdate = true; if (m.instanceColor) m.instanceColor.needsUpdate = true; m.frustumCulled = false; g.add(m);
 }
+
+function moveBuild(fn, dx, dz) {   // build something at its original coordinates, then slide the whole thing across the map
+  const n0 = scene.children.length, w0 = walkRects.length, s0 = swimBlockers.length, c0 = colliders.length, p0 = portals.length; fn();
+  for (let i = n0; i < scene.children.length; i++) { const o = scene.children[i]; o.position.x += dx; o.position.z += dz; }
+  for (let i = w0; i < walkRects.length; i++) { const w = walkRects[i]; w.x0 += dx; w.x1 += dx; w.z0 += dz; w.z1 += dz; }
+  for (let i = s0; i < swimBlockers.length; i++) { swimBlockers[i].x += dx; swimBlockers[i].z += dz; }
+  for (let i = c0; i < colliders.length; i++) { const c = colliders[i]; if ('x0' in c) { c.x0 += dx; c.x1 += dx; c.z0 += dz; c.z1 += dz; } else if ('x' in c) { c.x += dx; c.z += dz; } }
+  for (let i = p0; i < portals.length; i++) { const q = portals[i], pier = Math.abs(q.x) < 40 && q.z > -45 && q.z < 0; if (pier) { q.g.position.x -= dx; q.g.position.z -= dz; q.dest.x += dx; q.dest.z += dz; } else { q.x += dx; q.z += dz; } }
+}
+function decorateTropicIsland(cx, cz, R, hills) {   // dense palms, bushes, flowers and thousands of swaying grass blades for Treasure Island
+  const g = new THREE.Group(); g.position.set(cx, 0, cz); const Rn = mulberry(77), rr = (a, b) => a + Rn() * (b - a), L = IL(), lG = ['#3fae3c', '#2f9a34', '#58b840', '#2a8a3a'], bark = ['#7a5a3a', '#6a4a2a', '#8a6a4a'], flowers = ['#ff6bb8', '#ffd43b', '#ffffff', '#ff8a3a', '#b04dff'];
+  const gh = (x, z) => { let y = Y0 + .02; for (const [hx, hz, hr, hh] of hills) { const d = Math.hypot(x - hx, z - hz); if (d < hr) y = Math.max(y, Y0 - .1 + hh * Math.sqrt(1 - (d / hr) ** 2)); } return y; };
+  const at = (u0, u1) => { for (let k = 0; k < 8; k++) { const a = Rn() * TAU, d = R * (u0 + Rn() * (u1 - u0)), x = Math.cos(a) * d, z = Math.sin(a) * d; if (z > R - 9 && Math.abs(x) < 7) continue; return [x, gh(x, z), z]; } return null; };
+  for (let i = 0; i < 48; i++) { const p = at(.2, .92); if (!p) continue; const [x, y, z] = p, h = rr(5, 9), lean = (Rn() - .5) * 1.8; let prev = [x, y, z]; for (let k = 1; k <= 6; k++) { const t = k / 6, q = [x + lean * t * t * h * .35, y + t * h, z]; iSeg(L.trunk, prev, q, .3 * (1 - t * .55), bark[k % 3]); prev = q; } for (let f = 0; f < 10; f++) iAdd(L.leafP, [prev[0], prev[1] - .1, prev[2]], [1.2 + Rn() * .5, 1.2 + Rn() * .5, 1.2 + Rn() * .5], [Rn() * .7 - .15, f / 10 * TAU + Rn() * .4, 0], lG[f % 4]); for (let c = 0; c < 3; c++) iAdd(L.ball, [prev[0] + (Rn() - .5) * .5, prev[1] - .5, prev[2] + (Rn() - .5) * .5], [.22, .22, .22], null, '#5b3a1c'); }
+  for (let i = 0; i < 80; i++) { const p = at(.1, .9); if (p) iAdd(L.ball, [p[0], p[1] + .35, p[2]], [rr(.9, 1.8), rr(.5, .9), rr(.9, 1.8)], null, lG[(Rn() * 4) | 0]); }
+  for (let i = 0; i < 70; i++) { const p = at(.1, .9); if (!p) continue; const hh = rr(.3, .7); iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + hh, p[2]], .025, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + hh + .05, p[2]], [.11, .11, .11], null, flowers[(Rn() * 5) | 0]); }
+  for (let i = 0; i < 40; i++) { const p = at(.15, .85); if (!p) continue; for (let k = 0; k < 8; k++) iAdd(L.leafF, [p[0], p[1] + .05, p[2]], [rr(.8, 1.3), rr(.8, 1.3), rr(.8, 1.3)], [rr(-.1, .5), k / 8 * TAU + Rn() * .3, 0], lG[k % 4]); }
+  for (let i = 0; i < 16; i++) { const p = at(.7, .97); if (!p) continue; const s2 = rr(.6, 1.8); iAdd(L.rock, [p[0], p[1] + s2 * .2, p[2]], [s2, s2 * rr(.6, 1.2), s2], [Rn(), Rn(), Rn()], ['#8d887c', '#76726a', '#a39e92'][i % 3]); }
+  for (let i = 0; i < 7500; i++) { const p = at(.03, .93); if (!p) continue; const h = rr(.35, .75), w = rr(.07, .12); iAdd(L.grass, [p[0], p[1] - .03, p[2]], [w, h, w], [(Rn() - .5) * .35, Rn() * TAU, 0], lG[i % 4]); }
+  iFlush(L.trunk, FCYL, MAT_SOLID, g); iFlush(L.ball, FSPH, MAT_SOLID, g); iFlush(L.rock, ROCKG, MAT_SOLID, g); iFlush(L.leafP, LEAF_PALM, MAT_LEAF, g); iFlush(L.leafF, LEAF_FERN, MAT_LEAF, g); iFlush(L.grass, BLADE, MAT_GRASS, g); scene.add(g);
+}
 function buildIsle(I) {
   const g = new THREE.Group(); g.position.set(I.x, 0, I.z); const R = mulberry((I.seed * 1000) | 0), rr = (a, b) => a + R() * (b - a), plat = Y0 + .012, A = Math.PI * I.r * I.r, jun = I.biome === 'jungle', big = !!I.jungle;
   const seg = Math.min(80, Math.max(30, Math.round(I.r / 1.2))), S = I.r * 2.7, geo = new THREE.PlaneGeometry(S, S, seg, seg); geo.rotateX(-Math.PI / 2); const P = geo.attributes.position, cols = new Float32Array(P.count * 3), tmp = new THREE.Color();
@@ -3694,7 +3715,7 @@ function buildIsle(I) {
     const cs = big ? rr(4.5, 8) : rr(3, 5.5); for (let c = 0; c < 6; c++) { const a = R() * TAU, d = cs * rr(.2, .6); iAdd(L.ball, [top[0] + Math.cos(a) * d, top[1] + rr(-.6, 1.6), top[2] + Math.sin(a) * d], [cs * rr(.6, 1), cs * rr(.4, .6), cs * rr(.6, 1)], null, lJ[(R() * 5) | 0]); }
     for (let v = 0; v < 4; v++) { const a = R() * TAU, d = cs * .7, vx = top[0] + Math.cos(a) * d, vz = top[2] + Math.sin(a) * d, vl = rr(3, h * .6); iSeg(L.trunk, [vx, top[1] - .5, vz], [vx, top[1] - .5 - vl, vz], .04, '#4a6a2a'); for (let k = 0; k < 3; k++) iAdd(L.ball, [vx, top[1] - 1 - k * vl / 3.2, vz], [.18, .28, .18], null, '#3a8a3a'); }
     if (R() < .5) iAdd(L.ball, [top[0] + rr(-1.5, 1.5), top[1] + 1.2, top[2] + rr(-1.5, 1.5)], [.28, .28, .28], null, flowers[(R() * 5) | 0]); };
-  const nTree = Math.round(jun ? Math.min(big ? 210 : 110, A / (big ? 45 : 60)) : I.biome === 'tropic' ? Math.min(60, A / 130) : I.biome === 'snow' ? Math.min(55, A / 90) : I.biome === 'volcanic' ? Math.min(30, A / 220) : Math.min(24, A / 300));
+  const nTree = Math.round(jun ? Math.min(big ? 210 : 110, A / (big ? 45 : 60)) : I.biome === 'tropic' ? Math.min(95, A / 75) : I.biome === 'snow' ? Math.min(55, A / 90) : I.biome === 'volcanic' ? Math.min(30, A / 220) : Math.min(24, A / 300));
   for (let i = 0; i < nTree; i++) {
     const p = at(.1, .6); if (!p) continue; const [x, y, z] = p;
     if (jun) jtree(x, y, z, big ? rr(14, 26) : rr(8, 15));
@@ -3705,10 +3726,10 @@ function buildIsle(I) {
   }
   const nRock = Math.round(A / (I.biome === 'rock' ? 140 : 420)); for (let i = 0; i < nRock; i++) { const p = at(.05, .85, -.4); if (!p) continue; const s = rr(.6, I.biome === 'rock' ? 3.5 : 1.8); iAdd(L.rock, [p[0], p[1] + s * .2, p[2]], [s, s * rr(.6, 1.2), s], [R(), R(), R()], I.biome === 'snow' ? '#cfe4f2' : I.biome === 'volcanic' ? '#2a2326' : ['#8d887c', '#76726a', '#a39e92'][i % 3]); }
   if (I.biome === 'rock') for (let i = 0; i < Math.max(2, I.r / 22); i++) { const a = R() * TAU, d = shapeR(I, Math.cos(a), Math.sin(a)) * rr(.85, 1.02); iAdd(L.rock, [Math.cos(a) * d, rr(2, 5), Math.sin(a) * d], [rr(2, 4), rr(7, 16), rr(2, 4)], [R() * .2, R(), R() * .2], '#7f7b72'); }
-  const nG = Math.round(Math.min(big ? 26000 : jun ? 15000 : 7000, A * (big ? 1.15 : jun ? .95 : I.biome === 'tropic' ? .5 : I.biome === 'rock' ? .08 : I.biome === 'snow' ? .12 : .04)));
+  const nG = Math.round(Math.min(big ? 26000 : jun ? 18000 : 12000, A * (big ? 1.15 : jun ? .95 : I.biome === 'tropic' ? .9 : I.biome === 'rock' ? .08 : I.biome === 'snow' ? .12 : .04)));
   for (let i = 0; i < nG; i++) { const p = at(.04, .56, plat + .3); if (!p) continue; const h = jun ? rr(big ? 1.3 : 1.0, big ? 2.5 : 1.9) : rr(.35, .75), w = jun ? rr(.08, .15) : rr(.07, .12); iAdd(jun ? L.tall : L.grass, [p[0], p[1] - .03, p[2]], [w, h, w], [(R() - .5) * .35, R() * TAU, 0], jun ? lJ[(R() * 5) | 0] : I.biome === 'snow' ? ['#cfe6d8', '#e8f4ee'][i % 2] : lG[i % 4]); }
   if (jun) { const nF = Math.min(260, Math.round(A / 40)); for (let i = 0; i < nF; i++) { const p = at(.06, .58, plat + .3); if (!p) continue; if (i % 3 === 0) for (let k = 0; k < 5; k++) iAdd(L.leafB, [p[0], p[1], p[2]], [rr(.9, 1.5), rr(.9, 1.5), rr(.9, 1.5)], [-rr(.5, 1.0), k / 5 * TAU + R(), 0], '#2f9a3a'); else { for (let k = 0; k < 8; k++) iAdd(L.leafF, [p[0], p[1] + .05, p[2]], [rr(.8, 1.3), rr(.8, 1.3), rr(.8, 1.3)], [rr(-.1, .5), k / 8 * TAU + R() * .3, 0], lJ[k % 5]); if (R() < .4) { const hh = rr(.5, 1.0); iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + hh, p[2]], .03, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + hh + .06, p[2]], [.13, .13, .13], null, flowers[(R() * 5) | 0]); } } } }
-  else if (I.biome === 'tropic') { const nB = Math.round(A / 160); for (let i = 0; i < nB; i++) { const p = at(.1, .55, plat + .3); if (p) iAdd(L.ball, [p[0], p[1] + .4, p[2]], [rr(.9, 1.7), rr(.5, .9), rr(.9, 1.7)], null, lG[(R() * 4) | 0]); } for (let i = 0; i < Math.round(A / 220); i++) { const p = at(.1, .5, plat + .3); if (!p) continue; iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + rr(.3, .6), p[2]], .025, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + .5, p[2]], [.1, .1, .1], null, flowers[(R() * 5) | 0]); } }
+  else if (I.biome === 'tropic') { const nB = Math.round(A / 100); for (let i = 0; i < nB; i++) { const p = at(.1, .55, plat + .3); if (p) iAdd(L.ball, [p[0], p[1] + .4, p[2]], [rr(.9, 1.7), rr(.5, .9), rr(.9, 1.7)], null, lG[(R() * 4) | 0]); } for (let i = 0; i < Math.round(A / 220); i++) { const p = at(.1, .5, plat + .3); if (!p) continue; iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + rr(.3, .6), p[2]], .025, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + .5, p[2]], [.1, .1, .1], null, flowers[(R() * 5) | 0]); } }
   iFlush(L.trunk, FCYL, MAT_SOLID, g); iFlush(L.ball, FSPH, MAT_SOLID, g); iFlush(L.cone, FCONE, MAT_SOLID, g); iFlush(L.rock, ROCKG, MAT_SOLID, g); iFlush(L.leafP, LEAF_PALM, MAT_LEAF, g); iFlush(L.leafB, LEAF_BIG, MAT_LEAF, g); iFlush(L.leafF, LEAF_FERN, MAT_LEAF, g); iFlush(L.grass, BLADE, MAT_GRASS, g); iFlush(L.tall, BLADE, MAT_GRASS, g);
   if (I.biome === 'volcanic') { gCn(tm('#3a2e30'), [0, plat, 0], I.r * .26, I.r * .3, [0, 1, 0], g); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(2.4, .9, .15), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.setScalar(I.r * .5); gl.position.set(0, plat + I.r * .3 + 1, 0); g.add(gl); for (let k = 0; k < 6; k++) { const sm = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(.35, .33, .33), transparent: true, opacity: .45 - k * .05, depthWrite: false })); sm.scale.setScalar(I.r * (.3 + k * .12)); sm.position.set(k * 2, plat + I.r * .3 + 8 + k * I.r * .18, k); g.add(sm); } }
   if (I.biome === 'snow') { const p = at(.1, .3); if (p) { const [x, y, z] = p; gEl(tm('#ffffff'), [x, y + .7, z], [.9, .9, .9], g); gEl(tm('#ffffff'), [x, y + 1.7, z], [.65, .65, .65], g); gEl(tm('#ffffff'), [x, y + 2.4, z], [.45, .45, .45], g); gCn(tm('#ff8a1a'), [x + .4, y + 2.4, z], .1, .5, [1, -.1, 0], g); gEl(tm('#111111'), [x + .3, y + 2.55, z + .15], [.06, .06, .06], g); gEl(tm('#111111'), [x + .3, y + 2.55, z - .15], [.06, .06, .06], g); } }
@@ -3813,6 +3834,8 @@ function drawMap() {
   g.fillStyle = '#0d5a8c'; g.fillRect(0, 0, N, N); g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * N / 10, 0); g.lineTo(i * N / 10, N); g.moveTo(0, i * N / 10); g.lineTo(N, i * N / 10); g.stroke(); }
   g.fillStyle = '#ffe39a'; g.beginPath(); g.arc(px(0), pz(30), 6, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('🏠 Pier', px(0), pz(30) - 9);
   const wl = [[LAVA, 'lava', '🌋', 'Lava'], [STORM, 'storm', '⚡', 'Lightning']].concat(NEWW.map(w => [w, w.id, w.e, w.n.replace(' World', '')])); for (const [w, id, e, n] of wl) { const own = save.maps[id]; g.fillStyle = own ? '#ffd43b' : '#5a7a99'; g.beginPath(); g.arc(px(w.x), pz(w.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText(own ? `${e} ${n}` : '?', px(w.x), pz(w.z) - 8); }
+  if (save.maps.island) { g.fillStyle = '#ffd43b'; g.beginPath(); g.arc(px(ISL.x), pz(ISL.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.fillText('🏝️ Treasure', px(ISL.x), pz(ISL.z) - 8); }
+  if (save.maps.cove) { g.fillStyle = '#2fe8e8'; g.beginPath(); g.arc(px(COVE.x), pz(COVE.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.fillText('🌊 Mega Cove', px(COVE.x), pz(COVE.z) - 8); }
   for (const I of OSEA.isles) if (save.found[I.id]) { g.fillStyle = { snow: '#e8f6ff', volcanic: '#ff8a4a', rock: '#c9c6d2', tropic: '#7be07a', jungle: '#3fb860' }[I.biome]; g.beginPath(); g.arc(px(I.x), pz(I.z), Math.max(3, I.r * sc), 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = '10px sans-serif'; g.fillText(I.name + (I.secret ? (save.secrets[I.id] ? ' 🗝️✓' : ' ✨') : ''), px(I.x), pz(I.z) - 7); }
   for (const S of OSEA.spots) if (save.spotsSeen[S.id]) { g.font = '12px sans-serif'; g.fillText(SPOT_INFO[S.type].e, px(S.x), pz(S.z) + 4); }
   g.save(); g.translate(px(me.x), pz(me.z)); g.rotate(-me.yaw + Math.PI); g.fillStyle = '#ff4d6d'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -10); g.lineTo(7, 8); g.lineTo(0, 4); g.lineTo(-7, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
