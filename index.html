@@ -1017,45 +1017,7 @@ function rebuildAllChars() {
   if (typeof rebuildFin === 'function') rebuildFin();
 }
 const fishBodyMat = new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad });
-function makeFish3D(sp) {
-  const g = new THREE.Group(), m1 = mat(sp.c1), m2 = mat(sp.c2);
-  if (sp.shape === 4) { mk(boxGeo, m1, [0, .1, 0], [.3, .55, .22], g); mk(boxGeo, m1, [.3, -.1, 0], [.62, .22, .22], g); mk(boxGeo, m2, [.3, -.22, 0], [.64, .05, .24], g); const b = new THREE.Group(); b.add(g); return b; }
-  const D = { 0: [.5, .26, .15], 1: [.95, .12, .1], 2: [.4, .4, .36], 3: [.5, .06, .5] }[sp.shape];
-  const c1 = new THREE.Color(sp.c1), c2 = new THREE.Color(sp.c2), dark = c1.clone().multiplyScalar(.5), belly = c2.clone().lerp(new THREE.Color(0xffffff), .4), tmp = new THREE.Color();
-  // smooth tapered body, shaded back-to-belly with scale-like patterning painted into the vertices
-  const geo = new THREE.SphereGeometry(1, 30, 20), P = geo.attributes.position, cols = new Float32Array(P.count * 3), sm = THREE.MathUtils.smoothstep;
-  for (let i = 0; i < P.count; i++) {
-    const x = P.getX(i), y = P.getY(i), z = P.getZ(i), back = Math.max(0, -x), front = Math.max(0, x);
-    const taper = sp.shape === 3 ? 1 - back * .12 : (1 - Math.pow(back, 1.5) * .8) * (1 - Math.pow(front, 3) * .3);
-    P.setXYZ(i, x * D[0], y * D[1] * taper * (y < 0 ? .86 : 1), z * D[2] * taper);
-    tmp.copy(belly).lerp(c1, sm(y, -.5, .25)); if (y > .55) tmp.lerp(dark, (y - .55) * .9);
-    if (sp.pat === 1 && Math.sin(x * 15) > .45 && y > -.25) tmp.lerp(c2, .9);
-    if (sp.pat === 2 && Math.sin(x * 24 + .5) * Math.sin(y * 19 + z * 13) > .8) tmp.lerp(c2, .95);
-    const sc = Math.sin(x * 55 + (Math.floor(y * 16) & 1) * 1.6) * Math.sin(y * 48) * .5 + .5; tmp.multiplyScalar(.93 + sc * .1);   // faint scale rows
-    if (x > .42 && x < .5) tmp.multiplyScalar(.62);                                                                                   // gill line
-    if (x < -.78) tmp.lerp(c2, .55);
-    cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
-  }
-  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals();
-  g.add(new THREE.Mesh(geo, fishBodyMat));
-  const fin = (pts, sx, sy, x, y, z, ry, rz) => { const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); const f = new THREE.Mesh(new THREE.ShapeGeometry(sh), new THREE.MeshToonMaterial({ color: sp.c2, gradientMap: toonGrad, side: THREE.DoubleSide })); f.scale.set(sx, sy, 1); f.position.set(x, y, z); f.rotation.set(0, ry || 0, rz || 0); g.add(f); return f; };
-  const fh = Math.max(.55, D[1] * 3.4);
-  if (sp.shape === 3) { mk(coneGeo, m1, [-D[0] - .4, 0, 0], [.03, .5, .03], g).rotation.z = Math.PI / 2; }
-  else {
-    fin([[0, .07], [-.14, .3], [-.3, .34], [-.24, .06], [-.3, -.3], [-.14, -.28], [0, -.07]], fh, fh, -D[0] * .94, 0, 0);                              // forked tail
-    if (sp.shape !== 2) fin([[0, 0], [-.06, .2], [-.14, .26], [-.3, .2], [-.32, 0]], D[0] * 1.1, D[1] * 1.5, D[0] * .1, D[1] * .88, 0);                // dorsal
-    fin([[0, 0], [-.1, -.14], [-.26, -.12], [-.22, 0]], D[0] * 1.1, D[1] * 1.3, -D[0] * .3, -D[1] * .8, 0);                                         // anal
-  }
-  for (const sd of [-1, 1]) fin([[0, 0], [-.12, -.1], [-.3, -.22], [-.2, .02]], D[0] * 1.2, D[1] * 1.5, D[0] * .3, -D[1] * .25, sd * D[2] * .8, sd * 1.2, .1);   // pectorals
-  for (const sd of [-1, 1]) {
-    const eye = new THREE.Group(); eye.position.set(D[0] * .68, D[1] * .3, sd * D[2] * .76); g.add(eye);
-    mk(sphGeo, mat(0xffffff), [0, 0, sd * .005], [.075, .075, .05], eye); mk(sphGeo, mat(sp.c2 === '#ffffff' ? 0xffc83a : 0xffc83a), [.012, 0, sd * .03], [.052, .052, .03], eye); mk(sphGeo, mat(0x0a0a12), [.018, 0, sd * .042], [.034, .034, .02], eye); mk(sphGeo, mat(0xffffff), [.03, .02, sd * .052], [.012, .012, .01], eye);
-  }
-  if (sp.shape !== 3) mk(boxGeo, mat(0x3a1a1a), [D[0] * .99, -D[1] * .12, 0], [.03, .015, D[2] * .5], g);                                           // mouth
-  if (sp.shape === 2) for (let i = 0; i < 18; i++) { const u = Math.acos(1 - 2 * (i + .5) / 18), v = Math.PI * (1 + Math.sqrt(5)) * i, nx = Math.cos(v) * Math.sin(u), ny = Math.cos(u), nz = Math.sin(v) * Math.sin(u); if (nx > .75) continue; const sp2 = mk(coneGeo, mat(sp.c2), [nx * D[0] * 1.02, ny * D[1] * 1.02, nz * D[2] * 1.02], [.04, .13, .04], g); sp2.lookAt(nx * 5, ny * 5, nz * 5); sp2.rotateX(Math.PI / 2); }
-  return g;
-}
-function drawFishIcon(sp, sil) {
+function drawFishIcon2D(sp, sil) {
   const c = document.createElement('canvas'); c.width = 120; c.height = 76; const g = c.getContext('2d'); g.translate(60, 38);
   const col1 = sil ? '#1a1530' : sp.c1, col2 = sil ? '#1a1530' : sp.c2; g.lineWidth = 3; g.strokeStyle = sil ? '#1a1530' : '#14213d';
   if (sp.shape === 4) { g.fillStyle = col1; g.beginPath(); g.moveTo(-12, -28); g.lineTo(6, -28); g.lineTo(8, 4); g.lineTo(34, 12); g.lineTo(34, 24); g.lineTo(-14, 24); g.closePath(); g.fill(); g.stroke(); g.fillStyle = col2; g.fillRect(-14, 20, 48, 6); return c.toDataURL(); }
@@ -1070,6 +1032,358 @@ function drawFishIcon(sp, sil) {
     g.fillStyle = '#fff'; g.beginPath(); g.arc(R[0] * .55, -R[1] * .2, 5, 0, TAU); g.fill(); g.stroke(); g.fillStyle = '#111'; g.beginPath(); g.arc(R[0] * .6, -R[1] * .2, 2.4, 0, TAU); g.fill();
   }
   return c.toDataURL();
+}
+/* =========================================================
+   FISH DESIGNS: every species has its own body, fins, tail, face and extras (cartoon style).
+   Dictionary icons are rendered from these same 3D models so they always match.
+========================================================= */
+const FSPH = new THREE.SphereGeometry(1, 22, 14), FCONE = new THREE.ConeGeometry(1, 1, 10), FCYL = new THREE.CylinderGeometry(1, 1, 1, 10), FOCT = new THREE.OctahedronGeometry(1), FDS = THREE.DoubleSide;
+const V3 = (x, y, z) => new THREE.Vector3(x, y, z), UPV = V3(0, 1, 0), tmc = new Map();
+const tm = (c, o) => { const k = c + (o ? JSON.stringify(o) : ''); let m = tmc.get(k); if (!m) { m = new THREE.MeshToonMaterial(Object.assign({ color: c, gradientMap: toonGrad }, o || {})); tmc.set(k, m); } return m; };
+const gmat = (c, k = 2) => { const key = 'g' + c + k; let m = tmc.get(key); if (!m) { m = new THREE.MeshBasicMaterial({ color: new THREE.Color(c).multiplyScalar(k) }); tmc.set(key, m); } return m; };
+const GLASS = o => ({ transparent: true, opacity: o, depthWrite: false, side: FDS });
+const FD_DEF = { L: .5, H: .27, W: .16, pat: 'none', tail: 'fork', dors: 'single', pect: 'small', eye: 'norm', es: 1, mouth: 'small', x: [], ts: 1, ds: 1 };
+const FD = {
+  'Soggy Boot': { type: 'boot' },
+  'Plain Perch': { L: .5, H: .3, W: .15, pat: 'bars', dors: 'two', x: ['pelvOrange'] },
+  'Pond Pickle': { L: .62, H: .19, W: .19, bk: .5, fk: .6, pat: 'spots', dors: 'none', tail: 'round', ts: .6, x: ['warts'], es: 1.25 },
+  'Sunny Bluegill': { L: .38, H: .4, W: .14, dors: 'long', tail: 'round', ts: .8, pect: 'wing', x: ['earflap'] },
+  'Noodle Eel': { type: 'eel', len: 1.7, amp: .2, waves: 1.2, r: .085, es: 1.6 },
+  'Chubby Carp': { L: .45, H: .37, W: .23, sag: .25, box: .2, dors: 'long', ts: 1.1, tail: 'fan', x: ['whisk', 'lips'], wh: 2 },
+  'Bouncefin': { L: .4, H: .3, W: .17, pat: 'stripes', tail: 'spring', es: 1.35, ts: 1 },
+  'Sparky-Fish': { L: .45, H: .24, W: .14, pat: 'spots', dors: 'bolt', tail: 'bolt', x: ['sparks'], es: 1.2 },
+  'Slime Guy': { type: 'blob', lumps: [[0, 0, 0, .36], [-.28, -.12, 0, .22]], eye2: 1.3, x: ['drips', 'blobarms'], mouth: 'grin' },
+  'Clown Carp': { L: .5, H: .34, W: .2, pat: 'bars', tail: 'fan', ts: 1.25, x: ['rednose', 'tufts'], mouth: 'grin', es: 1.2 },
+  'Teeny Tuna': { L: .42, H: .2, W: .13, bp: 1.2, pat: 'lat', dors: 'two', tail: 'lunate', ts: .8, x: ['finlets'], sc: .85 },
+  'Fizzy Snapper': { L: .5, H: .3, W: .16, fp: 2, fk: .55, pat: 'spots', tail: 'fork', x: ['bubbles'], mouth: 'big' },
+  'Upside-Down Fish': { L: .5, H: .28, W: .16, pat: 'bars', flip: true, es: 1.2 },
+  'Lantern Fish': { L: .42, H: .34, W: .18, pat: 'spots', es: 1.5, mouth: 'big', x: ['lure', 'glow'] },
+  'Beefy Bass': { L: .52, H: .34, W: .26, hump: .6, fp: 4, fk: .15, bk: .9, pat: 'bars', dors: 'two', ts: .8, mouth: 'under', x: ['muscle'], eye: 'angry' },
+  'Dizzy Eel': { type: 'eel', len: 1.5, amp: .17, waves: 2.2, r: .095, pat: 'bars', eye: 'swirl', es: 1.7, x: ['stars'] },
+  'Pepper Pike': { L: .6, H: .2, W: .16, bend: .13, bp: 1.2, fp: 1.5, dors: 'none', tail: 'whip', x: ['stem'], eye: 'angry' },
+  'Four-Leaf Trout': { L: .52, H: .27, W: .15, pat: 'spots', x: ['clover'], pect: 'long' },
+  'Disco Dory': { L: .4, H: .46, W: .12, box: .25, pat: 'checker', dors: 'sail', tail: 'round', ts: .7, x: ['sparkle'], es: 1.3, c3: '#00e5ff' },
+  'Snoozer Salmon': { L: .56, H: .26, W: .16, pat: 'saddle', eye: 'sleep', x: ['cap'] },
+  'Puffer King': { L: .4, H: .4, W: .38, pat: 'spots', dors: 'none', tail: 'round', ts: .5, pect: 'wing', x: ['spikes', 'crown'], es: 1.2 },
+  'Ghost Guppy': { L: .34, H: .2, W: .1, op: .62, fop: .55, dors: 'long', tail: 'veil', ts: 1.1, es: 1.4, gill: false },
+  'Rocket Ray': { type: 'ray', L: .5, W: .75, x: ['rocket'], pat: 'stripes', es: 1.2 },
+  'Golden Koi': { L: .56, H: .27, W: .18, pat: 'patch', dors: 'long', tail: 'veil', ts: .8, pect: 'long', x: ['whisk'], wh: 2 },
+  'Thunder Tuna': { L: .6, H: .3, W: .2, bp: 1.3, bk: .85, fp: 2, fk: .35, pat: 'stripes', dors: 'two', tail: 'lunate', ts: 1.1, x: ['finlets', 'sparks'] },
+  'Muscle Marlin': { L: .62, H: .24, W: .16, pat: 'stripes', dors: 'sail', tail: 'lunate', x: ['bill'], bl: 1.0, mouth: 'none' },
+  'Giga Gloop': { type: 'blob', lumps: [[0, .0, 0, .42], [-.32, -.12, .08, .28], [.2, -.2, -.08, .26]], eye3: true, mouth: 'grin', x: ['drips', 'inbubbles'] },
+  'Moon Jelly': { type: 'jelly', rb: .36, hb: .26, tn: 10, rings: 4 },
+  'Kraken Kid': { type: 'octo', es: 1.4 },
+  'Rainbow Leviathan': { type: 'eel', len: 2.0, amp: .14, waves: 1.3, r: .13, pat: 'rainbow', es: 1.1, eye: 'angry', x: ['spines'] },
+  'Chaos Carp': { L: .5, H: .33, W: .2, pat: 'spots', dors: 'crest', eye: 'mis', x: ['mismatch'] },
+  'Ember Minnow': { L: .34, H: .18, W: .11, tail: 'flame', dors: 'flame', x: ['glow'], es: 1.4, sc: .9 },
+  'Magma Mackerel': { L: .58, H: .22, W: .15, bp: 1.2, pat: 'cracks', dors: 'two', tail: 'lunate', ts: .9, x: ['glow'] },
+  'Cinder Eel': { type: 'eel', len: 1.8, amp: .1, waves: 1.4, r: .09, pat: 'cracks', x: ['ember'], eye: 'angry' },
+  'Obsidian Pike': { L: .62, H: .2, W: .15, fp: 1.5, dors: 'none', x: ['shards'], mouth: 'big', eye: 'angry' },
+  'Volcano Puffer': { L: .4, H: .38, W: .34, pat: 'cracks', dors: 'none', tail: 'round', ts: .5, pect: 'wing', x: ['spikes', 'volcano'] },
+  'Phoenix Koi': { L: .54, H: .26, W: .17, pat: 'patch', dors: 'flame', tail: 'veil', ts: .9, pect: 'wing', fc: '#ff8a1a', x: ['flamecrown'] },
+  'Lava Leviathan': { L: .75, H: .3, W: .28, bp: 1.4, pat: 'cracks', dors: 'crest', mouth: 'big', eye: 'angry', x: ['horns', 'plates'] },
+  'Spark Smelt': { L: .46, H: .15, W: .1, pat: 'spots', tail: 'bolt', ts: .7, x: ['sparks'], es: 1.3, sc: .9 },
+  'Volt Eel': { type: 'eel', len: 1.8, amp: .1, waves: 1.4, r: .09, pat: 'stripes', x: ['rings'], eye: 'angry' },
+  'Tesla Tuna': { L: .56, H: .3, W: .19, pat: 'lat', dors: 'two', tail: 'lunate', ts: 1.1, x: ['coil'] },
+  'Stormcloud Ray': { type: 'ray', L: .5, W: .8, tail: 'bolt', x: ['cloud'], pat: 'mottle' },
+  'Plasma Pike': { L: .6, H: .18, W: .13, op: .8, fop: .5, dors: 'long', tail: 'streamer', ts: 1.1, x: ['orb'], mouth: 'big', eye: 'angry' },
+  'Zeus Marlin': { L: .62, H: .25, W: .17, pat: 'stripes', dors: 'sail', tail: 'lunate', x: ['bill', 'crown'], bl: 1.1, zig: true, mouth: 'none' },
+  'Snow Smelt': { L: .38, H: .32, W: .3, dors: 'none', tail: 'round', ts: .5, x: ['carrot', 'snowdots'], es: 1.2, gill: false },
+  'Icicle Pike': { L: .62, H: .19, W: .14, op: .85, pat: 'lat', x: ['icicles', 'shards'], mouth: 'big' },
+  'Glacier Cod': { L: .5, H: .36, W: .3, box: .55, hump: .3, pat: 'mottle', dors: 'two', tail: 'round', mouth: 'big', x: ['whisk', 'ice'], wh: 1 },
+  'Aurora Trout': { L: .54, H: .26, W: .15, pat: 'ombre', dors: 'none', tail: 'streamer', ts: 1.1, x: ['aurora'] },
+  'Polar Narwhal': { L: .5, H: .3, W: .26, hump: .5, pat: 'mottle', dors: 'none', tail: 'fluke', pect: 'wing', mouth: 'none', x: ['bill'], bl: 1.0, spiral: true },
+  'Absolute Zero Whale': { L: .46, H: .32, W: .28, hump: .9, dors: 'none', tail: 'fluke', es: 1.3, x: ['crystals', 'spout'] },
+  'Sludge Guppy': { L: .34, H: .24, W: .14, pat: 'spots', tail: 'veil', ts: 1, eye: 'big', x: ['drips', 'warts'], es: 1.5 },
+  'Bubble Blob': { type: 'blob', lumps: [[0, 0, 0, .3], [.2, .14, .1, .2], [-.22, .1, -.1, .22], [-.1, -.2, .12, .16], [.22, -.12, -.12, .15]], op: .6, es: .8, mouth: 'small', x: ['inbubbles'] },
+  'Radioactive Carp': { L: .46, H: .33, W: .2, pat: 'stripes', dors: 'crest', tail: 'round', eye3: true, x: ['rods', 'whisk'], wh: 2 },
+  'Mutant Gar': { L: .72, H: .14, W: .12, bp: 1.2, fp: 1, pat: 'spots', dors: 'single', ds: .6, tail: 'round', ts: .8, mouth: 'beak', bl: .45, x: ['armor', 'extra'] },
+  'Toxic Titan Catfish': { L: .55, H: .28, W: .4, fp: 2, box: .3, sag: .4, pat: 'mottle', dors: 'single', ds: .6, tail: 'round', mouth: 'big', x: ['whisk'], wh: 3 },
+  'Plague Leviathan': { type: 'eel', len: 2.1, amp: .12, waves: 1.2, r: .14, pat: 'spots', eye: 'angry', x: ['spines', 'boils'] },
+  'Stardust Tetra': { L: .38, H: .2, W: .11, pat: 'lat', x: ['stars'], ds: .6 },
+  'Comet Ray': { type: 'ray', L: .45, W: .7, tail: 'streamer', x: ['sparkle'], pat: 'stripes' },
+  'Nebula Jelly': { type: 'jelly', rb: .42, hb: .3, tn: 14, rings: 0, stars: true },
+  'Meteor Marlin': { L: .62, H: .24, W: .17, pat: 'mottle', dors: 'spiky', tail: 'flame', x: ['bill', 'rocks'], bl: .8, mouth: 'none' },
+  'Black Hole Shark': { L: .7, H: .3, W: .22, hump: .2, pat: 'swirl', dors: 'single', ds: 1.4, tail: 'lunate', mouth: 'big', eye: 'angry', x: ['swirlcore'] },
+  'Galaxy Whale': { L: .6, H: .36, W: .3, hump: .7, pat: 'stars', dors: 'none', tail: 'fluke', es: 1.1, x: ['planets', 'spout'] },
+  'Lantern Fry': { L: .28, H: .2, W: .12, op: .8, es: 1.8, dors: 'none', tail: 'veil', ts: .8, x: ['lure'] },
+  'Abyssal Angler': { L: .4, H: .42, W: .3, box: .3, hump: .2, pat: 'spots', dors: 'none', tail: 'round', ts: .7, mouth: 'big', x: ['lure'], eye: 'big', es: 1.4 },
+  'Ghost Squid': { type: 'squid', es: 1.4 },
+  'Ancient Coelacanth': { L: .5, H: .3, W: .22, box: .4, pat: 'spots', dors: 'two', tail: 'tri', pect: 'lobed', c3: '#ffffff' },
+  'Sunken King': { L: .42, H: .4, W: .3, pat: 'patch', tail: 'round', mouth: 'under', x: ['crown', 'barnacles', 'beard'], es: 1.2 },
+  'Kraken of the Deep': { type: 'octo', big: true, es: 1.3, iris: '#2fffe0' }
+};
+const fishTap = (d, ux) => { const back = Math.max(0, -ux), front = Math.max(0, ux); return (1 - Math.pow(back, d.bp || 1.5) * (d.bk == null ? .8 : d.bk)) * (1 - Math.pow(front, d.fp || 3) * (d.fk == null ? .3 : d.fk)); };
+function fishBodyMesh(d, sp) {
+  const geo = new THREE.SphereGeometry(1, 32, 22), P = geo.attributes.position, cols = new Float32Array(P.count * 3), c1 = new THREE.Color(sp.c1), c2 = new THREE.Color(sp.c2), c3 = new THREE.Color(d.c3 || sp.c2), dark = c1.clone().multiplyScalar(.5), belly = c2.clone().lerp(new THREE.Color(0xffffff), .4), tmp = new THREE.Color(), sm = THREE.MathUtils.smoothstep, box = d.box || 0, dia = d.dia || 0;
+  if (d.type === 'ray') belly.copy(c1).lerp(new THREE.Color(0xffffff), .55);
+  for (let i = 0; i < P.count; i++) {
+    let x = P.getX(i), y = P.getY(i), z = P.getZ(i);
+    if (box) { const f = 1 / Math.pow(x ** 4 + y ** 4 + z ** 4, .25); x *= 1 + (f - 1) * box; y *= 1 + (f - 1) * box; z *= 1 + (f - 1) * box; }
+    let px, py, pz;
+    if (d.type === 'ray') { const l1 = Math.abs(x) + Math.abs(z), f = 1 + (1 / Math.max(.5, l1) - 1) * .8; px = x * f * d.L; pz = z * f * d.W; py = y * .09 * (1 - Math.abs(z) * .5) + Math.abs(z) * Math.abs(z) * .1 * (d.wing == null ? 1 : d.wing); if (x > .7) py += (x - .7) * .25; }
+    else { const tap = fishTap(d, x), hm = 1 + (d.hump || 0) * Math.max(0, x + .2) * (y > 0 ? .9 : 0); px = x * d.L; py = y * d.H * tap * (y < 0 ? .86 + (d.sag || 0) : hm); pz = z * d.W * tap; if (d.bend) py += d.bend * (x * x - .35); }
+    P.setXYZ(i, px, py, pz);
+    tmp.copy(belly).lerp(c1, sm(y, -.5, .25)); if (y > .55) tmp.lerp(dark, (y - .55) * .9);
+    let k = 0;
+    switch (d.pat) {
+      case 'stripes': k = Math.sin(x * 15) > .45 && y > -.25 ? .9 : 0; break;
+      case 'bars': k = Math.sin(x * 7 + 1) > .15 && y > -.45 ? .9 : 0; break;
+      case 'spots': k = Math.sin(x * 24 + .5) * Math.sin(y * 19 + z * 13) > .8 ? .95 : 0; break;
+      case 'lat': k = Math.abs(y - .02) < .13 ? .95 : 0; break;
+      case 'patch': k = Math.sin(x * 6.5 + z * 4) * Math.sin(y * 5 + x * 3.2 + 1) > .15 ? .95 : 0; break;
+      case 'checker': k = (Math.floor((x + 1) * 4.5) + Math.floor((y + 1) * 3.5)) & 1 ? .85 : 0; break;
+      case 'mottle': k = Math.sin(x * 9 + y * 5) * Math.sin(y * 8 - z * 6 + x * 3) > .2 ? .7 : 0; break;
+      case 'swirl': k = Math.sin(Math.atan2(y, z) * 3 + x * 7) > .35 ? .9 : 0; break;
+      case 'stars': k = Math.sin(x * 38) * Math.sin(y * 31 + z * 29) > .88 ? 1 : 0; break;
+      case 'cracks': k = Math.abs(Math.sin(x * 9 + y * 4) * Math.sin(y * 7 - z * 5 + x * 2)) < .07 ? 1 : 0; break;
+      case 'ombre': tmp.lerp(c3, sm(x, -.8, .8) * .9); break;
+      case 'saddle': k = y > .3 && Math.sin(x * 5) > 0 ? .9 : 0; break;
+      case 'rainbow': tmp.setHSL((x + 1) / 2 * .85, .8, y < -.3 ? .75 : .6); break;
+    }
+    if (k > 0) { tmp.lerp(c3, Math.min(1, k)); if (d.pat === 'cracks') tmp.multiplyScalar(1.5); }
+    const sc = Math.sin(x * 55 + (Math.floor(y * 16) & 1) * 1.6) * Math.sin(y * 48) * .5 + .5; tmp.multiplyScalar(.93 + sc * .1);
+    if (d.gill !== false && d.type !== 'ray' && x > .42 && x < .5) tmp.multiplyScalar(.62);
+    if (d.type !== 'ray' && x < -.78) tmp.lerp(c2, .55);
+    cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
+  }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals();
+  return new THREE.Mesh(geo, d.op ? tm('#ffffff', Object.assign({ vertexColors: true }, GLASS(d.op))) : fishBodyMat);
+}
+function fishCtx(g, sp, d) {
+  const K = { g, sp, d }, dk = tm('#0a0a12'), wh = tm('#ffffff');
+  K.fm = tm(d.fc || sp.c2, d.fop ? Object.assign({ side: FDS }, GLASS(d.fop)) : { side: FDS });
+  K.E = (m, p, s, par = g, rot) => { const o = new THREE.Mesh(FSPH, m); o.position.set(p[0], p[1], p[2]); o.scale.set(s[0], s[1], s[2]); if (rot) o.rotation.set(rot[0], rot[1], rot[2]); par.add(o); return o; };
+  K.Cn = (m, p, r, len, dir, par = g) => { const o = new THREE.Mesh(FCONE, m), v = V3(dir[0], dir[1], dir[2]).normalize(); o.position.set(p[0] + v.x * len / 2, p[1] + v.y * len / 2, p[2] + v.z * len / 2); o.quaternion.setFromUnitVectors(UPV, v); o.scale.set(r, len, r); par.add(o); return o; };
+  K.Cy = (m, a, b, r, par = g) => { const A = V3(a[0], a[1], a[2]), v = V3(b[0], b[1], b[2]).sub(A), len = v.length(), o = new THREE.Mesh(FCYL, m); o.position.copy(A).addScaledVector(v, .5); o.quaternion.setFromUnitVectors(UPV, v.normalize()); o.scale.set(r, len, r); par.add(o); return o; };
+  K.fin = (pts, sx, sy, x, y, z, ry, rz, m, par = g) => { const sh = new THREE.Shape(); sh.moveTo(pts[0][0], pts[0][1]); for (let i = 1; i < pts.length; i++) sh.lineTo(pts[i][0], pts[i][1]); const f = new THREE.Mesh(new THREE.ShapeGeometry(sh), m || K.fm); f.scale.set(sx, sy, 1); f.position.set(x, y, z); f.rotation.set(0, ry || 0, rz || 0); par.add(f); return f; };
+  K.hfin = (pts, sx, sy, x, y, z, m, par = g) => { const f = K.fin(pts, sx, sy, x, y, z, 0, 0, m, par); f.rotation.x = -Math.PI / 2; return f; };
+  K.rad = u => { if (K.path) return K.path(u); const t = fishTap(d, u), s = Math.sqrt(Math.max(0, 1 - u * u)); return { y: d.bend ? d.bend * (u * u - .35) : 0, h: d.H * s * t * (1 + (d.hump || 0) * Math.max(0, u + .2) * .9), w: d.W * s * t, b: d.H * s * t * (.86 + (d.sag || 0)) }; };
+  K.topY = u => { const r = K.rad(u); return r.y + r.h; }; K.botY = u => { const r = K.rad(u); return r.y - (r.b || r.h); };
+  K.surf = (u, ang, mul = 1) => { const r = K.rad(u); return [u * (d.L || .5), r.y + r.h * Math.sin(ang) * mul, r.w * Math.cos(ang) * mul]; };
+  K.eyes = (x, y, z, r, style) => {
+    for (const sd of [-1, 1]) {
+      const e = new THREE.Group(); e.position.set(x, y, sd * z); g.add(e); let rr = r;
+      if (style === 'mis') rr = sd > 0 ? r * 1.9 : r * .7;
+      if (style === 'sleep') { K.E(dk, [0, 0, sd * rr * .1], [rr * 1.15, rr * .16, rr * .3], e); K.E(dk, [rr * .9, rr * .35, sd * rr * .1], [rr * .08, rr * .35, rr * .08], e, [0, 0, -.5]); continue; }
+      if (style === 'stalk') { K.Cy(tm(sp.c1), [0, 0, 0], [0, rr * 2.2, 0], rr * .35, e); K.E(wh, [0, rr * 2.4, 0], [rr, rr, rr], e); K.E(dk, [rr * .3, rr * 2.4, sd * rr * .25], [rr * .5, rr * .5, rr * .4], e); continue; }
+      K.E(wh, [0, 0, sd * rr * .06], [rr, rr, rr * .7], e);
+      if (style === 'swirl') { for (const [q, w] of [[.7, .1], [.45, .1], [.22, .1]]) { const t = new THREE.Mesh(new THREE.TorusGeometry(rr * q, rr * w, 5, 14), dk); t.position.set(0, 0, sd * rr * .75); e.add(t); } }
+      else { K.E(tm(d.iris || '#ffc83a'), [rr * .12, 0, sd * rr * .42], [rr * .68, rr * .68, rr * .45], e); K.E(dk, [rr * .22, 0, sd * rr * .62], [rr * .4, rr * .4, rr * .3], e); K.E(wh, [rr * .38, rr * .25, sd * rr * .8], [rr * .13, rr * .13, rr * .1], e); }
+      if (style === 'angry') K.E(dk, [0, rr * .95, sd * rr * .2], [rr * 1.25, rr * .17, rr * .45], e, [0, 0, -.45]);
+    }
+  };
+  return K;
+}
+const FT = {   // tail shapes (x runs backwards, y is up) scaled by the tail size
+  fork: [[0, .07], [-.14, .3], [-.3, .34], [-.24, .06], [-.3, -.3], [-.14, -.28], [0, -.07]],
+  round: [[0, .07], [-.12, .2], [-.3, .3], [-.42, .18], [-.44, 0], [-.42, -.18], [-.3, -.3], [-.12, -.2], [0, -.07]],
+  fan: [[0, .05], [-.2, .35], [-.45, .5], [-.55, .2], [-.58, 0], [-.55, -.2], [-.45, -.5], [-.2, -.35], [0, -.05]],
+  lunate: [[0, .06], [-.1, .3], [-.3, .62], [-.24, .22], [-.2, 0], [-.24, -.22], [-.3, -.62], [-.1, -.3], [0, -.06]],
+  whip: [[0, .05], [-.5, .04], [-.95, 0], [-.5, -.04], [0, -.05]],
+  streamer: [[0, .06], [-.25, .3], [-.7, .55], [-.55, .2], [-.4, .02], [-.55, -.2], [-.7, -.55], [-.25, -.3], [0, -.06]],
+  veil: [[0, .06], [-.15, .5], [-.45, .85], [-.85, .55], [-.7, .15], [-.95, -.25], [-.65, -.75], [-.3, -.5], [-.1, -.2], [0, -.06]],
+  bolt: [[0, .06], [-.15, .3], [-.2, .1], [-.38, .38], [-.34, 0], [-.5, -.12], [-.3, -.1], [-.42, -.34], [-.15, -.14], [0, -.06]],
+  tri: [[0, .06], [-.18, .3], [-.34, .3], [-.3, .1], [-.52, .04], [-.3, -.1], [-.34, -.3], [-.18, -.3], [0, -.06]],
+  fluke: [[0, .08], [-.15, .4], [-.5, .6], [-.4, .2], [-.3, 0], [-.4, -.2], [-.5, -.6], [-.15, -.4], [0, -.08]]
+};
+const FDORS = {   // normalized dorsal fins: x runs 0 -> -1, y 0 -> 1
+  single: [[0, 0], [-.15, .7], [-.35, 1], [-.75, .7], [-1, 0]], sail: [[0, 0], [-.05, .9], [-.2, 1.6], [-.5, 1.8], [-.8, 1.0], [-1, 0]], ribbon: [[0, 0], [-.05, .5], [-.3, .7], [-.6, .6], [-.9, .4], [-1, 0]],
+  soft: [[0, 0], [-.1, .8], [-.5, 1], [-.9, .5], [-1, 0]], spiny: [[0, 0], [-.2, 1], [-.3, .5], [-.5, .9], [-.7, .4], [-1, 0]], bolt: [[0, 0], [-.2, .8], [-.3, .35], [-.55, 1.2], [-.6, .5], [-.9, .9], [-1, 0]]
+};
+function fishStd(K) {
+  const { d, g, sp } = K, L = d.L, H = d.H, W = d.W, f = K.fm;
+  g.add(fishBodyMesh(d, sp));
+  const tH = (d.ts || 1) * Math.max(.5, H * 3.2), x0 = -L * .94;
+  if (d.tail === 'flame') { for (const [dy, l] of [[.3, .5], [0, .65], [-.3, .5]]) K.Cn(gmat(sp.c2, 1.8), [x0, 0, 0], .08, l, [-1, dy, 0]); }
+  else if (d.tail === 'spring') { for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(.1 - i * .012, .018, 5, 14), tm(sp.c2)); t.rotation.y = Math.PI / 2; t.position.set(x0 - .04 - i * .07, 0, 0); g.add(t); } K.fin(FT.round, .5, .5, x0 - .4, 0, 0); }
+  else if (d.tail === 'fluke') K.hfin(FT.fluke, tH * 1.3, tH * 1.3, x0, 0, 0);
+  else if (d.tail !== 'none') K.fin(FT[d.tail] || FT.fork, tH, tH, x0, 0, 0);
+  const ds = d.ds || 1, df = (p, u0, wl, hm) => K.fin(p, L * wl, H * hm * ds, u0 * L, K.topY(u0 - wl / 2) * .86, 0);
+  switch (d.dors) {
+    case 'single': df(FDORS.single, .35, .7, 1.1); break; case 'sail': df(FDORS.sail, .45, .75, .9); break;
+    case 'two': df(FDORS.spiny, .5, .35, .9); df(FDORS.soft, -.05, .4, .9); break;
+    case 'long': df(FDORS.ribbon, .55, 1.05, .8); break; case 'bolt': df(FDORS.bolt, .4, .7, 1.1); break;
+    case 'spiky': for (let i = 0; i < 8; i++) { const u = .5 - i * .12; K.Cn(f, [u * L, K.topY(u) * .85, 0], .03, H * (.5 + (i % 2) * .4), [-.25, 1, 0]); } break;
+    case 'crest': for (let i = 0; i < 7; i++) { const u = .5 - i * .13; K.Cn(f, [u * L, K.topY(u) * .85, 0], .055, H * (.6 + (i % 3) * .25), [-.35, 1, 0]); } break;
+    case 'flame': for (let i = 0; i < 4; i++) { const u = .35 - i * .18; K.Cn(gmat(d.fc || sp.c2, 1.8), [u * L, K.topY(u) * .85, 0], .05, H * (.9 + (i % 2) * .5), [-.4, 1, 0]); } break;
+  }
+  if (d.dors !== 'none' && d.anal !== false && d.tail !== 'fluke' && d.type !== 'x') K.fin([[0, 0], [-.1, -.14], [-.26, -.12], [-.22, 0]], L * 1.1, H * 1.3, -L * .3, K.botY(-.3) * .9, 0);
+  for (const sd of [-1, 1]) switch (d.pect) {
+    case 'small': K.fin([[0, 0], [-.12, -.1], [-.3, -.22], [-.2, .02]], L * 1.2, H * 1.5, L * .3, -H * .25, sd * W * .8, sd * 1.2, .1); break;
+    case 'wing': K.fin([[0, 0], [-.2, -.05], [-.5, -.22], [-.72, -.5], [-.3, -.32], [-.08, -.12]], L * 1.1, H * 1.5, L * .3, -H * .15, sd * W * .85, sd * 1.05, .1); break;
+    case 'long': K.fin([[0, 0], [-.1, -.35], [-.8, -.6], [-.5, -.05]], L * 1.0, H * 1.2, L * .3, -H * .25, sd * W * .85, sd * 1.1, .1); break;
+    case 'lobed': K.Cy(tm(sp.c1), [L * .22, -H * .4, sd * W * .8], [L * .12, -H * .65, sd * (W + .15)], .045); K.E(tm(sp.c1), [L * .1, -H * .7, sd * (W + .17)], [.12, .05, .08], g, [0, sd * .5, -.3]); break;
+  }
+  K.eyes(L * .66, H * .3, W * .76, .085 * d.es, d.eye);
+  if (d.eye3) K.eyes(L * .55, H * .9, 0, .06 * d.es, 'norm');
+  K.mouth(L, H, W);
+  K.tokens(L, H, W);
+}
+function fishMouth(K, L, H, W) {
+  const { d, g, sp, E, Cn } = K, wh = tm('#ffffff'), dk = tm('#2a0f14');
+  switch (d.mouth) {
+    case 'small': K.E(tm('#3a1a1a'), [L * .99, -H * .12, 0], [.03, .015, W * .5]); break;
+    case 'big': E(dk, [L * .95, -H * .1, 0], [L * .1, H * .22, W * .75]); for (let i = -2; i <= 2; i++) { Cn(wh, [L * 1.0, -H * .02, i * W * .3], .02, .07, [0, -1, 0]); Cn(wh, [L * 1.0, -H * .26, i * W * .3], .02, .07, [0, 1, 0]); } break;
+    case 'under': E(tm(sp.c1), [L * 1.02, -H * .28, 0], [L * .13, H * .18, W * .6]); for (const sd of [-1, 1]) Cn(wh, [L * 1.08, -H * .3, sd * W * .35], .03, .12, [.3, 1, 0]); break;
+    case 'beak': Cn(tm(sp.c1), [L * .96, H * .02, 0], H * .2, L * (d.bl || .5), [1, 0, 0]); Cn(tm(sp.c1), [L * .96, -H * .12, 0], H * .15, L * (d.bl || .5) * .85, [1, 0, 0]); for (let i = 0; i < 6; i++) Cn(wh, [L * (1.08 + i * .06 * (d.bl || .5)), -H * .05, i % 2 ? W * .2 : -W * .2], .012, .05, [0, -1, 0]); break;
+    case 'grin': for (const sd of [-1, 1]) { const t = new THREE.Mesh(new THREE.TorusGeometry(H * .42, .014, 6, 16, Math.PI), dk); t.rotation.z = Math.PI; t.position.set(L * .74, H * .08, sd * W * .93); g.add(t); } break;
+  }
+}
+function fishTokens(K, L, H, W) {
+  const { d, g, sp, E, Cn, Cy } = K, wh = tm('#ffffff'), dk = tm('#0a0a12'), c1 = tm(sp.c1), c2 = tm(sp.c2), gl = gmat(sp.c2, 2), bone = tm('#f1e6d0'), gold = tm('#ffd43b'), fm = K.fm;
+  const R = Math.random, sf = (u, a) => K.surf(u, a);
+  for (const t of d.x) switch (t) {
+    case 'pelvOrange': for (const sd of [-1, 1]) K.fin([[0, 0], [-.1, -.2], [-.3, -.22], [-.2, 0]], L * .9, H * 1.3, L * .3, -H * .8, sd * W * .5, sd * .5, 0, tm('#ff9a3a', { side: FDS })); break;
+    case 'warts': for (let i = 0; i < 16; i++) { const p = sf(R() * 1.5 - .75, R() * 3.1 - .2); E(tm(sp.c2), [p[0], p[1], p[2] * (R() < .5 ? 1 : -1)], [.035, .035, .035]); } break;
+    case 'earflap': for (const sd of [-1, 1]) { E(tm('#12122a'), [L * .4, H * .12, sd * W * .93], [.07, .06, .02]); E(gold, [L * .4, H * .12, sd * W * .91], [.085, .075, .015]); } break;
+    case 'whisk': for (const sd of [-1, 1]) for (let i = 0; i < (d.wh || 2); i++) Cy(tm(sp.c2), [L * .92, -H * .15, sd * W * .4], [L * 1.06 + i * .03, -H * .55 - i * .05, sd * (W + .1 + .09 * i)], .014); break;
+    case 'lips': E(tm('#ff8aa8'), [L * .98, -H * .1, 0], [.07, .07, W * .8]); break;
+    case 'sparks': for (let i = 0; i < 6; i++) { const a = R() * 6.28, rr = H + .12 + R() * .1; E(gmat('#fff27a', 2), [(R() - .5) * L * 1.6, Math.sin(a) * rr, Math.cos(a) * rr * .7], [.03, .03, .03]); } break;
+    case 'muscle': for (const sd of [-1, 1]) E(c1, [L * .42, H * .05, sd * W * 1.0], [L * .2, H * .5, W * .45]); break;
+    case 'stars': for (let i = 0; i < 4; i++) { const o = new THREE.Mesh(FOCT, gmat('#fff27a', 1.8)); o.scale.set(.05, .07, .02); o.position.set(L * (.1 - i * .25), H * 1.5 + .05 + (i % 2) * .08, (i - 1.5) * .05); o.rotation.z = i; g.add(o); } break;
+    case 'stem': Cn(tm('#2e9e3a'), [L * .66, K.topY(.66) * .9, 0], .05, .17, [.35, 1, 0]); E(tm('#2e9e3a'), [L * .62, K.topY(.62) + .02, 0], [.1, .04, .1]); break;
+    case 'clover': for (const sd of [-1, 1]) for (const [a, b] of [[.06, 0], [-.06, 0], [0, .06], [0, -.06]]) E(tm('#3ed15a'), [L * .02 + a, H * .08 + b, sd * W * .96], [.05, .05, .015]); break;
+    case 'sparkle': for (let i = 0; i < 9; i++) { const p = sf(R() * 1.4 - .7, R() * 6.28), c = new THREE.Color().setHSL(R(), 1, .7); E(new THREE.MeshBasicMaterial({ color: c.multiplyScalar(1.8) }), [p[0], p[1], p[2] * 1.04], [.03, .03, .03]); } break;
+    case 'cap': Cn(tm('#5e6bd6'), [L * .45, K.topY(.45) * .9, 0], .13, .4, [-.7, 1, 0]); E(wh, [L * .45 - .27, K.topY(.45) * .9 + .36, 0], [.06, .06, .06]); break;
+    case 'spikes': for (let i = 0; i < 20; i++) { const u = Math.acos(1 - 2 * (i + .5) / 20), v = Math.PI * (1 + Math.sqrt(5)) * i, nx = Math.cos(v) * Math.sin(u), ny = Math.cos(u), nz = Math.sin(v) * Math.sin(u); if (nx > .7) continue; Cn(c2, [nx * L * 1.0, ny * H * 1.0, nz * W * 1.0], .04, .14, [nx * W, ny * W, nz * H]); } break;
+    case 'crown': { const bx = L * .5, by = K.topY(.5) + .02; for (let i = 0; i < 5; i++) { const a = i / 5 * 6.28; Cn(gold, [bx + Math.cos(a) * .07, by, Math.sin(a) * .07], .035, .16, [0, 1, 0]); } const t = new THREE.Mesh(new THREE.TorusGeometry(.07, .02, 6, 14), gold); t.rotation.x = Math.PI / 2; t.position.set(bx, by + .01, 0); g.add(t); } break;
+    case 'rednose': E(tm('#e53935'), [L * 1.0, 0, 0], [.09, .09, .09]); break;
+    case 'tufts': for (const sd of [-1, 1]) ['#ff4081', '#ffd600', '#00e676'].forEach((c, i) => Cn(tm(c), [L * .45, K.topY(.45) * .9, sd * W * .45], .05, .24, [-.3 + i * .3, 1, sd * (.3 + i * .15)])); break;
+    case 'finlets': for (let i = 0; i < 6; i++) { const u = -.1 - i * .1; Cn(tm('#ffd54f'), [u * L, K.topY(u) * .9, 0], .02, .08, [-.5, 1, 0]); Cn(tm('#ffd54f'), [u * L, K.botY(u) * .9, 0], .02, .08, [-.5, -1, 0]); } break;
+    case 'bubbles': for (let i = 0; i < 5; i++) E(tm('#ffffff', GLASS(.45)), [L * (.9 + i * .06), H * (.6 + i * .25), (i % 2 - .5) * .1], [.05 + i * .01, .05 + i * .01, .05 + i * .01]); break;
+    case 'lure': Cy(tm(sp.c1), [L * .6, K.topY(.6) * .95, 0], [L * 1.0, K.topY(.6) + .26, 0], .015); E(gl, [L * 1.0, K.topY(.6) + .3, 0], [.07, .07, .07]); break;
+    case 'glow': for (let i = 0; i < 8; i++) { const u = -.55 + i * .14, p = sf(u, -.6); E(gl, [p[0], p[1], p[2] * 1.02], [.022, .022, .022]); E(gl, [p[0], p[1], -p[2] * 1.02], [.022, .022, .022]); } break;
+    case 'rocket': Cn(tm('#e8e8e8'), [L * .85, .04, 0], .12, .38, [1, 0, 0]); Cn(tm('#e53935'), [L * .85, .04, 0], .121, .1, [1, 0, 0]); for (const dy of [.25, 0, -.25]) Cn(gmat('#ff9a3a', 1.8), [-L * .8, .0, dy * .4], .06, .45, [-1, dy * .3, dy * .5]); break;
+    case 'flamecrown': for (let i = 0; i < 5; i++) Cn(gmat('#ff8a1a', 1.8), [L * .5 - i * .03, K.topY(.5) * .9, (i - 2) * .05], .045, .16 + (i % 2) * .1, [-.3, 1, 0]); break;
+    case 'horns': for (const sd of [-1, 1]) Cn(bone, [L * .52, K.topY(.52) * .9, sd * W * .5], .05, .24, [.4, 1, sd * .5]); break;
+    case 'plates': for (let i = 0; i < 6; i++) { const u = .45 - i * .18; E(tm('#2a2330'), [u * L, K.topY(u) * .95, 0], [.08, .035, .11]); } break;
+    case 'shards': for (let i = 0; i < 7; i++) { const u = .5 - i * .14; Cn(tm(sp.c2, { transparent: true, opacity: .88 }), [u * L, K.topY(u) * .85, 0], .035, .14 + R() * .12, [-.3 + R() * .2, 1, R() * .4 - .2]); } break;
+    case 'volcano': Cn(tm('#3a2a28'), [L * .12, H * .72, 0], .24, .3, [0, 1, 0]); E(gmat('#ff8a1a', 1.8), [L * .12, H * .72 + .3, 0], [.08, .05, .08]); break;
+    case 'coil': { const bx = L * .1, by = K.topY(.1); Cy(tm('#8a8aa0'), [bx, by * .9, 0], [bx, by + .26, 0], .03); for (let i = 0; i < 4; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(.07 - i * .008, .014, 5, 12), tm('#b87333')); t.rotation.x = Math.PI / 2; t.position.set(bx, by + .06 + i * .05, 0); g.add(t); } E(gmat('#7bf0ff', 2), [bx, by + .3, 0], [.06, .06, .06]); } break;
+    case 'cloud': for (const [x, y, z, s] of [[0, .13, 0, .15], [.15, .1, .06, .11], [-.15, .1, -.05, .12], [.05, .2, 0, .1]]) E(tm('#aab4cc'), [x * L, y + .06, z], [s, s * .75, s]); K.Cy(gmat('#fff27a', 2), [0, .06, 0], [.05, -.12, 0], .012); break;
+    case 'orb': E(gl, [L * 1.28, 0, 0], [.12, .12, .12]); for (let i = 0; i < 3; i++) E(gl, [L * 1.28 + Math.cos(i * 2.1) * .2, Math.sin(i * 2.1) * .2, 0], [.03, .03, .03]); break;
+    case 'bill': if (d.zig) { let px = L * .96, py = 0; for (let i = 0; i < 6; i++) { const nx = px + L * (d.bl || 1) / 6, ny = (i % 2 ? .06 : -.06); Cy(tm('#cfd8dc'), [px, py, 0], [nx, ny, 0], .045 * (1 - i * .12)); px = nx; py = ny; } E(gmat('#fff27a', 2), [px, py, 0], [.04, .04, .04]); } else if (d.spiral) { Cn(bone, [L * .98, 0, 0], .06, L * (d.bl || 1) * 2, [1, .02, 0]); for (let i = 0; i < 7; i++) { const tt = new THREE.Mesh(new THREE.TorusGeometry(.055 - i * .006, .012, 5, 12), tm('#d8c8a8')); tt.rotation.y = Math.PI / 2; tt.position.set(L * 1.1 + i * .13, 0, 0); g.add(tt); } } else Cn(tm('#cfd8dc'), [L * .96, 0, 0], H * .22, L * (d.bl || 1), [1, 0, 0]); break;
+    case 'icicles': for (let i = 0; i < 6; i++) { const u = .5 - i * .17; Cn(tm('#e8f6ff', { transparent: true, opacity: .85 }), [u * L, K.botY(u) * .9, 0], .035, .16 + (i % 2) * .08, [0, -1, 0]); } break;
+    case 'ice': for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(.12, .12, .12), tm('#d8f2ff', { transparent: true, opacity: .8 })); b.position.set(L * (.3 - i * .3), K.topY(.3 - i * .3) + .04, 0); b.rotation.set(R(), R(), R()); g.add(b); } break;
+    case 'aurora': ['#7bffd2', '#b36bff', '#4dc3ff'].forEach((c, i) => K.fin(FDORS.ribbon, L * (1.1 - i * .15), H * (.9 + i * .5), (.5 - i * .1) * L, K.topY(.15) * .8, 0, 0, 0, tm(c, { side: FDS, transparent: true, opacity: .6 }))); break;
+    case 'crystals': for (let i = 0; i < 6; i++) { const u = .4 - i * .15; Cn(tm('#cdeeff', { transparent: true, opacity: .8 }), [u * L, K.topY(u) * .9, (i % 2 - .5) * .1], .05, .18 + R() * .1, [R() * .6 - .3, 1, R() * .6 - .3]); } break;
+    case 'spout': for (let i = 0; i < 4; i++) E(tm('#bfe9ff', GLASS(.6)), [L * .3 + (i % 2 - .5) * .06, K.topY(.3) + .08 + i * .08, 0], [.04, .05, .04]); break;
+    case 'drips': for (let i = 0; i < 5; i++) { const u = .5 - i * .25; Cn(tm(sp.c1), [u * L, K.botY(u) * .9, (i % 2 - .5) * .1], .045, .12 + (i % 3) * .06, [0, -1, 0]); E(tm(sp.c1), [u * L, K.botY(u) - .14 - (i % 3) * .06, (i % 2 - .5) * .1], [.05, .06, .05]); } break;
+    case 'rods': for (let i = 0; i < 5; i++) { const u = .45 - i * .2; Cy(tm('#556b2f'), [u * L, K.topY(u) * .9, 0], [u * L - .03, K.topY(u) + .18, 0], .02); E(gl, [u * L - .03, K.topY(u) + .2, 0], [.04, .04, .04]); } break;
+    case 'armor': for (let i = 0; i < 8; i++) { const u = .6 - i * .15; for (const sd of [-1, 1]) E(tm(sp.c2), [u * L, K.rad(u).y + .01, sd * K.rad(u).w * .98], [.05, .05, .018], g, [0, 0, .7]); } break;
+    case 'extra': for (const sd of [-1, 1]) K.fin([[0, 0], [-.12, -.12], [-.3, -.2], [-.2, 0]], L * 1.0, H * 1.8, L * .0, -H * .4, sd * W * .9, sd * 1.1, .1); break;
+    case 'rocks': for (let i = 0; i < 5; i++) { const u = .45 - i * .2, o = new THREE.Mesh(new THREE.DodecahedronGeometry(1), tm('#6a5a4a')); o.scale.setScalar(.05 + R() * .04); o.position.set(u * L, K.topY(u) + .01, (R() - .5) * .1); g.add(o); } break;
+    case 'planets': for (const [x, c, s] of [[.3, '#ff9ad0', .07], [-.05, '#7ad7ff', .09], [-.35, '#ffd18a', .06]]) { const y = K.topY(x) + .15 + s; E(tm(c), [x * L, y, 0], [s, s, s]); if (s > .08) { const r = new THREE.Mesh(new THREE.TorusGeometry(s * 1.6, .01, 4, 16), gmat('#b78bff', 1.5)); r.rotation.x = 1.2; r.position.set(x * L, y, 0); g.add(r); } } break;
+    case 'barnacles': for (let i = 0; i < 12; i++) { const p = sf(R() * 1.5 - .75, R() * 3.1 - .2); Cn(tm('#cfd3d8'), [p[0], p[1], p[2] * (R() < .5 ? 1 : -1)], .03, .06, [0, 1, 0]); } break;
+    case 'beard': for (let i = 0; i < 6; i++) { E(tm('#3fa84a'), [L * .85 - i * .01, -H * .35 - i * .07, (i % 2 - .5) * .05], [.04, .05, .04]); } break;
+    case 'carrot': Cn(tm('#ff8a1a'), [L * .98, 0, 0], .06, .26, [1, -.1, 0]); break;
+    case 'snowdots': for (let i = 0; i < 6; i++) E(wh, [L * (.6 - i * .22), K.topY(.5 - i * .2) + .06 + (i % 2) * .04, (i % 3 - 1) * .06], [.03, .03, .03]); break;
+    case 'mismatch': Cn(tm('#ff4081'), [L * .1, K.topY(.1) * .9, 0], .05, .2, [0, 1, .3]); K.fin([[0, 0], [-.12, -.12], [-.3, -.2], [-.2, 0]], L * 1.3, H * 2, L * .1, -H * .6, W * .7, 1.2, 1.2); break;
+    case 'swirlcore': { const r = new THREE.Mesh(new THREE.TorusGeometry(.14, .02, 5, 18), gmat('#b78bff', 1.8)); r.position.set(L * .2, K.topY(.2) + .14, 0); g.add(r); E(tm('#000000'), [L * .2, K.topY(.2) + .14, 0], [.08, .08, .04]); } break;
+  }
+}
+function fishEel(K) {
+  const { d, g, sp } = K, N = 20, len = d.len, amp = d.amp, wv = d.waves, r0 = d.r, sp1 = len / (N - 1), segs = [], c1 = new THREE.Color(sp.c1), c2 = new THREE.Color(sp.c2);
+  const pos = t => ({ x: len / 2 - t * len, y: Math.sin(t * wv * TAU + 1) * amp * (.35 + t), z: d.coil ? Math.cos(t * wv * TAU) * amp : 0, r: r0 * (t < .1 ? 1.3 - t * 2 : 1.1 - t * .95) * (1 + (t < .5 ? .15 * Math.sin(t * 3) : 0)) });
+  for (let i = 0; i < N; i++) {
+    const t = i / (N - 1), p = pos(t); let c = c1.clone(); if (d.pat === 'bars' && i % 3 === 0) c = c2.clone(); if (d.pat === 'stripes' && i % 2 === 0) c = c2.clone(); if (d.pat === 'rainbow') c.setHSL(t * .85, .8, .6); if (d.pat === 'cracks' && i % 3 === 1) c = c2.clone().multiplyScalar(1.5); if (d.pat === 'spots' && i % 4 === 0) c = c2.clone();
+    K.E(new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad }), [p.x, p.y, p.z], [sp1 * 1.0, p.r, p.r]);
+    if (i % 2 === 0 || i < 3) K.E(new THREE.MeshToonMaterial({ color: c1.clone().lerp(c2, .6).lerp(new THREE.Color(0xffffff), .35), gradientMap: toonGrad }), [p.x, p.y - p.r * .55, p.z], [sp1 * .9, p.r * .6, p.r * .85]);   // pale belly
+    if (i > 2 && i < N - 2) K.fin([[0, 0], [-.5, 1], [-1, 0]], sp1 * 2.2, p.r * 1.0, p.x + sp1, p.y + p.r * .85, 0);
+    segs.push(p);
+  }
+  const last = segs[N - 1]; K.fin([[0, .04], [-.3, .13], [-.65, 0], [-.3, -.13], [0, -.04]], .38, .38, last.x - .02, last.y, 0);
+  const h0 = segs[0]; for (const sd of [-1, 1]) K.fin([[0, 0], [-.1, -.1], [-.28, -.16], [-.18, .02]], .5, .6, segs[4].x, segs[4].y - .02, sd * segs[4].r * .8, sd * 1.1, .1);
+  d.L = len / 2; d.H = r0; d.W = r0; K.path = u => { const t = Math.min(1, Math.max(0, (1 - u) / 2)), p = pos(t); return { y: p.y, h: p.r, w: p.r, b: p.r }; };
+  K.eyes(h0.x - r0 * .1, h0.y + r0 * .45, r0 * .85, .06 * d.es + r0 * .25, d.eye); K.mouth(len / 2 + sp1 * .5, r0, r0 * .6);
+  K.surf = (u, ang) => { const p = K.path(u), t = Math.min(1, Math.max(0, (1 - u) / 2)), q = pos(t); return [q.x, p.y + p.h * Math.sin(ang), q.z + p.w * Math.cos(ang)]; };
+  K.tokens(len / 2, r0, r0);
+  for (const t of d.x) if (t === 'rings') for (const tt of [.25, .45, .65, .8]) { const q = pos(tt), r = new THREE.Mesh(new THREE.TorusGeometry(q.r * 1.15, .012, 5, 14), gmat('#7bf0ff', 2)); r.rotation.y = Math.PI / 2; r.position.set(q.x, q.y, q.z); g.add(r); }
+    else if (t === 'spines') for (let i = 3; i < N - 3; i += 2) { const p = segs[i]; K.Cn(tm(sp.c2), [p.x, p.y + p.r * .8, 0], .035, p.r * 1.2, [-.3, 1, 0]); }
+    else if (t === 'boils') for (let i = 4; i < N - 4; i += 3) { const p = segs[i]; K.E(tm('#9a6ac8'), [p.x, p.y + p.r * .5, p.r * .85], [.05, .05, .04]); K.E(tm('#d8ff6a'), [p.x, p.y + p.r * .5, p.r * .95], [.025, .025, .02]); }
+    else if (t === 'ember') for (let i = 0; i < 5; i++) K.E(gmat('#ff8a1a', 2), [h0.x + .1 - i * .06, h0.y + r0 + .1 + (i % 2) * .08, (i - 2) * .03], [.025, .025, .025]);
+}
+function fishRay(K) {
+  const { d, g, sp } = K; g.add(fishBodyMesh(d, sp));
+  const tl = V3(-1, 0, 0), c1 = tm(sp.c1); K.Cn(c1, [-d.L * .85, 0, 0], .05, .95, [-1, 0, 0]); if (d.tail === 'streamer') K.Cn(tm(sp.c2), [-d.L * .85 - .4, 0, 0], .08, .6, [-1, 0, 0]); if (d.tail === 'bolt') { K.fin(FT.bolt, .6, .6, -d.L * .85 - .75, 0, 0, 0, 0, tm(sp.c2, { side: FDS })); }
+  d.H = .09; K.path = u => ({ y: 0, h: .09 * Math.sqrt(Math.max(0, 1 - u * u)), w: d.W * Math.max(0, 1 - Math.abs(u)), b: .08 });
+  for (const sd of [-1, 1]) { const e = K.eyes; }
+  const er = .075 * d.es; for (const sd of [-1, 1]) { K.E(tm('#ffffff'), [d.L * .6, .11, sd * .17], [er, er, er]); K.E(tm('#0a0a12'), [d.L * .6 + er * .4, .12 + er * .2, sd * .17], [er * .55, er * .55, er * .55]); K.E(tm('#0a0a12'), [d.L * .28, .09, sd * .06], [.025, .015, .02]); }
+  K.E(tm('#3a1a1a'), [d.L * .95, -.01, 0], [.03, .015, .12]); K.surf = (u, ang) => [u * d.L, .09, (ang < 1.6 ? 1 : -1) * d.W * .15 * (1 - Math.abs(u))];
+  K.tokens(d.L, .09, .2);
+  if (d.x.includes('cloud')) { }
+}
+function fishJelly(K) {
+  const { d, g, sp } = K, rb = d.rb, hb = d.hb, bm = tm(sp.c1, GLASS(.74)), m2 = tm(sp.c2, GLASS(.8));
+  const bell = new THREE.Mesh(new THREE.SphereGeometry(1, 28, 14, 0, TAU, 0, Math.PI / 2), bm); bell.scale.set(rb, hb, rb); bell.position.y = .1; g.add(bell);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(rb, .025, 6, 28), m2); rim.rotation.x = Math.PI / 2; rim.position.y = .1; g.add(rim);
+  K.E(gmat(sp.c2, 1.2), [0, .22, 0], [rb * .45, hb * .35, rb * .45]);
+  if (d.rings) for (let i = 0; i < d.rings; i++) { const a = i / d.rings * TAU + .4; K.E(m2, [Math.cos(a) * rb * .45, .1 + hb * .75, Math.sin(a) * rb * .45], [rb * .22, .015, rb * .22]); }
+  if (d.stars) for (let i = 0; i < 10; i++) { const a = i * 2.4, rr = rb * (.2 + (i % 4) * .17); K.E(gmat(i % 2 ? '#ffffff' : '#6ad7ff', 2), [Math.cos(a) * rr, .1 + Math.sqrt(Math.max(0, 1 - (rr / rb) ** 2)) * hb * .85, Math.sin(a) * rr], [.022, .022, .022]); }
+  for (let i = 0; i < d.tn; i++) { const a = i / d.tn * TAU, base = rb * .92; for (let j = 0; j < 7; j++) K.E(m2, [Math.cos(a) * (base - j * .008) + Math.sin(j * .9 + i) * .03, .1 - j * .075, Math.sin(a) * (base - j * .008) + Math.cos(j * .9 + i) * .03], [.02, .045, .02]); }
+  for (let i = 0; i < 4; i++) { const a = i / 4 * TAU + .8; for (let j = 0; j < 5; j++) K.E(bm, [Math.cos(a) * .1 + Math.sin(j) * .02, .05 - j * .09, Math.sin(a) * .1], [.045 - j * .004, .07, .045 - j * .004]); }
+  const er = .06 * d.es; for (const sd of [-1, 1]) { K.E(tm('#ffffff'), [rb * .72, .2, sd * rb * .3], [er, er, er * .8]); K.E(tm('#0a0a12'), [rb * .72 + er * .5, .2, sd * rb * .3], [er * .55, er * .55, er * .5]); }
+  K.E(tm('#3a1a1a'), [rb * .78, .14, 0], [.02, .01, .05]); d.L = rb; K.path = u => ({ y: .1, h: hb * Math.sqrt(Math.max(0, 1 - u * u)), w: rb, b: .05 }); K.tokens(rb, hb, rb);
+}
+function fishBlob(K) {
+  const { d, g, sp } = K, lumps = d.lumps, m = d.op ? tm(sp.c1, GLASS(d.op)) : tm(sp.c1), m2 = tm(sp.c2, GLASS(.7));
+  for (const [x, y, z, r] of lumps) { const geo = new THREE.SphereGeometry(1, 18, 12), P = geo.attributes.position; for (let i = 0; i < P.count; i++) { const vx = P.getX(i), vy = P.getY(i), vz = P.getZ(i), n = 1 + .07 * Math.sin(vx * 5 + x * 9) * Math.sin(vy * 4 + z * 7) + .05 * Math.sin(vz * 6 + y * 8); P.setXYZ(i, vx * n, vy * n * (vy < 0 ? .88 : 1), vz * n); } geo.computeVertexNormals(); const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); o.scale.setScalar(r); g.add(o); }
+  const [mx, my, mz, mr] = lumps[0], er = mr * .26 * d.es * (d.eye2 || 1), ez = mr * .38;
+  if (d.eye3) { for (const [ox, oy, oz] of [[.0, mr * .4, 0], [mr * .6, mr * .1, ez], [mr * .6, mr * .1, -ez]]) { K.E(tm('#ffffff'), [mx + mr * .55 + ox * .3, my + oy, oz], [er * .8, er * .8, er * .8]); K.E(tm('#0a0a12'), [mx + mr * .55 + ox * .3 + er * .5, my + oy, oz], [er * .45, er * .45, er * .45]); } }
+  else for (const sd of [-1, 1]) { K.E(tm('#ffffff'), [mx + mr * .72, my + mr * .2, sd * ez * .75], [er, er, er * .8]); K.E(tm('#0a0a12'), [mx + mr * .72 + er * .6, my + mr * .2, sd * ez * .75], [er * .55, er * .55, er * .5]); K.E(tm('#ffffff'), [mx + mr * .72 + er * .8, my + mr * .28, sd * ez * .75], [er * .15, er * .15, er * .1]); }
+  d.L = mr; d.H = mr; d.W = mr; K.path = u => ({ y: my, h: mr * Math.sqrt(Math.max(0, 1 - u * u)), w: mr, b: mr * .85 });
+  if (d.mouth === 'grin') { const t = new THREE.Mesh(new THREE.TorusGeometry(mr * .3, .017, 6, 16, Math.PI), tm('#2a0f14')); t.rotation.set(0, Math.PI / 2, Math.PI); t.position.set(mx + mr * .93, my - mr * .1, 0); g.add(t); } else K.E(tm('#2a0f14'), [mx + mr * .97, my - mr * .1, 0], [.02, .015, mr * .12]);
+  K.surf = (u, ang) => [mx + u * mr, my + mr * Math.sin(ang), mr * Math.cos(ang)];
+  for (const t of d.x) if (t === 'drips') for (let i = 0; i < 4; i++) { const px = mx - mr * .5 + i * mr * .35; K.Cn(m, [px, my - mr * .8, (i % 2 - .5) * mr * .5], .05, .14 + (i % 2) * .08, [0, -1, 0]); K.E(m, [px, my - mr * .8 - .16 - (i % 2) * .08, (i % 2 - .5) * mr * .5], [.05, .06, .05]); }
+    else if (t === 'blobarms') for (const sd of [-1, 1]) { K.E(m, [mx + mr * .1, my - mr * .1, sd * mr * 1.0], [.1, .08, .08]); K.E(m, [mx + mr * .2, my - mr * .15, sd * mr * 1.25], [.07, .07, .07]); }
+    else if (t === 'inbubbles') for (let i = 0; i < 7; i++) K.E(m2, [mx + (Math.sin(i * 2.3)) * mr * .55, my + Math.cos(i * 1.7) * mr * .5, Math.sin(i * 3.1) * mr * .5], [.04 + (i % 3) * .015, .04 + (i % 3) * .015, .04 + (i % 3) * .015]);
+}
+function fishOcto(K) {
+  const { d, g, sp } = K, c1 = tm(sp.c1), c2 = tm(sp.c2), big = d.big;
+  K.E(c1, [-.05, .22, 0], [.4, .42, .38]); K.E(c1, [.2, .02, 0], [.3, .24, .32]); K.E(c2, [.1, -.06, 0], [.22, .1, .26]);
+  for (let i = 0; i < (big ? 14 : 9); i++) { const a = i * 2.4, ph = i * 1.7; K.E(c2, [-.05 + Math.cos(a) * .2, .38 + Math.sin(ph) * .12, Math.sin(a) * .2 * (i % 2 ? 1 : -1)], [.05, .05, .05]); }
+  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU + .2; for (let j = 0; j < 8; j++) { const s = j / 7, rr = .2 + s * .55, curl = Math.sin(s * 3) * .12; K.E(j % 2 ? c2 : c1, [Math.cos(a) * rr * .9 - .02, -.08 - s * .22 + (s > .6 ? (s - .6) * .5 : 0) + curl, Math.sin(a) * rr * .9], [.1 - s * .07, .09 - s * .06, .1 - s * .07]); } }
+  K.eyes(.4, .12, .22, .11 * d.es, big ? 'angry' : 'norm'); K.E(tm('#2a0f14'), [.47, -.05, 0], [.04, .02, .08]);
+  if (big) { for (const sd of [-1, 1]) { K.Cn(tm('#f1e6d0'), [.1, .55, sd * .2], .06, .32, [.2, 1, sd * .5]); } for (let i = 0; i < 6; i++) K.Cn(c2, [-.1 - i * .07, .6 - i * .01, 0], .04, .18, [-.3, 1, 0]); }
+  d.L = .4; d.H = .4; d.W = .35; K.path = u => ({ y: .2, h: .4 * Math.sqrt(Math.max(0, 1 - u * u)), w: .38, b: .3 }); g.scale.setScalar(big ? 1.5 : 1);
+}
+function fishSquid(K) {
+  const { d, g, sp } = K, c1 = tm(sp.c1), c2 = tm(sp.c2), gl = gmat(sp.c2, 1.6);
+  const body = Object.assign({}, d, { L: .55, H: .17, W: .17, bp: 1.0, bk: .92, fp: 3, fk: .2, pat: 'none' }); g.add(fishBodyMesh(body, sp));
+  K.hfin([[0, .1], [-.2, .42], [-.45, .0], [-.2, -.42]], 1, 1, -.35, 0, 0, tm(sp.c2, { side: FDS, transparent: true, opacity: .85 }));
+  K.E(c1, [.58, 0, 0], [.2, .17, .17]);
+  for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, dy = Math.sin(a), dz = Math.cos(a); for (let j = 0; j < 5; j++) K.E(i % 2 ? c1 : c2, [.7 + j * .11, dy * (.08 + j * .02) - j * .02, dz * (.1 + j * .03)], [.07 - j * .008, .035, .035]); }
+  for (const sd of [-1, 1]) { for (let j = 0; j < 8; j++) K.E(c2, [.72 + j * .13, .04 + Math.sin(j * .8) * .03, sd * (.05 + j * .02)], [.07, .03, .03]); K.E(c1, [.72 + 7 * .13 + .08, .04, sd * .19], [.09, .06, .05]); }
+  K.eyes(.58, .04, .17, .1 * d.es, 'norm'); for (let i = 0; i < 6; i++) K.E(gl, [-.1 - i * .09, .12, (i % 2 - .5) * .1], [.02, .02, .02]);
+  d.L = .55; d.H = .17; d.W = .17; K.path = u => ({ y: 0, h: .17 * Math.sqrt(Math.max(0, 1 - u * u)), w: .17, b: .15 });
+}
+function fishBoot(K) {
+  const { g, sp } = K, c1 = tm(sp.c1), c2 = tm(sp.c2);
+  K.E(c1, [0, .12, 0], [.2, .36, .2]); K.E(c1, [.28, -.1, 0], [.4, .16, .2]); K.E(c2, [.3, -.22, 0], [.46, .05, .22]);
+  K.E(tm('#ffffff'), [0, .46, 0], [.23, .08, .23]); for (let i = 0; i < 3; i++) K.E(tm('#e53935'), [0, .46, 0], [.235, .015, .235]).position.y = .43 + i * .03;
+  for (let i = 0; i < 3; i++) K.E(tm('#d8c8a8'), [.07, .12 - i * .1, .19], [.05, .015, .02]); for (const [x, z] of [[.3, .12], [.5, -.1], [-.05, .1]]) K.E(tm('#4a3a1a'), [x, -.02, z], [.06, .045, .03]);
+  K.E(tm('#3fa84a'), [.55, -.05, 0], [.04, .1, .02]); K.E(tm('#3fa84a'), [.58, -.02, .02], [.03, .08, .02]); g.rotation.z = .35;
+}
+const FISH_TPL = new Map();
+function fishBuild(sp) {
+  const d = Object.assign({}, FD_DEF, FD[sp.n] || {}, { x: (FD[sp.n] || {}).x || [] }), g = new THREE.Group(), K = fishCtx(g, sp, d); K.mouth = (L, H, W) => fishMouth(K, L, H, W); K.tokens = (L, H, W) => fishTokens(K, L, H, W);
+  switch (d.type) { case 'boot': fishBoot(K); break; case 'eel': fishEel(K); break; case 'ray': fishRay(K); break; case 'jelly': fishJelly(K); break; case 'blob': fishBlob(K); break; case 'octo': fishOcto(K); break; case 'squid': fishSquid(K); break; default: fishStd(K); }
+  const b = new THREE.Group(); b.add(g); if (d.flip) g.rotation.x = Math.PI; if (d.sc) b.scale.setScalar(d.sc); b.userData.cam = d.type === 'ray' ? 1.0 : d.type === 'jelly' ? .15 : .3; return b;
+}
+function makeFish3D(sp) { let t = FISH_TPL.get(sp.n); if (!t) { t = fishBuild(sp); FISH_TPL.set(sp.n, t); } return t.clone(true); }
+function drawFishIcon(sp, sil) {   // rendered from the 3D model with a tiny offscreen renderer; falls back to a flat drawing
+  const W = 150, Hh = 96;
+  if (!drawFishIcon.R) { try { const R = new THREE.WebGLRenderer({ antialias: true, alpha: true, preserveDrawingBuffer: true }); R.setSize(W, Hh, false); R.setClearColor(0x000000, 0); const sc = new THREE.Scene(); sc.add(new THREE.AmbientLight(0xffffff, 2.2)); const dl = new THREE.DirectionalLight(0xffffff, 2.2); dl.position.set(2, 4, 5); sc.add(dl); drawFishIcon.R = R; drawFishIcon.S = sc; drawFishIcon.sil = new THREE.MeshBasicMaterial({ color: 0x1a1530 }); } catch (e) { drawFishIcon.R = 'x'; } }
+  if (drawFishIcon.R === 'x') return drawFishIcon2D(sp, sil);
+  try {
+    const R = drawFishIcon.R, sc = drawFishIcon.S, obj = makeFish3D(sp); sc.add(obj); sc.overrideMaterial = sil ? drawFishIcon.sil : null;
+    const el = obj.userData.cam, cam = new THREE.OrthographicCamera(-1, 1, 1, -1, .1, 50); const box = new THREE.Box3().setFromObject(obj), cen = box.getCenter(V3(0, 0, 0));
+    cam.position.set(cen.x, cen.y + Math.sin(el) * 8, cen.z + Math.cos(el) * 8); cam.lookAt(cen); cam.updateMatrixWorld(); const inv = cam.matrixWorldInverse; let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
+    for (const x of [box.min.x, box.max.x]) for (const y of [box.min.y, box.max.y]) for (const z of [box.min.z, box.max.z]) { const p = V3(x, y, z).applyMatrix4(inv); mnx = Math.min(mnx, p.x); mxx = Math.max(mxx, p.x); mny = Math.min(mny, p.y); mxy = Math.max(mxy, p.y); }
+    let w = (mxx - mnx) * 1.1, h = (mxy - mny) * 1.1; const asp = W / Hh; if (w / h > asp) h = w / asp; else w = h * asp; const cx = (mnx + mxx) / 2, cy = (mny + mxy) / 2; cam.left = cx - w / 2; cam.right = cx + w / 2; cam.top = cy + h / 2; cam.bottom = cy - h / 2; cam.updateProjectionMatrix();
+    R.render(sc, cam); const url = R.domElement.toDataURL(); sc.remove(obj); sc.overrideMaterial = null; return url;
+  } catch (e) { return drawFishIcon2D(sp, sil); }
 }
 const ICON = FISH.map(f => drawFishIcon(f, false)), ICON_SIL = FISH.map(f => drawFishIcon(f, true));
 
@@ -1153,7 +1467,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261103212934';
+const GAME_BUILD = '20261104114905';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -3345,7 +3659,7 @@ function loop(now) {
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
