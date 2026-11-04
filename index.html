@@ -139,6 +139,7 @@
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
   <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button></div>
+  <div id="streakBox" class="card" style="margin:8px auto;max-width:460px"></div>
   <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
@@ -1131,7 +1132,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261103124531';
+const GAME_BUILD = '20261103210228';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1768,7 +1769,25 @@ function setUI(s) {
   if (s !== 'play') { try { document.exitPointerLock(); } catch (e) { } mouse.down = false; }
 }
 function lockPointer() { if (TOUCH) return; try { const r = canvas.requestPointerLock(); if (r && r.catch) r.catch(() => { }); } catch (e) { } }
-function enterWorld() { started = true; me.name = save.name || 'Player'; setUI('play'); lockPointer(); try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); } catch (e) { } $('help').style.display = 'block'; setTimeout(() => $('help').style.display = 'none', 20000); toast('Walk out to the end of the pier. Hold click to cast!', 4500, '#ffd43b'); updateBucketUI(); }
+const dayKey = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+function streakReward(n) {
+  const r = { gold: Math.round(250 * Math.min(n, 30) * (1 + Math.floor(n / 7) * .5)), shrimp: 3, glitter: 0, mega: 0 };
+  if (n % 30 === 0) { r.gold += 250000; r.mega += 10; r.glitter += 10; } else if (n % 14 === 0) { r.gold += 50000; r.mega += 5; r.glitter += 8; } else if (n % 7 === 0) { r.gold += 5000; r.mega += 3; r.glitter += 5; } else { if (n % 3 === 0) r.mega += 1; if (n % 5 === 0) r.glitter += 3; }
+  return r;
+}
+const streakTxt = r => `$${r.gold.toLocaleString()} + ${r.shrimp} shrimp` + (r.glitter ? ` + ${r.glitter} glitter lures` : '') + (r.mega ? ` + ${r.mega} MEGA LURE${r.mega > 1 ? 'S' : ''}` : '');
+function streakState() { const st = save.streak || (save.streak = { n: 0, last: '', best: 0 }), y = new Date(); y.setDate(y.getDate() - 1); return { st, today: dayKey(new Date()), yest: dayKey(y) }; }
+function renderStreak() {
+  const el = $('streakBox'); if (!el) return; const { st, today, yest } = streakState(), claimed = st.last === today, alive = claimed || st.last === yest, next = claimed ? st.n + 1 : (alive ? st.n + 1 : 1);
+  el.innerHTML = `<b>🔥 Daily streak: ${alive ? st.n : 0} day${st.n === 1 ? '' : 's'}</b> <span class="small">(best ${st.best})</span><div class="small">${claimed ? 'Claimed today ✓. Come back tomorrow' : 'Press play to claim today'} for day ${next}: ${streakTxt(streakReward(next))}</div><div class="small" style="opacity:.75">Bigger gifts on days 3, 7, 14 and 30. Miss a day and it starts over!</div>`;
+}
+function dailyCheck() {
+  const { st, today, yest } = streakState(); if (st.last === today) return;
+  const lost = st.last && st.last !== yest && st.n > 1; st.n = st.last === yest ? st.n + 1 : 1; st.last = today; st.best = Math.max(st.best, st.n);
+  const r = streakReward(st.n); save.gold += r.gold; save.bait.shrimp += r.shrimp; save.bait.glitter += r.glitter; save.bait.mega += r.mega; persist(); renderStreak();
+  setTimeout(() => { if (lost) toast('😢 You missed a day, so your streak started over.', 3200, '#ff8a8a'); toast(`🔥 DAY ${st.n} STREAK! ${streakTxt(r)}`, 6500, '#ffd43b'); sfx.lvl(); confetti(me.x, me.y + 1, me.z, 40); }, 1500);
+}
+function enterWorld() { dailyCheck(); started = true; me.name = save.name || 'Player'; setUI('play'); lockPointer(); try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); AC.resume(); } catch (e) { } $('help').style.display = 'block'; setTimeout(() => $('help').style.display = 'none', 20000); toast('Walk out to the end of the pier. Hold click to cast!', 4500, '#ffd43b'); updateBucketUI(); }
 let wasLocked = false;
 document.addEventListener('pointerlockchange', () => { if (document.pointerLockElement === canvas) wasLocked = true; else if (wasLocked && ui === 'play') { wasLocked = false; setUI('pause'); } });
 function updateBucketUI() {
@@ -3191,7 +3210,7 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt);
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
-buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
+renderStreak(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
 window.__game = { NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
