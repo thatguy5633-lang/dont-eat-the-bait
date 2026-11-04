@@ -23,7 +23,10 @@
   #stressbar{width:210px} #stressbar i{background:linear-gradient(90deg,#51cf66 0%,#ffd43b 55%,#ff6b6b 100%);background-size:210px 100%}
   #room{font-size:14px;font-weight:700;margin-top:4px}
   #feed{position:absolute;left:50%;top:70px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;width:46%}
-  .toast{font-size:22px;font-weight:900;padding:2px 14px;animation:pop .25s ease-out;text-align:center}
+  .toast{font-size:22px;font-weight:900;padding:2px 14px;animation:tpop .3s cubic-bezier(.2,1.6,.4,1);text-align:center}
+  @keyframes tpop{from{transform:translateY(16px) scale(.6);opacity:0}to{transform:none;opacity:1}}
+  button{transition:transform .12s cubic-bezier(.3,1.8,.5,1)} button:hover{transform:translateY(-2px) scale(1.05) rotate(-.6deg)} button:active{transform:translateY(2px) scale(.96)}
+  .fcard{transition:transform .15s cubic-bezier(.3,1.8,.5,1)} .fcard:hover{transform:translateY(-3px) scale(1.06) rotate(1deg)}
   @keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
   #cross{position:absolute;left:50%;top:50%;width:8px;height:8px;margin:-4px;border-radius:50%;background:rgba(255,255,255,.85);border:2px solid #14213d}
   #card{position:absolute;left:18px;bottom:16px;display:none;align-items:center;gap:12px;max-width:300px}
@@ -785,9 +788,34 @@ function drawMask(g, ap) {
     case 9: g.fillStyle = c; g.globalAlpha = .55; circ(g, 60, 148, 24); circ(g, 196, 148, 24); g.globalAlpha = 1; break;
   }
 }
-function paintFaceTex(ap) {
-  return canvasTex(256, 256, (g) => { g.translate(256, 0); g.scale(-1, 1); drawEyes(g, ap); drawMouth(g, ap); drawStache(g, ap); drawMask(g, ap); });
+function drawExprFace(g, ap, ex) {
+  const E = [[88, 108], [168, 108]], ec = ap.eyeCol || '#222', DK = '#222'; g.lineCap = 'round'; g.lineJoin = 'round'; g.strokeStyle = DK; g.fillStyle = DK;
+  const wide = (r, pr) => E.forEach(([x, y]) => { g.fillStyle = '#fff'; circ(g, x, y, r); g.strokeStyle = DK; g.lineWidth = 4; g.beginPath(); g.arc(x, y, r, 0, TAU); g.stroke(); g.fillStyle = ec; circ(g, x, y, pr); g.fillStyle = '#fff'; circ(g, x + pr * .4, y - pr * .4, pr * .3); });
+  const arc = up => E.forEach(([x, y]) => { g.strokeStyle = DK; g.lineWidth = 10; g.beginPath(); g.arc(x, y + (up ? 14 : -6), 22, up ? Math.PI * 1.1 : Math.PI * .1, up ? Math.PI * 1.9 : Math.PI * .9); g.stroke(); });
+  const drop = (x, y, s2) => { g.fillStyle = '#7fd4ff'; g.strokeStyle = '#2a8fd0'; g.lineWidth = 3; g.beginPath(); g.moveTo(x, y - s2 * 1.3); g.quadraticCurveTo(x + s2, y + s2 * .2, x, y + s2); g.quadraticCurveTo(x - s2, y + s2 * .2, x, y - s2 * 1.3); g.fill(); g.stroke(); };
+  const cheeks = (col, a) => { g.globalAlpha = a; g.fillStyle = col; circ(g, 50, 150, 24); circ(g, 206, 150, 24); g.globalAlpha = 1; };
+  const mO = (rx, ry, y) => { g.fillStyle = '#4a0f1c'; g.beginPath(); g.ellipse(128, y, rx, ry, 0, 0, TAU); g.fill(); g.strokeStyle = DK; g.lineWidth = 6; g.stroke(); };
+  switch (ex) {
+    case 'blink': arc(false); drawMouth(g, ap); break;
+    case 'happy': arc(true); g.fillStyle = '#5a1020'; g.beginPath(); g.moveTo(80, 158); g.quadraticCurveTo(128, 230, 176, 158); g.closePath(); g.fill(); g.fillStyle = '#fff'; g.fillRect(96, 160, 64, 10); cheeks('#ff7a9a', .45); break;
+    case 'panic': wide(30, 6); mO(24, 34, 184); E.forEach(([x, y]) => { g.strokeStyle = DK; g.lineWidth = 8; g.beginPath(); g.moveTo(x - 26, y - 44); g.lineTo(x + 26, y - 54); g.stroke(); }); drop(30, 92, 12); drop(228, 100, 10); drop(36, 130, 9); break;
+    case 'wow': wide(30, 10); mO(16, 22, 184); break;
+    case 'hot': E.forEach(([x, y], i) => { g.strokeStyle = DK; g.lineWidth = 10; g.beginPath(); if (i === 0) { g.moveTo(x - 16, y - 18); g.lineTo(x + 12, y); g.lineTo(x - 16, y + 18); } else { g.moveTo(x + 16, y - 18); g.lineTo(x - 12, y); g.lineTo(x + 16, y + 18); } g.stroke(); }); mO(34, 30, 184); g.fillStyle = '#ff6b8b'; g.beginPath(); g.ellipse(128, 206, 20, 14, 0, 0, TAU); g.fill(); cheeks('#ff3b3b', .55); drop(34, 96, 13); drop(226, 92, 13); drop(42, 128, 10); break;
+    case 'cold': arc(false); cheeks('#7fb8ff', .6); g.strokeStyle = DK; g.lineWidth = 7; g.beginPath(); g.moveTo(88, 184); for (let i = 1; i <= 6; i++) g.lineTo(88 + i * 13.3, 184 + (i % 2 ? 10 : -4)); g.stroke(); g.fillStyle = '#bfe9ff'; for (const [x, y] of [[30, 150], [220, 140], [40, 70]]) star(g, x, y, 10); break;
+    case 'sad': E.forEach(([x, y], i) => { const sg = i ? -1 : 1; g.fillStyle = ec; g.beginPath(); g.ellipse(x, y + 8, 18, 24, 0, 0, TAU); g.fill(); g.fillStyle = '#fff'; circ(g, x + 5, y - 2, 7); g.strokeStyle = DK; g.lineWidth = 8; g.beginPath(); g.moveTo(x - sg * 24, y - 30); g.lineTo(x + sg * 24, y - 48); g.stroke(); }); g.strokeStyle = DK; g.lineWidth = 8; g.beginPath(); g.arc(128, 214, 34, Math.PI * 1.15, Math.PI * 1.85); g.stroke(); drop(58, 150, 11); break;
+    case 'dizzy': E.forEach(([x, y]) => { g.strokeStyle = DK; g.lineWidth = 5; g.beginPath(); for (let a = 0; a < 14; a += .3) { const r = 2 + a * 2.1; g.lineTo(x + Math.cos(a) * r, y + Math.sin(a) * r); } g.stroke(); }); g.strokeStyle = DK; g.lineWidth = 7; g.beginPath(); g.moveTo(88, 182); g.bezierCurveTo(108, 160, 148, 206, 168, 180); g.stroke(); break;
+    case 'sleep': arc(false); g.fillStyle = '#445'; g.font = 'bold 46px sans-serif'; g.fillText('z', 196, 70); g.font = 'bold 32px sans-serif'; g.fillText('z', 222, 40); mO(10, 13, 188); break;
+    case 'eatA': arc(true); mO(26, 30, 184); break;
+    case 'eatB': arc(true); g.strokeStyle = DK; g.lineWidth = 8; g.beginPath(); g.moveTo(98, 184); g.lineTo(158, 184); g.stroke(); cheeks('#ffb08a', .6); break;
+    case 'yawn': arc(false); mO(30, 44, 190); break;
+    case 'strain': E.forEach(([x, y], i) => { const sg = i ? -1 : 1; g.strokeStyle = DK; g.lineWidth = 11; g.beginPath(); g.moveTo(x - sg * 26, y - 34); g.lineTo(x + sg * 26, y - 14); g.stroke(); g.fillStyle = ec; g.beginPath(); g.ellipse(x, y + 6, 14, 14, 0, 0, TAU); g.fill(); }); g.fillStyle = '#fff'; g.beginPath(); g.roundRect(84, 170, 88, 34, 10); g.fill(); g.strokeStyle = DK; g.lineWidth = 5; g.stroke(); g.lineWidth = 3; for (let i = 1; i < 5; i++) { g.beginPath(); g.moveTo(84 + i * 17.6, 170); g.lineTo(84 + i * 17.6, 204); g.stroke(); } g.beginPath(); g.moveTo(84, 187); g.lineTo(172, 187); g.stroke(); break;
+    default: drawEyes(g, ap); drawMouth(g, ap);
+  }
 }
+function paintFaceTex(ap, ex) {
+  return canvasTex(256, 256, (g) => { g.translate(256, 0); g.scale(-1, 1); if (ex) drawExprFace(g, ap, ex); else { drawEyes(g, ap); drawMouth(g, ap); } drawStache(g, ap); drawMask(g, ap); });
+}
+function faceSet(ch, ex) { if (!ch || !ch.faceMesh) return; const k = ex || ''; if (ch.faceKey === k) return; ch.faceKey = k; const c = ch.faceCache || (ch.faceCache = {}); const t = c[k] || (c[k] = paintFaceTex(ch.faceAp, k || null)); ch.faceMesh.material.map = t; }
 function torsoTex(ap, o) {
   const base = o.naked ? ap.skin : (o.shirtOverride || ap.shirt), c2 = ap.shirt2;
   return canvasTex(128, 128, g => {
@@ -849,7 +877,7 @@ function makeCharFromAp(ap, parent) {
   const tm = new THREE.MeshStandardMaterial({ map: torsoTex(ap, o), emissive: new THREE.Color(shirt), emissiveIntensity: .12, roughness: .5 }); addToon(ch, cols); ch.torso.material = tm;
   buildHeadType(ap.head, ap, ch);
   const face = new THREE.Mesh(new THREE.SphereGeometry(.435, 20, 14, Math.PI / 2 - .85, 1.7, Math.PI / 2 - .7, 1.4), new THREE.MeshBasicMaterial({ map: paintFaceTex(ap), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 }));
-  ch.head.add(face);
+  ch.head.add(face); ch.faceMesh = face; ch.faceAp = ap; ch.faceCache = { '': face.material.map }; ch.faceKey = '';
   if (ap.hat) buildHat(ap.hat, ap.hatCol, ch.head, ch);
   const B = ch.body, x = o.x;
   if (x === 'hood') mk(sphGeo, mat(shirt), [0, .22, -.2], [.24, .2, .16], B);
@@ -972,7 +1000,7 @@ GuyChar.prototype.setTargets = Char.prototype.setTargets; GuyChar.prototype.foll
 function makeGuyFromAp(ap, parent) {
   const o = OUTFITS[ap.outfit] || OUTFITS[0], shirt = o.naked ? ap.skin : (o.shirtOverride || ap.shirt), ch = new GuyChar(parent); ch.paint(ap, o);
   buildHeadType(ap.head, ap, ch);
-  const face = new THREE.Mesh(new THREE.SphereGeometry(.45, 20, 14, Math.PI / 2 - .85, 1.7, Math.PI / 2 - .7, 1.4), new THREE.MeshBasicMaterial({ map: paintFaceTex(ap), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ch.head.add(face);
+  const face = new THREE.Mesh(new THREE.SphereGeometry(.45, 20, 14, Math.PI / 2 - .85, 1.7, Math.PI / 2 - .7, 1.4), new THREE.MeshBasicMaterial({ map: paintFaceTex(ap), transparent: true, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })); ch.head.add(face); ch.faceMesh = face; ch.faceAp = ap; ch.faceCache = { '': face.material.map }; ch.faceKey = '';
   if (ap.hat) buildHat(ap.hat, ap.hatCol, ch.head, ch);
   const B = ch.body, x = o.x;
   const sh = new THREE.Color(shirt), shd = mat(sh.clone().multiplyScalar(.7).getHex()), shl = mat(sh.clone().lerp(new THREE.Color(0xffffff), .35).getHex()), gold = mat(0xffc82c), blk = mat(0x1d1b22);
@@ -996,7 +1024,7 @@ function ik2(S, T, L1, L2, hint) {
 }
 function genPoseGuy(P) {
   const A = P.amp || 0, ph = P.phase || 0, s = Math.sin(ph), c = Math.cos(ph), mode = P.mode || 'hold', L = new Array(15);
-  const bob = Math.abs(s) * .035 * A + (mode === 'dance' ? Math.abs(Math.sin(ph * 3)) * .07 : 0) + (P.breath || 0), ride = mode === 'ride';
+  const bob = Math.abs(s) * .035 * A + (mode === 'dance' ? Math.abs(Math.sin(ph * 3)) * .07 : 0) + (mode === 'cheer' ? Math.abs(Math.sin(ph * 8)) * .1 : mode === 'flail' ? Math.abs(Math.sin(ph * 9)) * .05 : 0) + (P.breath || 0), ride = mode === 'ride';
   L[PELV] = [0, (ride ? .46 : .6) + bob, 0]; L[NECK] = [0, (ride ? 1.1 : 1.239) + bob, .02]; L[HEAD] = [0, (ride ? 1.4 : 1.543) + bob, .098];
   L[SHL] = [-.255, (ride ? .97 : 1.111) + bob, 0]; L[SHR] = [.255, (ride ? .97 : 1.111) + bob, 0]; L[HPL] = [-.122, (ride ? .4 : .543) + bob * .6, 0]; L[HPR] = [.122, (ride ? .4 : .543) + bob * .6, 0];
   let fl = [-.122, .092 + Math.max(0, c) * .16 * A, s * .24 * A], fr = [.122, .092 + Math.max(0, -c) * .16 * A, -s * .24 * A];
@@ -1015,10 +1043,18 @@ function genPoseGuy(P) {
   else if (ride) { hR = [.16, .78, .4]; hL = [-.16, .78, .4]; }
   else if (mode === 'swim') { const w = Math.sin(ph * 3); hR = [.55, .92 + w * .14, .18]; hL = [-.55, .92 - w * .14, .18]; }
   else if (mode === 'idle') { hR = [.3, .66, .05]; hL = [-.3, .66, .05]; }
+  else if (mode === 'juggle') { const w = Math.sin(ph * 6); hR = [.34, 1.0 + .38 * Math.max(0, w), .36]; hL = [-.34, 1.0 + .38 * Math.max(0, -w), .36]; }
+  else if (mode === 'cold') { const sh = Math.sin(ph * 30) * .015; hR = [.17 + sh, .98, .3]; hL = [-.17 - sh, .98, .3]; }
+  else if (mode === 'cheer') { const w = Math.sin(ph * 8) * .1; hR = [.5, 1.75 + w, 0]; hL = [-.5, 1.75 - w, 0]; }
+  else if (mode === 'sad') { hR = [.18, .7, .12]; hL = [-.18, .7, .12]; }
+  else if (mode === 'flail') { const w = ph * 9; hR = [.5 + Math.cos(w) * .18, 1.4 + Math.sin(w) * .3, .05]; hL = [-.5 + Math.cos(w + 2) * .18, 1.4 + Math.sin(w + 2.4) * .3, .05]; }
+  else if (mode === 'fan') { hR = [.1 + Math.sin(ph * 10) * .12, 1.5, .4]; hL = [-.2, .76, .2]; }
+  else if (mode === 'stretch') { hR = [.36, 1.88, -.12]; hL = [-.36, 1.88, -.12]; }
   else if (mode === 'wave') { hR = [.42 + Math.sin(ph * 4.5) * .12, 1.62 + Math.sin(ph * 2.25) * .05, .08]; hL = [-.3, .66, .05]; }
   if (P.shove) { const k = Math.sin(P.shove * Math.PI); hR = [.2, 1.05, .3 + .5 * k]; hL = [-.2, 1.05, .3 + .5 * k]; }
   const hintR = mode === 'dance' ? [1, .2, -.2] : [.5, -1, -.35], hintL = mode === 'dance' ? [-1, .2, -.2] : [-.5, -1, -.35];
   const ar = ik2(L[SHR], hR, GL.ua, GL.fa, hintR), al = ik2(L[SHL], hL, GL.ua, GL.fa, hintL); L[ELR] = ar.mid; L[HNR] = ar.end; L[ELL] = al.mid; L[HNL] = al.end;
+  if (mode === 'sad') { L[HEAD][1] -= .07; L[HEAD][2] += .09; } else if (mode === 'stretch') { L[HEAD][2] -= .06; L[HEAD][1] += .02; } else if (mode === 'cold') { L[HEAD][1] -= .03; }
   const piv = [0, L[PELV][1], 0], up = [HEAD, NECK, SHL, SHR, ELL, ELR, HNL, HNR];
   if (mode === 'sleep') rotAbout(L[HEAD], [0, L[NECK][1], 0], .6);
   else if (P.lean) for (const i of up) rotAbout(L[i], piv, P.lean);
@@ -1482,7 +1518,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104155533';
+const GAME_BUILD = '20261104160057';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1678,8 +1714,8 @@ function addToBucket(idx, kg, boss) {
   const lv = fishLevel(sp, kg); let xp = Math.round((10 + 14 * sp.r * sp.r + kg * 1.5) * (xpBoost ? 3 : 1) * comboBump() * DF().xp * (boss ? 3 : 1)); xpBoost = false;
   save.xp += xp; let lvUp = false; while (save.xp >= xpNeed(save.level)) { save.xp -= xpNeed(save.level); save.level++; lvUp = true; }
   bucket.push({ idx, kg, boss: !!boss }); selSlot = bucket.length - 1; afterCatch(idx, kg); if (boss) { confetti(me.x, me.y + .6, me.z, 50); toast('👹 You beat a BOSS fish! Worth 5x!', 2800, '#ff6b6b'); }
-  toast(`CAUGHT! ${sp.n} · ${lbs(kg)} lbs · Lv ${lv}`, 2600, R_COL[sp.r]); if (first) { toast('NEW FISH! Added to your Fish Dictionary 📖', 2600, '#ffd43b'); drawSign(); }
-  if (lvUp) { sfx.lvl(); toast(`LEVEL UP! You are level ${save.level}. Skill point earned! Press T to spend it.`, 3400, '#ffd43b'); }
+  ANIM.cheer = sp.r >= 2 ? 2.6 : 0; ANIM.sad = sp.shape === 4 ? 2.4 : 0; toast(`CAUGHT! ${sp.n} · ${lbs(kg)} lbs · Lv ${lv}`, 2600, R_COL[sp.r]); if (first) { toast('NEW FISH! Added to your Fish Dictionary 📖', 2600, '#ffd43b'); drawSign(); }
+  if (lvUp) { ANIM.cheer = 3; sfx.lvl(); toast(`LEVEL UP! You are level ${save.level}. Skill point earned! Press T to spend it.`, 3400, '#ffd43b'); }
   netEvent({ k: 'catch', name: me.name, fish: sp.n, kg, r: sp.r }); if (!save.master && FISH.every((_, i) => save.book[i])) { save.master = true; confetti(me.x, me.y + 1, me.z, 90); sfx.lvl(); toast('🏆 MASTER ANGLER! You caught EVERY fish in every world. You beat the game!', 9000, '#ffd43b'); } persist();
 }
 function updateFishing(dt) {
@@ -1856,7 +1892,7 @@ function updateCamera(dt) {
   let yawOff = 0, roll = 0, fov = 68, pitch = me.pitch;
   if (has('dizzy')) { yawOff += Math.sin(time * .9) * .25; roll = Math.sin(time * 1.7) * .22; pitch += Math.sin(time * 1.3) * .12; }
   if (has('disco')) { roll += Math.sin(time * 6) * .08; fov += Math.sin(time * 6) * 4; yawOff += Math.sin(time * 1.5) * .35; }
-  if (me.riding && MEGA.boost) fov += 12; if (has('zoomies')) fov += 14; if (has('tiny')) fov -= 4; if (nausea > 0) { roll += Math.sin(time * 3) * .1; }
+  if (me.riding && MEGA.boost) fov += 12; fov += clamp((me.spd - 5) * .5, 0, 8); if (me.knockT > 0) roll += Math.sin(time * 40) * .03; if (has('zoomies')) fov += 14; if (has('tiny')) fov -= 4; if (nausea > 0) { roll += Math.sin(time * 3) * .1; }
   if (F.state === 'fight' && F.G) { pitch += (Math.random() - .5) * .01 * F.G.stress * 4; }
   const cy_ = me.yaw + yawOff, cp = Math.cos(pitch), sp = Math.sin(pitch);
   const cx = tx - Math.sin(cy_) * cp * dist, cz = tz - Math.cos(cy_) * cp * dist, cyy = Math.max((me.riding || me.passenger || me.swim) ? .6 : Y0 + .4, ty - sp * dist + .6 * sc);
@@ -1915,7 +1951,7 @@ function updateRemotes(dt) {
     const moving = rp.spd > .3; rp.walk += (rp.spd || 0) * dt * 1.2;
     let mode = 'hold'; const fs = rp.fs;
     if (fs === 'charge') mode = 'charge'; else if (fs === 'cast') mode = 'cast'; else if (fs === 'fight') mode = 'fight'; else if (fs === 'eat') mode = 'eat'; else if (fs === 'sleep') mode = 'sleep'; else if ((rp.mg && rp.mg.r) || (rp.st && rp.st.pg)) mode = 'ride'; else if (rp.st && rp.st.sw) mode = 'swim'; else if (rp.fx.includes('disco')) mode = 'dance';
-    const hfv = rp.st && rp.st.hf; if (hfv && mode === 'hold') mode = 'show'; if (rp.emT > 0) { rp.emT -= dt; if (mode === 'hold') mode = rp.emMode; }
+    const hfv = rp.st && rp.st.hf; if (hfv && mode === 'hold') mode = 'show'; if (mode === 'hold' && rp.fx.includes('spicy')) mode = 'juggle'; if (rp.emT > 0) { rp.emT -= dt; if (mode === 'hold') mode = rp.emMode; }
     const st0 = rp.st || {}; if (rp.kn === undefined) { rp.kn = st0.kn | 0; rp.sn = st0.sn | 0; }
     if ((st0.kn | 0) !== rp.kn) { rp.kn = st0.kn | 0; rp.kk = 0; } if ((st0.sn | 0) !== rp.sn) { rp.sn = st0.sn | 0; rp.sk = 0; }
     if (rp.kk != null) { rp.kk += dt / .4; if (rp.kk >= 1) rp.kk = null; } if (rp.sk != null) { rp.sk += dt / .35; if (rp.sk >= 1) rp.sk = null; }
@@ -1923,12 +1959,13 @@ function updateRemotes(dt) {
     const wobR = (mode === 'fight' ? .6 : 0) + (rp.fx.includes('jelly') || rp.fx.includes('dizzy') ? .75 : 0), mvR = moving ? Math.min(1, rp.spd / 4) : 0;
     const leanR = mode === 'fight' ? -.25 : clamp((rp.spd || 0) * .045, 0, .3) + Math.sin(time * 9 + rp.walk) * .1 * wobR;
     const swayR = Math.sin(time * 13 + rp.walk) * (.04 + .2 * wobR) + Math.sin(rp.walk * 2.2) * .09 * mvR;
-    const L = genPose({ amp: mvR, phase: rp.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: .8, lean: leanR, sway: swayR, kick: rp.kk || 0, shove: rp.sk || 0 });
+    const L = genPose({ amp: mvR, phase: rp.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, u: .8, lean: leanR, sway: swayR, kick: rp.kk || 0, shove: rp.sk || 0 });
     rp.ch.setTargets(L, { x: rp.x, y: rp.y, z: rp.z }, rp.yaw, rp.sc); rp.ch.follow(true); rp.ch.sync(time);
     setHeld(rp.held, hfv && !ghost ? { idx: hfv[0], kg: hfv[1] } : null, rp.ch, rp.yaw, rp.sc);
     // rod in right hand
     const hand = rp.ch.guy ? rp.ch.handPos(_hp) : rp.ch.p[HNR]; rp.rod.position.copy(hand); rp.rod.scale.setScalar(rp.sc); const pitchUp = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? .5 : .9;
-    rp.rod.rotation.set(-pitchUp, rp.yaw, 0, 'YXZ'); bendRod(rp.rod, mode === 'fight' ? .9 : 0);
+    rp.rod.rotation.set(-pitchUp, rp.yaw, 0, 'YXZ'); bendRod(rp.rod, mode === 'fight' ? .9 : 0); if (mode === 'juggle') juggleRod(rp.rod, rp.x, rp.y, rp.z, rp.yaw, rp.sc);
+    faceSet(rp.ch, pickFace({ spicy: rp.fx.includes('spicy'), eat: fs === 'eat', sleep: fs === 'sleep', dizzy: rp.fx.includes('dizzy'), fight: fs === 'fight', bite: fs === 'bite', blink: ((time * .37 + (rp.id ? rp.id.charCodeAt(rp.id.length - 1) : 0)) % 4.2) < .14 }));
     rp.tag.position.set(rp.x, rp.y + (GUY.ready ? 2.7 : 3.1) * rp.sc, rp.z); rp.tag.scale.set(2.2 * Math.max(1, rp.sc), .55 * Math.max(1, rp.sc), 1);
     const vis = ['cast', 'wait', 'bite', 'fight'].includes(fs) && !ghost; rp.bob.visible = vis; rp.line.visible = vis;
     if (vis) { rp.bob.position.set(rp.st.bx, rp.st.by, rp.st.bz); rp.rod.userData.tip.getWorldPosition(_a); updateLine(rp.line, _a, rp.bob.position, fs === 'fight' ? .05 : .5); if (fs === 'fight' && Math.random() < .1) { splash(rp.st.bx, .1, rp.st.bz, 3, 1.5); } }
@@ -3772,7 +3809,22 @@ function bottleReward() {
   persist();
 }
 /* ---- updates ---- */
+
+/* ---- little signs of life: gulls wheeling overhead, fish leaping out of the water, dust and spray at your feet ---- */
+const GULLS = [], JUMPERS = [];
+function initGulls() {
+  const m = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }), dk = new THREE.MeshBasicMaterial({ color: 0xcfd6de, side: THREE.DoubleSide });
+  for (let i = 0; i < 10; i++) { const g = new THREE.Group(), body = new THREE.Mesh(new THREE.ConeGeometry(.2, .9, 6), m); body.rotation.x = Math.PI / 2; g.add(body); const wing = sx => { const pv = new THREE.Group(); pv.position.x = sx * .12; const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .38), dk); pl.rotation.x = -Math.PI / 2; pl.position.x = sx * .6; pv.add(pl); g.add(pv); return pv; }; const wl = wing(-1), wr = wing(1); scene.add(g); GULLS.push({ g, wl, wr, a: Math.random() * TAU, r: 20 + Math.random() * 60, h: 14 + Math.random() * 26, s: (.2 + Math.random() * .3) * (Math.random() < .5 ? 1 : -1), ph: Math.random() * 6 }); }
+}
+function updateLife(dt) {
+  const t = time; for (const q of GULLS) { q.a += q.s * dt; const x = me.x + Math.cos(q.a) * q.r, z = me.z + Math.sin(q.a) * q.r; q.g.position.set(x, q.h + Math.sin(t * .7 + q.ph) * 2, z); q.g.rotation.y = -q.a + (q.s > 0 ? 0 : Math.PI); const f = Math.sin(t * 6 + q.ph) * .55; q.wl.rotation.z = -f; q.wr.rotation.z = f; q.g.rotation.z = q.s > 0 ? -.2 : .2; }
+  JUMPERS.next = (JUMPERS.next == null ? 2 : JUMPERS.next) - dt;
+  if (JUMPERS.next <= 0 && ui === 'play') { JUMPERS.next = 2.5 + Math.random() * 4; const a = Math.random() * TAU, d = 12 + Math.random() * 30, x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d; if (isWater(x, z, 2)) { const pool = FISH.filter(f => f.r < 3 && f.shape !== 4), sp = pool[(Math.random() * pool.length) | 0], w = new THREE.Group(), f = makeFish3D(sp); f.scale.setScalar(.8 + Math.random() * .5); w.add(f); const h = Math.random() * TAU; w.rotation.y = -h; scene.add(w); JUMPERS.push({ w, f, x, z, dx: Math.cos(h), dz: Math.sin(h), t: 0, H: 1.6 + Math.random() * 1.6, sp: 3 + Math.random() * 3 }); splash(x, .1, z, 8, 2); } }
+  for (let i = JUMPERS.length - 1; i >= 0; i--) { const j = JUMPERS[i]; j.t += dt * .95; const u = j.t, y = waveH(j.x, j.z, t) + Math.sin(Math.min(1, u) * Math.PI) * j.H; j.w.position.set(j.x + j.dx * j.sp * u, y, j.z + j.dz * j.sp * u); j.f.rotation.z = lerp(.9, -.9, Math.min(1, u)); j.f.rotation.x = u * 9; if (u >= 1) { splash(j.x + j.dx * j.sp, .1, j.z + j.dz * j.sp, 12, 3); ripple(j.x + j.dx * j.sp, j.z + j.dz * j.sp); scene.remove(j.w); JUMPERS.splice(i, 1); } }
+  if (me.grounded && me.spd > 5 && !me.swim && Math.random() < .35) emitTrail(me.x, me.y + .12, me.z, 'sparkle', '#e8d8b0');
+}
 function updateOpenSea(dt) {
+  if (started) updateLife(dt);
   GRASS_T.value = time; for (const r of SKYOBJ.ridges || []) r.position.set(camera.position.x, 0, camera.position.z); for (const sp of SKYOBJ.bank || []) sp.position.set(camera.position.x + Math.cos(sp.userData.a) * sp.userData.r, sp.userData.y, camera.position.z + Math.sin(sp.userData.a) * sp.userData.r);
   if (!started) return; OSEA.t += dt; const t = time;
   for (const S of OSEA.spots) if (S.g) for (const f of S.anim) f(dt, t);
@@ -3860,7 +3912,7 @@ function initHorizon() {   // hazy layered ridges, a low cloud bank and sky refl
   try { const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: SKYOBJ.tex, side: THREE.BackSide }))); scene.environment = pm.fromScene(es, .02).texture; pm.dispose(); } catch (e) { }
 }
 const megaSurf = (x, z) => megaHas('land') ? Math.max(waveH(x, z, time), walkG(x, z)) : waveH(x, z, time);
-genOpenSea(); initHorizon();
+genOpenSea(); initHorizon(); initGulls();
 const emojiFly = []; let emoteI = 0, emote = { t: 0, m: 'wave' };
 function spawnEmoji(e, who) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e), transparent: true, depthTest: false })); sp.scale.setScalar(1.5); scene.add(sp); emojiFly.push({ sp, who, t: 0 }); }
 function doEmote() { if (me.riding || me.passenger || me.swim || ui !== 'play') return; const em = EMOTES[emoteI++ % EMOTES.length]; emote = { t: 2.6, m: em.m }; spawnEmoji(em.e, null); netEvent({ k: 'emote', id: NET.myId, i: (emoteI - 1) % EMOTES.length }); sfx.pop(); }
@@ -3982,6 +4034,22 @@ function updateFun(dt) {
   // (the far-away breaching whale was removed)
 }
 
+/* ---------- extra character animations and facial expressions ---------- */
+const ANIM = { cheer: 0, sad: 0, idle: 0, stretch: 0, blink: 2.5, blinkT: 0 }, ANIM_PHASE = ['dance', 'eat', 'juggle', 'cheer', 'flail', 'fan', 'cold', 'stretch'];
+const coldHere = () => { const f = NEWW[0], I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps[f.id] && Math.hypot(me.x - f.x, me.z - f.z) < f.r + 70) || (I && I.biome === 'snow'); };
+const hotHere = () => { const I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps.lava && Math.hypot(me.x - LAVA.x, me.z - LAVA.z) < LAVA.r + 55) || (I && I.biome === 'volcanic') || has('magma'); };
+function animTick(dt) {
+  ANIM.cheer = Math.max(0, ANIM.cheer - dt); ANIM.sad = Math.max(0, ANIM.sad - dt); ANIM.stretch = Math.max(0, ANIM.stretch - dt); ANIM.blink -= dt; ANIM.blinkT -= dt; if (ANIM.blink <= 0) { ANIM.blinkT = .14; ANIM.blink = 2.4 + Math.random() * 3.2; }
+  if (me.spd < .3 && F.state === 'idle' && !me.riding && !me.swim && !me.passenger && ui === 'play') { ANIM.idle += dt; if (ANIM.idle > 16) { ANIM.idle = 0; ANIM.stretch = 2.8; } } else ANIM.idle = 0;
+}
+function pickFace(o) {
+  if (o.knock) return 'panic'; if (o.spicy) return 'hot'; if (o.eat) return Math.floor(time * 5) % 2 ? 'eatA' : 'eatB'; if (o.sleep) return 'sleep'; if (o.dizzy) return 'dizzy'; if (o.cheer) return 'happy'; if (o.sad) return 'sad';
+  if (o.fight) return 'strain'; if (o.bite) return 'wow'; if (o.yawn) return 'yawn'; if (o.cold) return 'cold'; if (o.hot) return 'hot'; if (o.fast) return 'happy'; return o.blink ? 'blink' : null;
+}
+function juggleRod(rod, x, y, z, yaw, sc) {   // the rod is too hot: toss it from hand to hand like a hot potato
+  const u = (time * 1.45) % 1, cyc = Math.floor(time * 1.45) % 2, xl = (cyc ? -1 : 1) * lerp(-.34, .34, u), cy = Math.cos(yaw), sy = Math.sin(yaw), zl = .38;
+  rod.position.set(x + xl * cy + zl * sy, y + (1.0 + 1.25 * Math.sin(u * Math.PI)) * sc, z - xl * sy + zl * cy); rod.rotation.set(-1.2 + u * TAU * 2 * (cyc ? -1 : 1), yaw, 0, 'YXZ'); if (Math.random() < .6) emitTrail(rod.position.x, rod.position.y, rod.position.z, 'flame', '#ff6a1a');
+}
 /* local avatar (third person) */
 let meChar = null;
 function rebuildMe() { if (meChar) meChar.destroy(); meChar = makeCharFromAp(save.ap, scene); }
@@ -3996,6 +4064,11 @@ function updateMeAvatar(dt) {
   curHold = (me.riding || me.passenger || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : !rodOut && bucket[selSlot] ? bucket[selSlot] : null;
   const mnt = me.riding || me.passenger, fishNow = mnt && (st === 'charge' || st === 'cast' || st === 'fight' || st === 'wait' || st === 'bite');
   if (mnt && !fishNow) mode = 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (digState) mode = 'fight'; else if (emote.t > 0) mode = emote.m; else if (has('disco')) mode = 'dance';
+  animTick(dt);
+  if (!mnt && !me.swim) {
+    if (ANIM.cheer > 0) mode = 'cheer'; else if (ANIM.sad > 0) mode = 'sad'; else if (me.knockT > 0) mode = 'flail'; else if (has('spicy') && eatT <= 0) mode = 'juggle';
+    else if (mode === 'hold' || mode === 'idle') { if (ANIM.stretch > 0) mode = 'stretch'; else if (coldHere() && me.spd < .5) mode = 'cold'; else if (hotHere() && me.spd < .5) mode = 'fan'; }
+  }
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
   me.wob = clamp((me.wob || 0) + Math.min(.1, Math.abs(dsp) * .003) - 2.5 * dt, 0, 1.2);
@@ -4004,11 +4077,13 @@ function updateMeAvatar(dt) {
   let lean = clamp(me.spd * .045, 0, .3) + Math.sin(time * 9) * .1 * me.wob;
   if (mode === 'fight') lean = -.12 - stress * .3 + Math.sin(time * 16) * .06 * stress; else if (mode === 'cast') lean = lerp(-.35, .4, clamp(F.t / .25, 0, 1)); else if (mode === 'ride') lean = .08 + me.spd * .012; else if (mode === 'swim') lean = .15 + me.spd * .06;
   const sway = Math.sin(time * 13) * (.04 + .2 * me.wob) + Math.sin(me.walk * 2.2) * .09 * mv + Math.sin(time * 19) * .1 * stress;
-  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (mode === 'dance' || mode === 'eat' ? time * 3 : 0), mode, u: clamp(F.t / .25, 0, 1), lean, sway, kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
+  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, u: clamp(F.t / .25, 0, 1), lean, sway: sway + (mode === 'cold' ? Math.sin(time * 38) * .02 : 0), kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
   const up = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? lerp(1.5, .5, clamp(F.t / .25, 0, 1)) : .9;
   myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !(mnt && !fishNow && !megaCanFish(megaMountDef())) && !me.swim && !curHold; setHeld(heldSlot, curHold, meChar, me.bodyYaw, me.sc);
+  if (mode === 'juggle') juggleRod(myRod, me.x, me.y, me.z, me.bodyYaw, me.sc);
+  faceSet(meChar, pickFace({ knock: me.knockT > 0, spicy: has('spicy'), eat: eatT > 0, sleep: sleepLock > 0, dizzy: has('dizzy'), cheer: ANIM.cheer > 0, sad: ANIM.sad > 0, fight: st === 'fight', bite: st === 'bite', yawn: ANIM.stretch > 0, cold: !mnt && coldHere(), hot: !mnt && hotHere(), fast: mnt && me.spd > 8, blink: ANIM.blinkT > 0 }));
 }
 function update(dt) {
   time += dt;
@@ -4030,7 +4105,7 @@ function loop(now) {
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
