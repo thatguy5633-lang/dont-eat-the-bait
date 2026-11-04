@@ -137,11 +137,6 @@
 </div>
 <div id="lids"></div><div id="tint"></div>
 
-<div class="ov" id="styleOv" style="background:linear-gradient(transparent 25%,rgba(10,20,40,.88));align-items:flex-end;z-index:13"><div class="box" style="max-width:1000px;width:97vw;margin-bottom:8px">
-  <h2 class="stroke">🎨 CHOOSE YOUR GAME'S LOOK</h2><div class="small">This changes the whole game: sky, ocean, light, colors and effects. You can switch any time (Y key, or the Art style button).</div>
-  <div id="styleGrid" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0"></div>
-  <button id="styleDone">✔ Play with this look</button>
-</div></div>
 <div class="ov" id="mapOv"><div class="box" style="max-width:700px;width:96vw">
   <h2 class="stroke">🗺️ WORLD MAP</h2><canvas id="mapCv" width="640" height="640" style="width:min(86vw,60vh);height:min(86vw,60vh);border-radius:14px;border:3px solid #14213d"></canvas>
   <div class="small" id="mapInfo" style="margin:6px"></div><div class="small" style="opacity:.8">Discover islands and secrets to fill the map. Bottles hint where to look!</div>
@@ -172,14 +167,14 @@
   <div class="sub">Catch weird fish. Level up your rod. Eat them if you dare, because every fish does something different.</div>
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
-  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnStyle">🎨 Art style</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
+  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
   <div id="streakBox" class="card" style="margin:8px auto;max-width:460px"></div>
-  <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div style="margin-top:8px">🎨 Art style: <select class="styleSel"></select></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
+  <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
 <div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub" id="pauseSub">The fish will wait. (Online players keep fishing!)</div>
-<div id="pauseMain"><div><button id="btnResume">Resume</button></div><div id="pauseDiff" style="margin:8px 0"></div><div style="margin:8px 0">🎨 Art style (Y): <select class="styleSel"></select></div>
+<div id="pauseMain"><div><button id="btnResume">Resume</button></div><div id="pauseDiff" style="margin:8px 0"></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button id="btnDict" class="sec">📖 Fish Dictionary</button><button id="btnStable" class="sec">🐋 Mega Stable</button><button id="btnSkills" class="sec">⭐ Skills</button><button id="btnMenu" class="sec">🏠 Main menu</button><button id="btnSound" class="sec">🔊 Sound: ON</button></div></div>
 <div id="menuAsk" style="display:none"><div class="sub" id="menuAskTxt"></div><div><button id="btnLeave" style="background:#ff6b6b;box-shadow:0 4px 0 #c92a2a">🚪 Leave room &amp; go to main menu</button></div><div style="margin-top:8px"><button id="btnStay" class="sec">Stay in the room</button></div></div>
 </div></div>
@@ -505,30 +500,34 @@ const waveH = (x, z, t) => 0.09 * Math.sin(x * 0.35 + t * 1.2) + 0.07 * Math.sin
 const WSIZE = 420, WSEG = 112, WSTEP = WSIZE / WSEG, WPERIOD = 14;
 const waterGeo = new THREE.PlaneGeometry(WSIZE, WSIZE, WSEG, WSEG); waterGeo.rotateX(-Math.PI / 2); waterGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(waterGeo.attributes.position.count * 4).fill(1), 4));
 const causticTex = (() => { const t = canvasTex(256, 256, g => { g.fillStyle = '#dcebf0'; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 52; i++) { const x = Math.random() * 256, y = Math.random() * 256, r = 12 + Math.random() * 26; for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { const gr = g.createRadialGradient(x + dx, y + dy, r * .5, x + dx, y + dy, r); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.85, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); } } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(WSIZE / WPERIOD, WSIZE / WPERIOD); return t; })();
-const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ vertexColors: true, map: causticTex, transparent: true, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 }));
+const rippleNorm = (() => { const N = 256, h = new Float32Array(N * N), T = Math.PI * 2; for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { let v = 0; for (let k = 0; k < 8; k++) { const fx = 1 + ((k * 3) % 6), fy = 1 + ((k * 5 + 2) % 6); v += Math.sin(T * (fx * x + fy * y * (k % 2 ? 1 : -1)) / N + k * 1.7) / (1 + k * .35); } h[y * N + x] = v; }
+  const d = new Uint8Array(N * N * 4); for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) { const l = h[y * N + (x + N - 1) % N], r = h[y * N + (x + 1) % N], u = h[((y + N - 1) % N) * N + x], dn = h[((y + 1) % N) * N + x]; let nx = (l - r) * .5, ny = (u - dn) * .5, nz = 1, m = Math.hypot(nx, ny, nz); nx /= m; ny /= m; nz /= m; const i = (y * N + x) * 4; d[i] = (nx * .5 + .5) * 255; d[i + 1] = (ny * .5 + .5) * 255; d[i + 2] = (nz * .5 + .5) * 255; d[i + 3] = 255; }
+  const t = new THREE.DataTexture(d, N, N, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.repeat.set(WSIZE / 7, WSIZE / 7); t.needsUpdate = true; return t; })();
+const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ vertexColors: true, map: causticTex, normalMap: rippleNorm, normalScale: new THREE.Vector2(.55, .55), transparent: true, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 }));
 scene.add(water);
 const wpos = waterGeo.attributes.position; const wbase = new Float32Array(wpos.array);
 const WPAL = { deep: new THREE.Color('#13a8d0'), mid: new THREE.Color('#30d0dc'), shallow: new THREE.Color('#8af5e0'), foam: new THREE.Color('#f4ffff') }; let wGridKey = '', wForce = true;
-const farWater = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshStandardMaterial({ color: 0x16a0c8, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 })); farWater.rotation.x = -Math.PI / 2; farWater.position.y = -.4; scene.add(farWater);
+const farWater = new THREE.Mesh(new THREE.RingGeometry(205, 9000, 72, 1), new THREE.MeshStandardMaterial({ color: 0x16a0c8, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 })); farWater.rotation.x = -Math.PI / 2; farWater.position.y = -.4; scene.add(farWater);
 function waterRecolor(ox, oz) {   // a warm, clear, Minecraft-style sea: pale turquoise shallows, bright teal, then deeper blue, with foam where it laps the sand
-  const col = waterGeo.attributes.color, N = wpos.count, c = new THREE.Color();
+  const col = waterGeo.attributes.color, N = wpos.count, c = new THREE.Color(), sbC = new THREE.Color(), sbD = new THREE.Color();
   for (let i = 0; i < N; i++) {
-    const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz, d = -terrainH(x, z), n = Math.sin(x * .09) * Math.sin(z * .08) * .5 + Math.sin(x * .21 + z * .17) * .25; let a;
+    const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz, th = terrainH(x, z), d = -th; { const y = Math.max(-3.4, Math.min(-.07, th)), k = Math.min(1, Math.max(0, (-y - .4) / 3)); sbGeo.attributes.position.setY(i, y); sbC.set('#f3e2a6').lerp(sbD.set('#5fc8b8'), k * .8); sbGeo.attributes.color.setXYZ(i, sbC.r, sbC.g, sbC.b); } const n = Math.sin(x * .09) * Math.sin(z * .08) * .5 + Math.sin(x * .21 + z * .17) * .25; let a;
     if (d < .03) { c.copy(WPAL.foam); a = .88; }
-    else if (d < .5) { const k = d / .5; c.copy(WPAL.foam).lerp(WPAL.shallow, Math.min(1, k * 1.7)); a = .6 + k * .08; }
-    else if (d < 1.8) { const k = (d - .5) / 1.3; c.copy(WPAL.shallow).lerp(WPAL.mid, k); a = .68 + k * .14; }
+    else if (d < .5) { const k = d / .5; c.copy(WPAL.foam).lerp(WPAL.shallow, Math.min(1, k * 1.7)); a = .38 + k * .1; }
+    else if (d < 1.8) { const k = (d - .5) / 1.3; c.copy(WPAL.shallow).lerp(WPAL.mid, k); a = .48 + k * .26; }
     else { const k = Math.min(1, (d - 1.8) / 1.4); c.copy(WPAL.mid).lerp(WPAL.deep, k); a = .82 + k * .12; }
     c.offsetHSL(0, 0, n * .03); col.setXYZW(i, c.r, c.g, c.b, a);
   }
-  col.needsUpdate = true;
+  col.needsUpdate = true; sbGeo.attributes.position.needsUpdate = true; sbGeo.attributes.color.needsUpdate = true; sbGeo.computeVertexNormals();
 }
 function updateWater(t) {   // the detailed sea follows the player (snapped to the wave grid), so the ocean can be endless
-  const ox = Math.round(camera.position.x / WSTEP) * WSTEP, oz = Math.round(camera.position.z / WSTEP) * WSTEP; water.position.set(ox, 0, oz); seabed.position.set(ox, -7, oz); farWater.position.x = camera.position.x; farWater.position.z = camera.position.z;
+  const ox = Math.round(camera.position.x / WSTEP) * WSTEP, oz = Math.round(camera.position.z / WSTEP) * WSTEP; water.position.set(ox, 0, oz); seabed.position.set(ox, 0, oz); farWater.position.x = camera.position.x; farWater.position.z = camera.position.z;
   const key = ox + ',' + oz; if (key !== wGridKey || wForce) { wGridKey = key; wForce = false; waterRecolor(ox, oz); }
-  causticTex.offset.set(ox / WPERIOD + t * .012, -oz / WPERIOD + t * .008);
+  causticTex.offset.set(ox / WPERIOD + t * .012, -oz / WPERIOD + t * .008); rippleNorm.offset.set(ox / 7 + t * .03, -oz / 7 + t * .021);
   for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; waterGeo.computeVertexNormals();
 }
-const seabed = mk(new THREE.PlaneGeometry(900, 900), mat(0xf2e2a8), [0, -7, 0], null, scene); seabed.rotation.x = -Math.PI / 2;
+const sbGeo = new THREE.PlaneGeometry(WSIZE, WSIZE, WSEG, WSEG); sbGeo.rotateX(-Math.PI / 2); sbGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(sbGeo.attributes.position.count * 3), 3));
+const seabed = new THREE.Mesh(sbGeo, new THREE.MeshLambertMaterial({ vertexColors: true })); scene.add(seabed);   // the sea floor follows the real terrain, so shallows are clear and coral sits on sand
 
 /* =========================================================
    WORLD
@@ -1566,7 +1565,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104162647';
+const GAME_BUILD = '20261104163214';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -3786,6 +3785,21 @@ function decorateTropicIsland(cx, cz, R, hills) {   // dense palms, bushes, flow
   for (let i = 0; i < 7500; i++) { const p = at(.03, .93); if (!p) continue; const h = rr(.35, .75), w = rr(.07, .12); iAdd(L.grass, [p[0], p[1] - .03, p[2]], [w, h, w], [(Rn() - .5) * .35, Rn() * TAU, 0], lG[i % 4]); }
   iFlush(L.trunk, FCYL, MAT_SOLID, g); iFlush(L.ball, FSPH, MAT_SOLID, g); iFlush(L.rock, ROCKG, MAT_SOLID, g); iFlush(L.leafP, LEAF_PALM, MAT_LEAF, g); iFlush(L.leafF, LEAF_FERN, MAT_LEAF, g); iFlush(L.grass, BLADE, MAT_GRASS, g); scene.add(g);
 }
+
+const CORAL_COL = ['#ff6bb8', '#ff9a3a', '#b04dff', '#ffd43b', '#4dffc4', '#ff5a5a', '#6ad7ff', '#ff8ad8'];
+function coralClump(L, x, y, z, R) {   // branching, boulder, fan and tube corals with swaying sea grass; sized to stay under the water
+  const c = CORAL_COL[(R() * CORAL_COL.length) | 0], r = R(), K = Math.max(.22, Math.min(1, (-y - .3) / 1.5));
+  if (r < .38) { for (let k = 0; k < 5; k++) { const h = (.5 + R() * .8) * K; iAdd(L.cone, [x + (R() - .5) * .55, y + h / 2 - .05, z + (R() - .5) * .55], [.08 + R() * .06, h, .08 + R() * .06], [R() * .3 - .15, 0, R() * .3 - .15], c); } }
+  else if (r < .62) { const s0 = (.35 + R() * .5) * K; iAdd(L.ball, [x, y + s0 * .35, z], [s0, s0 * .7, s0], null, c); iAdd(L.ball, [x + s0 * .6, y + s0 * .2, z + s0 * .3], [s0 * .5, s0 * .4, s0 * .5], null, CORAL_COL[(R() * CORAL_COL.length) | 0]); }
+  else if (r < .82) { for (let k = 0; k < 3; k++) { const f = (.6 + R() * .3) * K; iAdd(L.leafB, [x, y, z], [f, f, f], [-1.4, R() * Math.PI * 2, 0], c); } }
+  else { for (let k = 0; k < 3; k++) { const hh = (.5 + R() * .7) * K, ax = x + (R() - .5) * .5, az = z + (R() - .5) * .5; iSeg(L.trunk, [ax, y, az], [ax, y + hh, az], .07, c); iAdd(L.ball, [ax, y + hh, az], [.1, .07, .1], null, '#ffffff'); } }
+  if (R() < .6) for (let k = 0; k < 7; k++) iAdd(L.grass, [x + (R() - .5) * 1.4, y - .05, z + (R() - .5) * 1.4], [.1, (.8 + R() * .8) * K, .1], [R() * .3 - .15, R() * 6.28, 0], ['#2f9a50', '#3fb35a', '#58c870'][k % 3]);
+}
+function buildMainReefs() {   // a coral reef in the shallows around the home island and pier
+  const g = new THREE.Group(), L = IL(), R = mulberry(4242); let placed = 0;
+  for (let tries = 0; tries < 60000 && placed < 2600; tries++) { const x = (R() * 2 - 1) * 175, z = -70 + R() * 240, h = terrainH(x, z); if (h < -2.5 || h > -.55) continue; if (onLandPad(x, z, 2.5)) continue; if (swimBlockers.some(c => Math.hypot(x - c.x, z - c.z) < c.r + 1.5)) continue; coralClump(L, x, h, z, R); placed++; }
+  iFlush(L.trunk, FCYL, MAT_SOLID, g); iFlush(L.ball, FSPH, MAT_SOLID, g); iFlush(L.cone, FCONE, MAT_SOLID, g); iFlush(L.leafB, LEAF_BIG, MAT_LEAF, g); iFlush(L.grass, BLADE, MAT_GRASS, g); scene.add(g);
+}
 function buildIsle(I) {
   const g = new THREE.Group(); g.position.set(I.x, 0, I.z); const R = mulberry((I.seed * 1000) | 0), rr = (a, b) => a + R() * (b - a), plat = Y0 + .012, A = Math.PI * I.r * I.r, jun = I.biome === 'jungle', big = !!I.jungle;
   const seg = Math.min(80, Math.max(30, Math.round(I.r / 1.2))), S = I.r * 2.7, geo = new THREE.PlaneGeometry(S, S, seg, seg); geo.rotateX(-Math.PI / 2); const P = geo.attributes.position, cols = new Float32Array(P.count * 3), tmp = new THREE.Color();
@@ -3825,6 +3839,7 @@ function buildIsle(I) {
   for (let i = 0; i < nG; i++) { const p = at(.04, .56, plat + .3); if (!p) continue; const h = jun ? rr(big ? 1.3 : 1.0, big ? 2.5 : 1.9) : rr(.35, .75), w = jun ? rr(.08, .15) : rr(.07, .12); iAdd(jun ? L.tall : L.grass, [p[0], p[1] - .03, p[2]], [w, h, w], [(R() - .5) * .35, R() * TAU, 0], jun ? lJ[(R() * 5) | 0] : I.biome === 'snow' ? ['#cfe6d8', '#e8f4ee'][i % 2] : lG[i % 4]); }
   if (jun) { const nF = Math.min(260, Math.round(A / 40)); for (let i = 0; i < nF; i++) { const p = at(.06, .58, plat + .3); if (!p) continue; if (i % 3 === 0) for (let k = 0; k < 5; k++) iAdd(L.leafB, [p[0], p[1], p[2]], [rr(.9, 1.5), rr(.9, 1.5), rr(.9, 1.5)], [-rr(.5, 1.0), k / 5 * TAU + R(), 0], '#2f9a3a'); else { for (let k = 0; k < 8; k++) iAdd(L.leafF, [p[0], p[1] + .05, p[2]], [rr(.8, 1.3), rr(.8, 1.3), rr(.8, 1.3)], [rr(-.1, .5), k / 8 * TAU + R() * .3, 0], lJ[k % 5]); if (R() < .4) { const hh = rr(.5, 1.0); iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + hh, p[2]], .03, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + hh + .06, p[2]], [.13, .13, .13], null, flowers[(R() * 5) | 0]); } } } }
   else if (I.biome === 'tropic') { const nB = Math.round(A / 100); for (let i = 0; i < nB; i++) { const p = at(.1, .55, plat + .3); if (p) iAdd(L.ball, [p[0], p[1] + .4, p[2]], [rr(.9, 1.7), rr(.5, .9), rr(.9, 1.7)], null, lG[(R() * 4) | 0]); } for (let i = 0; i < Math.round(A / 220); i++) { const p = at(.1, .5, plat + .3); if (!p) continue; iSeg(L.trunk, [p[0], p[1], p[2]], [p[0], p[1] + rr(.3, .6), p[2]], .025, '#3a7a2a'); iAdd(L.ball, [p[0], p[1] + .5, p[2]], [.1, .1, .1], null, flowers[(R() * 5) | 0]); } }
+  { const nC = Math.round(Math.min(170, I.r * 2.4)); for (let i = 0; i < nC; i++) { for (let k = 0; k < 8; k++) { const a = R() * TAU, ca = Math.cos(a), sa = Math.sin(a), d = shapeR(I, ca, sa) * (.7 + R() * .33), x = ca * d, z = sa * d, y = isleH(I, I.x + x, I.z + z); if (y > -2.6 && y < -.55) { coralClump(L, x, y, z, R); break; } } } }
   iFlush(L.trunk, FCYL, MAT_SOLID, g); iFlush(L.ball, FSPH, MAT_SOLID, g); iFlush(L.cone, FCONE, MAT_SOLID, g); iFlush(L.rock, ROCKG, MAT_SOLID, g); iFlush(L.leafP, LEAF_PALM, MAT_LEAF, g); iFlush(L.leafB, LEAF_BIG, MAT_LEAF, g); iFlush(L.leafF, LEAF_FERN, MAT_LEAF, g); iFlush(L.grass, BLADE, MAT_GRASS, g); iFlush(L.tall, BLADE, MAT_GRASS, g);
   if (I.biome === 'volcanic') { gCn(tm('#3a2e30'), [0, plat, 0], I.r * .26, I.r * .3, [0, 1, 0], g); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(2.4, .9, .15), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.setScalar(I.r * .5); gl.position.set(0, plat + I.r * .3 + 1, 0); g.add(gl); for (let k = 0; k < 6; k++) { const sm = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(.35, .33, .33), transparent: true, opacity: .45 - k * .05, depthWrite: false })); sm.scale.setScalar(I.r * (.3 + k * .12)); sm.position.set(k * 2, plat + I.r * .3 + 8 + k * I.r * .18, k); g.add(sm); } }
   if (I.biome === 'snow') { const p = at(.1, .3); if (p) { const [x, y, z] = p; gEl(tm('#ffffff'), [x, y + .7, z], [.9, .9, .9], g); gEl(tm('#ffffff'), [x, y + 1.7, z], [.65, .65, .65], g); gEl(tm('#ffffff'), [x, y + 2.4, z], [.45, .45, .45], g); gCn(tm('#ff8a1a'), [x + .4, y + 2.4, z], .1, .5, [1, -.1, 0], g); gEl(tm('#111111'), [x + .3, y + 2.55, z + .15], [.06, .06, .06], g); gEl(tm('#111111'), [x + .3, y + 2.55, z - .15], [.06, .06, .06], g); } }
@@ -3874,7 +3889,12 @@ function initGulls() {
   const m = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide }), dk = new THREE.MeshBasicMaterial({ color: 0xcfd6de, side: THREE.DoubleSide });
   for (let i = 0; i < 10; i++) { const g = new THREE.Group(), body = new THREE.Mesh(new THREE.ConeGeometry(.2, .9, 6), m); body.rotation.x = Math.PI / 2; g.add(body); const wing = sx => { const pv = new THREE.Group(); pv.position.x = sx * .12; const pl = new THREE.Mesh(new THREE.PlaneGeometry(1.2, .38), dk); pl.rotation.x = -Math.PI / 2; pl.position.x = sx * .6; pv.add(pl); g.add(pv); return pv; }; const wl = wing(-1), wr = wing(1); scene.add(g); GULLS.push({ g, wl, wr, a: Math.random() * TAU, r: 20 + Math.random() * 60, h: 14 + Math.random() * 26, s: (.2 + Math.random() * .3) * (Math.random() < .5 ? 1 : -1), ph: Math.random() * 6 }); }
 }
+
+const SPARKS = [];
+function initSparkles() { for (let i = 0; i < 110; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(2.2, 2.2, 2.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 })); m.scale.setScalar(.45 + Math.random() * .5); scene.add(m); SPARKS.push({ m, x: (Math.random() - .5) * 90, z: (Math.random() - .5) * 90, ph: Math.random() * 6, sp: 1.5 + Math.random() * 2.5 }); } }
 function updateLife(dt) {
+  for (const q of SPARKS) { let dx = q.x - (me.x % 1000), dz = q.z; const wx = me.x + (((q.x - me.x) % 45) + 45) % 45 - 22.5, wz = me.z + (((q.z - me.z) % 45) + 45) % 45 - 22.5; q.m.position.set(wx, waveH(wx, wz, time) + .14, wz); q.m.material.opacity = Math.pow(Math.max(0, Math.sin(time * q.sp + q.ph)), 6) * .85; }
+  if (me.swim && Math.random() < dt * 1.4) ripple(me.x + (Math.random() - .5) * 1.5, me.z + (Math.random() - .5) * 1.5);
   const t = time; for (const q of GULLS) { q.a += q.s * dt; const x = me.x + Math.cos(q.a) * q.r, z = me.z + Math.sin(q.a) * q.r; q.g.position.set(x, q.h + Math.sin(t * .7 + q.ph) * 2, z); q.g.rotation.y = -q.a + (q.s > 0 ? 0 : Math.PI); const f = Math.sin(t * 6 + q.ph) * .55; q.wl.rotation.z = -f; q.wr.rotation.z = f; q.g.rotation.z = q.s > 0 ? -.2 : .2; }
   JUMPERS.next = (JUMPERS.next == null ? 2 : JUMPERS.next) - dt;
   if (JUMPERS.next <= 0 && ui === 'play') { JUMPERS.next = 2.5 + Math.random() * 4; const a = Math.random() * TAU, d = 12 + Math.random() * 30, x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d; if (isWater(x, z, 2)) { const pool = FISH.filter(f => f.r < 3 && f.shape !== 4), sp = pool[(Math.random() * pool.length) | 0], w = new THREE.Group(), f = makeFish3D(sp); f.scale.setScalar(.8 + Math.random() * .5); w.add(f); const h = Math.random() * TAU; w.rotation.y = -h; scene.add(w); JUMPERS.push({ w, f, x, z, dx: Math.cos(h), dz: Math.sin(h), t: 0, H: 1.6 + Math.random() * 1.6, sp: 3 + Math.random() * 3 }); splash(x, .1, z, 8, 2); } }
@@ -4018,22 +4038,14 @@ function setStyle(i) {
   const cv = SKYOBJ.tex.image, g2 = cv.getContext('2d'), gr = g2.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, A.sky[0]); gr.addColorStop(.22, A.sky[1]); gr.addColorStop(.4, A.sky[2]); gr.addColorStop(.5, A.sky[3]); gr.addColorStop(1, A.sky[3]); g2.fillStyle = gr; g2.fillRect(0, 0, 4, 256); SKYOBJ.tex.needsUpdate = true;
   for (const el of document.querySelectorAll('.styleSel')) el.value = String(i); if (window.__markStyle) window.__markStyle();
 }
-function initStyles() {
-  for (const el of document.querySelectorAll('.styleSel')) { el.innerHTML = ART.map((a, k) => `<option value="${k}">${a.e} ${a.n}</option>`).join(''); el.onchange = () => setStyle(+el.value); }
-  const D = ['Bright and bouncy (the original)', 'Soft paper and paint', 'Chunky retro pixels', 'Bold ink lines and halftone dots', 'Moody, warm and cinematic', 'Glowing neon night', 'Candy-pastel haze', 'Faded sepia film'];
-  const grid = $('styleGrid'); ART.forEach((a, k) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.k = k; c.style.cssText = `width:118px;text-align:center;cursor:pointer;padding:0 0 6px;overflow:hidden;border:3px solid #14213d;background:#2b63e6`; c.innerHTML = `<div style="height:62px;background:linear-gradient(${a.sky[0]},${a.sky[2]} 55%,${a.sky[3]} 56%,${a.water} 57%,${a.water})"></div><div style="font-size:15px;font-weight:900;margin-top:4px">${a.e} ${a.n}</div><div class="small" style="padding:0 4px">${D[k]}</div>`; c.onclick = () => { setStyle(k); save.styleChosen = true; persist(); }; grid.appendChild(c); });
-  const mark = () => grid.querySelectorAll('.card').forEach(c => { c.style.borderColor = +c.dataset.k === (save.style || 0) ? '#ffd43b' : '#14213d'; c.style.transform = +c.dataset.k === (save.style || 0) ? 'translateY(-4px)' : ''; });
-  window.__markStyle = mark; $('styleDone').onclick = () => { save.styleChosen = true; persist(); $('styleOv').style.display = 'none'; }; $('btnStyle').onclick = () => { mark(); $('styleOv').style.display = 'flex'; };
-  if (save.styleChosen) setStyle(save.style || 0); else { setStyle(4); mark(); $('styleOv').style.display = 'flex'; }
-  addEventListener('keydown', e => { if (e.code === 'KeyY' && (ui === 'play' || ui === 'pause') && !e.repeat) { setStyle((save.style || 0) + 1); toast(`🎨 Art style: ${ART[save.style].e} ${ART[save.style].n}`, 1800, '#ffd43b'); } });
-}
+function initStyles() { setStyle(4); }   // one look for the whole game: warm, moody, cinematic
 function initHorizon() {   // hazy layered ridges, a low cloud bank and sky reflections in the water make the horizon look real
   SKYOBJ.ridges = [makeRidge(980, 10, 85, '#a9c0d2', 2), makeRidge(840, 8, 62, '#8aa8c0', 1), makeRidge(720, 6, 34, '#6f93ae', 3)];
   SKYOBJ.bank = []; for (let i = 0; i < 30; i++) { const a = i / 30 * TAU + Math.random() * .2, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, opacity: .3, depthWrite: false })); sp.scale.set(rnd(240, 420), rnd(36, 80), 1); sp.userData = { a, r: 880 + Math.random() * 100, y: rnd(18, 60) }; scene.add(sp); SKYOBJ.bank.push(sp); }
   try { const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: SKYOBJ.tex, side: THREE.BackSide }))); scene.environment = pm.fromScene(es, .02).texture; pm.dispose(); } catch (e) { }
 }
 const megaSurf = (x, z) => megaHas('land') ? Math.max(waveH(x, z, time), walkG(x, z)) : waveH(x, z, time);
-genOpenSea(); initHorizon(); initGulls(); initStyles();
+genOpenSea(); initHorizon(); initGulls(); initStyles(); buildMainReefs(); initSparkles();
 const emojiFly = []; let emoteI = 0, emote = { t: 0, m: 'wave' };
 function spawnEmoji(e, who) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e), transparent: true, depthTest: false })); sp.scale.setScalar(1.5); scene.add(sp); emojiFly.push({ sp, who, t: 0 }); }
 function doEmote() { if (me.riding || me.passenger || me.swim || ui !== 'play') return; const em = EMOTES[emoteI++ % EMOTES.length]; emote = { t: 2.6, m: em.m }; spawnEmoji(em.e, null); netEvent({ k: 'emote', id: NET.myId, i: (emoteI - 1) % EMOTES.length }); sfx.pop(); }
@@ -4228,7 +4240,7 @@ function loop(now) {
   stylePass.uniforms.uTime.value = performance.now() / 1000; composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { setStyle, ART, stylePass, paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { terrainH, setStyle, ART, stylePass, paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
