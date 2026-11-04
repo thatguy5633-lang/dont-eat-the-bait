@@ -114,6 +114,7 @@
 
 <div id="hud">
   <div id="score" class="stroke">SCORE: 0</div>
+  <div id="navHud" class="stroke" style="position:absolute;top:50px;left:50%;transform:translateX(-50%);font-size:13px;pointer-events:none;white-space:nowrap"></div>
   <div id="lvlrow"><div id="lvlbadge">1</div><div class="bar" id="xpbar"><i></i></div></div>
   <div id="players" class="stroke">PLAYERS: 1/8<div id="plist"></div>
     <div id="stress"><span style="font-size:26px">🎣</span><div class="bar" id="stressbar"><i></i></div></div>
@@ -133,6 +134,11 @@
 </div>
 <div id="lids"></div><div id="tint"></div>
 
+<div class="ov" id="mapOv"><div class="box" style="max-width:700px;width:96vw">
+  <h2 class="stroke">🗺️ WORLD MAP</h2><canvas id="mapCv" width="640" height="640" style="width:min(86vw,60vh);height:min(86vw,60vh);border-radius:14px;border:3px solid #14213d"></canvas>
+  <div class="small" id="mapInfo" style="margin:6px"></div><div class="small" style="opacity:.8">Discover islands and secrets to fill the map. Bottles hint where to look!</div>
+  <div style="margin-top:8px"><button id="mapHome" class="sec">🏠 Warp to the pier</button> <button id="mapClose">Back (P)</button></div>
+</div></div>
 <div class="ov" id="accOv" style="z-index:12"><div class="box" style="max-width:480px;width:92vw">
   <h2 class="stroke">🔑 ACCOUNT</h2>
   <div id="accOut"><div class="small">Sign in to save your game online and play on any device. Your fish, money, Megas and friends come with you.</div>
@@ -394,7 +400,7 @@ const DEFAULT_AP = { head: 0, skin: START_COL, eyes: 0, mouth: 0, eyeCol: '#2222
 const save = { gold: 0, score: 0, xp: 0, level: 1, spent: 0, skills: {}, rod: 0, bait: { shrimp: 0, glitter: 0 }, baitSel: 'worm', book: {}, name: '', ap: Object.assign({}, DEFAULT_AP) };
 try { const s = JSON.parse(localStorage.getItem('dontEatBait_v1') || '{}'); Object.assign(save, s); save.ap = Object.assign({}, DEFAULT_AP, s.ap || {}); if (s.apv !== 2) save.ap = Object.assign({}, DEFAULT_AP); } catch (e) { }
 save.apv = 2;
-save.megas = save.megas || []; save.food = Object.assign({ krill: 0, squid: 0, tuna: 0 }, save.food || {}); save.maps = save.maps || {}; save.activeMega = save.activeMega || null; save.bait = Object.assign({ shrimp: 0, glitter: 0, mega: 0 }, save.bait || {});
+save.megas = save.megas || []; save.food = Object.assign({ krill: 0, squid: 0, tuna: 0 }, save.food || {}); save.maps = save.maps || {}; save.found = save.found || {}; save.secrets = save.secrets || {}; save.charms = save.charms || {}; save.isles = save.isles || {}; save.spotsSeen = save.spotsSeen || {}; save.activeMega = save.activeMega || null; save.bait = Object.assign({ shrimp: 0, glitter: 0, mega: 0 }, save.bait || {});
 let acctDirty = false;
 const persist = () => { save.ts = Date.now(); acctDirty = true; try { localStorage.setItem('dontEatBait_v1', JSON.stringify(save)); } catch (e) { } };
 const skill = k => save.skills[k] || 0;
@@ -1476,7 +1482,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104115709';
+const GAME_BUILD = '20261104122247';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1896,7 +1902,7 @@ function updateRemoteMega(rp, dt) {
   if (rp.megaKey !== key) { if (rp.megaObj) { scene.remove(rp.megaObj); scene.remove(rp.megaTag); } rp.megaObj = makeMega(MEGAS[mg.s], mg.c, mg.g, mg.l); scene.add(rp.megaObj); rp.megaTag = tagSprite(mg.n); scene.add(rp.megaTag); rp.megaKey = key; rp.mx = mg.x; rp.mz = mg.z; rp.ma = mg.a; }
   const k = Math.min(1, 10 * dt); rp.mx += (mg.x - rp.mx) * k; rp.mz += (mg.z - rp.mz) * k; rp.ma = lerpAngle(rp.ma, mg.a, k);
   const o = rp.megaObj, sc = megaScaleOf(mg.s, mg.l), surf = waveH(rp.mx, rp.mz, time); o.visible = true; rp.megaTag.visible = true;
-  o.position.set(rp.mx, surf + .15 + mg.y + Math.sin(time * 2) * .08, rp.mz); o.rotation.set(0, rp.ma, 0); o.scale.setScalar(sc); animateMega(o, time); rp.megaTag.position.set(rp.mx, surf + 3.4 * sc + mg.y, rp.mz);
+  o.position.set(rp.mx, surf + .15 + mg.y + Math.sin(time * 2) * .08, rp.mz); o.rotation.set(0, rp.ma, 0); o.scale.setScalar(sc); animateMega(o, time, rp.spd || 0, mg.y > .4 ? 1 : 0); rp.megaTag.position.set(rp.mx, surf + 3.4 * sc + mg.y, rp.mz);
   megaAmbientFx(MEGAS[mg.s], rp.mx, surf + mg.y, rp.mz, sc, mg.g);
   if (mg.r && Math.random() < .5) emitTrail(rp.mx - Math.sin(rp.ma) * 1.8 * sc, surf + .2 + mg.y, rp.mz - Math.cos(rp.ma) * 1.8 * sc, mg.t || 'sparkle', mg.g);
 }
@@ -2216,7 +2222,7 @@ function toast(txt, ms = 1800, color = '#fff') {
   while ($('feed').children.length > 4) $('feed').firstChild.remove();
 }
 function setUI(s) {
-  ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills' };
+  ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills', map: 'mapOv' };
   for (const k of Object.values(ov)) $(k).style.display = 'none';
   if (ov[s]) $(ov[s]).style.display = 'flex';
   if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; renderDiff(); syncSoundBtn(); }
@@ -2301,6 +2307,7 @@ function renderMarket() {
   } else if (mTab === 'mega') {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Food keeps your Mega fed (hungry Megas swim slower) and levels it up: faster, bigger and glowier. Open the Mega Stable (M) to feed them.</div>');
     for (const [k, f] of Object.entries(FOODS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:440px'; d.innerHTML = `<b>${f.e} ${f.n}</b> (you have ${save.food[k] || 0})<div class="small">+${f.h} hunger · +${f.xp} XP</div>`; const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = `Buy ${f.pack} for $${f.price}`; bt.disabled = save.gold < f.price; bt.onclick = () => { save.gold -= f.price; save.food[k] = (save.food[k] || 0) + f.pack; persist(); sfx.cash(); renderMarket(); }; d.appendChild(bt); body.appendChild(d); }
+    body.appendChild(megaShopExtras());
     const sb = document.createElement('button'); sb.className = 'sec'; sb.textContent = '🐋 Open Mega Stable'; sb.onclick = () => { stableFrom = null; openStable(); }; body.appendChild(sb);
   } else if (mTab === 'map') {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Expand the world! Some areas are only reachable by riding a Mega.</div>');
@@ -2446,11 +2453,13 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyX') shoveAction();
     if (e.code === 'KeyT') { skillsFrom = null; openSkills(); }
     if (e.code === 'KeyM') { stableFrom = null; openStable(); }
+    if (e.code === 'KeyP') openMap();
     if (e.code === 'Escape') setUI('pause');
   } else if (e.code === 'KeyF' && ui === 'market') { setUI('play'); lockPointer(); }
   else if (e.code === 'KeyB' && ui === 'book') closeBook();
   else if (e.code === 'KeyM' && ui === 'stable') closeStable();
   else if (e.code === 'KeyT' && ui === 'skills') closeSkills();
+  else if ((e.code === 'KeyP' || e.code === 'Escape') && ui === 'map') closeMap();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.down = false; });
@@ -2507,7 +2516,7 @@ if (TOUCH) {
   mkBtn('⚡', 'BOOST', 'left:158px;bottom:108px;width:52px;height:52px;font-size:19px', () => { keys.ShiftLeft = true; }, () => { keys.ShiftLeft = false; });
   mkBtn('🪱', 'BAIT', 'left:158px;bottom:48px;width:48px;height:48px;font-size:18px', tap('KeyR'));
   // top row
-  const top = [['⏸', 'Escape'], ['🛒', 'KeyF'], ['📖', 'KeyB'], ['👕', 'KeyC'], ['⭐', 'KeyT'], ['🏠', 'KeyM'], ['💬', 'Enter'], ['😀', 'KeyV'], ['⛏', 'KeyN']]; top.forEach(([e, c], i) => mkBtn(e, '', `left:calc(50% - 216px + ${i * 48}px);top:8px;`, tap(c), null, 'tt'));
+  const top = [['⏸', 'Escape'], ['🛒', 'KeyF'], ['📖', 'KeyB'], ['👕', 'KeyC'], ['⭐', 'KeyT'], ['🏠', 'KeyM'], ['💬', 'Enter'], ['😀', 'KeyV'], ['⛏', 'KeyN'], ['🗺', 'KeyP']]; top.forEach(([e, c], i) => mkBtn(e, '', `left:calc(50% - 240px + ${i * 48}px);top:8px;`, tap(c), null, 'tt'));
   // first tap unlocks audio
   addEventListener('touchstart', () => { try { if (AC) AC.resume(); } catch (e) { } }, { once: true, passive: true });
   // phones held upright: nudge to landscape
@@ -2648,7 +2657,7 @@ MEGAS.push(
   { n: 'Storm Dragon', shape: 'serpent', c1: '#6a3de8', c2: '#e8f4ff', glow: '#b8a0ff', size: 1.7, spd: 2.1, e: '🐲', w: 2, val: 300000, seats: 2, fish: false, area: 'storm' }
 );
 MEGAS.forEach(m => { m.area = m.area || 'any'; });
-const megaCanFish = d => !!(d && d.fish);
+const megaCanFish = d => !!(d && (d.fish || (MEGA.rec && MEGA.rec.ch && MEGA.rec.ch.includes('rod'))));
 const FOODS = { krill: { n: 'Krill Snack', e: '🦐', h: 25, xp: 20, pack: 5, price: 60 }, squid: { n: 'Glow Squid', e: '🦑', h: 50, xp: 70, pack: 3, price: 150 }, tuna: { n: 'Golden Tuna', e: '🐟', h: 100, xp: 220, pack: 1, price: 400 } };
 const TRAILS = { sparkle: '✨ Sparkles', flame: '🔥 Flames', bubble: '🫧 Bubbles', rainbow: '🌈 Rainbow' };
 const megaXpNeed = l => Math.round(100 * Math.pow(l, 1.3));
@@ -2810,6 +2819,21 @@ function makeMega(def, c1, glowCol, level = 1) {
       const st = new THREE.Mesh(new THREE.CylinderGeometry(.025, .04, 1.6, 6), M1); st.position.set(0, 1.1, .7); st.rotation.x = -.9; B.add(st); E(GM, [0, 1.85, 1.45], [.2, .2, .2]); E(GS2, [0, 1.85, 1.45], [.35, .35, .35]);
       const t = new THREE.Group(); t.position.set(0, 0, -.95); B.add(t); fin([[0, 0], [-.1, .6], [.3, .75], [.6, 0]], [1, 1], [0, 0, -.1], 'v', FM, t, -.2); fin([[0, 0], [-.1, -.5], [.3, -.6], [.5, 0]], [1, 1], [0, 0, -.1], 'v', FM, t, .2); U.tail = t; U.seatY = .85; U.seatZ = -.15; break;
     }
+    case 'boat': {
+      const nm = def.n, DK = mat(0x2a2a3a);
+      if (nm === 'Hover Ship') {
+        E(M1, [0, .35, 0], [1.1, .3, 1.9]); E(M2, [0, .7, .15], [.75, .3, 1.2]); E(GM, [0, .1, 0], [1.0, .04, 1.7]); E(DK, [0, 1.0, .3], [.5, .22, .6]); E(GS2, [0, 1.05, .5], [.4, .16, .3]);
+        for (const sd of [-1, 1]) { fin([[0, 0], [.9, .2], [1.5, .9], [.6, .7]], [sd, 1], [sd * .8, .55, -.3], 'h', FM2, B, sd * .1); E(GM, [sd * .6, .45, -1.7], [.22, .22, .22]); C(GM, [sd * .6, .45, -1.9], [.2, .9, .2], [-Math.PI / 2, 0, 0]); }
+        U.seatY = 1.0; U.seatZ = -.1;
+      } else {
+        E(M1, [0, .3, 0], [.78, .36, 1.7]); E(M2, [0, .52, -.05], [.66, .06, 1.45]); C(M1, [0, .32, 1.6], [.45, .9, .45], [Math.PI / 2, 0, 0]); E(M2, [0, .62, 1.0], [.5, .05, .1]);
+        if (nm === 'Row Boat') { for (const sd of [-1, 1]) { C(M2, [sd * .7, .75, .1], [.04, 1.7, .04], [0, 0, sd * (Math.PI / 2 - .35)]); E(M2, [sd * 1.45, .55, .1], [.2, .03, .12]); } E(M2, [0, .62, -.3], [.55, .05, .12]); E(GM, [0, .9, 1.4], [.07, .07, .07]); }
+        else if (nm === 'Speedboat') { E(M2, [0, .8, .35], [.42, .22, .4]); E(GS2, [0, .86, .55], [.34, .14, .2]); E(DK, [0, .62, -1.55], [.3, .32, .22]); C(GM, [0, .45, -1.8], [.18, 1.1, .18], [-Math.PI / 2, 0, 0]); fin([[0, 0], [-.1, .5], [.5, .1]], [1, 1], [0, .55, -1.4], 'v', FM2); }
+        else { C(M2, [0, .6, .35], [.07, 3.6, .07], [0, 0, 0]); fin([[0, 0], [0, 3.1], [1.9, .3]], [1, 1], [0, .9, .25], 'v', FM2); fin([[0, 0], [0, 2.2], [-1.2, .2]], [1, 1], [0, .8, .55], 'v', FM); E(M2, [0, .85, -.8], [.5, .3, .7]); E(GM, [0, 4.2, .35], [.1, .1, .1]); }
+        U.seatY = .85; U.seatZ = .15;
+      }
+      break;
+    }
     default: { // koi
       B.add(megaBody(1.5, .58, .6, c1, def.c2, { patch: new THREE.Color(def.c2), tp: 1.4, tpk: .72, belly2: .55 }));
       for (const s of [-1, 1]) { eye(s * .43, .18, 1.12, .1); for (let i = 0; i < 2; i++) { const w = new THREE.Mesh(new THREE.CylinderGeometry(.014, .006, 1.0, 5), GM); w.position.set(s * .2, -.14, 1.55); w.rotation.set(1.2 + i * .25, 0, s * (.5 + i * .3)); B.add(w); } fin([[0, 0], [.55, -.08], [.95, -.28], [.7, -.55], [.3, -.3], [0, -.2]], [s, 1], [s * .52, -.18, .4], 'h', FM2, B, s * .5); fin([[0, 0], [.3, -.05], [.5, -.3], [.1, -.14]], [s, 1], [s * .22, -.45, -.5], 'h', FM2, B, s * .3); for (let i = 0; i < 4; i++) E(GM, [s * .16, .54 - i * .02, .6 - i * .5], [.04, .04, .04]); }
@@ -2818,6 +2842,7 @@ function makeMega(def, c1, glowCol, level = 1) {
     }
   }
   megaLook(def, B, U, { E, C, fin, M1, M2, FM2, GM, GS2 });
+  U.shape = def.shape; U.flaps = []; B.traverse(o => { if (o.isMesh && o.geometry && o.geometry.type === 'ShapeGeometry' && Math.abs(o.rotation.x + Math.PI / 2) < .02 && Math.abs(o.position.x) > .25) U.flaps.push({ m: o, s: Math.sign(o.position.x), ph: Math.random() * 2 }); });
   if (def.seats === 2 && !U.seat2 && U.seat2 !== null) U.seat2 = [0, U.seatY, U.seatZ - 1.0]; if (def.seats !== 2) U.seat2 = null;
   const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .2 + .02 * level })); aura.scale.setScalar(5 + level * .4); aura.position.y = .3; aura.userData.base = 5 + level * .4; g.add(aura); U.aura = aura;
   // orbiting glow motes (more of them as your Mega levels up) and a heartbeat in its glowing spots
@@ -2825,11 +2850,23 @@ function makeMega(def, c1, glowCol, level = 1) {
   U.gm = GM; U.gmBase = GM.color.clone();
   g.userData = U; return g;
 }
-function animateMega(g, t) {
+function animateMega(g, t, sp = 0, air = 0) {
   { const U0 = g.userData; if (U0.motes) for (const q of U0.motes) { const a = q.a + t * q.s; q.m.position.set(Math.cos(a) * q.r, .3 + q.h + Math.sin(t * 2 + q.a) * .25, Math.sin(a) * q.r * 1.5); q.m.material.opacity = .55 + Math.sin(t * 4 + q.a) * .35; } if (U0.gm) U0.gm.color.copy(U0.gmBase).multiplyScalar(1 + Math.sin(t * 3.2) * .3); }
-  const U = g.userData; if (U.tail) U.tail.rotation.y = Math.sin(t * 3.2) * .35;
-  if (U.segs) U.segs.forEach((s, i) => { s.position.x = Math.sin(t * 3 - i * .55) * (.05 + i * .045); });
-  if (U.tents) U.tents.forEach((tg, i) => { tg.rotation.x = Math.sin(t * 2 + i) * .25; });
+  const U = g.userData, B = g.children[0], s = Math.min(sp, 22), f = 3.2 + s * .22, amp = .35 + Math.min(.25, s * .018), sh = U.shape;
+  if (U.tail) { U.tail.rotation.y = Math.sin(t * f) * amp; if (sh === 'seahorse') U.tail.rotation.x = Math.sin(t * 2) * .25; }
+  if (U.segs) U.segs.forEach((q, i) => { q.position.x = Math.sin(t * (3 + s * .12) - i * .55) * (.05 + i * .045) * (1 + Math.min(s, 12) * .05); });
+  if (U.tents) U.tents.forEach((tg, i) => { tg.rotation.x = Math.sin(t * (2 + s * .1) + i) * .25 + (air ? -.55 : 0); });
+  if (U.flaps) for (const q of U.flaps) q.m.rotation.y = q.s * Math.sin(t * (2.4 + s * .18) + q.ph) * (.22 + Math.min(.32, s * .02) + (air ? .25 : 0));   // flippers and pectoral fins beat like wings
+  if (B) {
+    B.rotation.x = Math.sin(t * (2 + s * .1)) * .035; B.rotation.z = Math.sin(t * 1.6) * .03; B.position.y = Math.sin(t * 2.6) * .04; B.scale.y = 1;
+    if (sh === 'ray') { B.rotation.z = Math.sin(t * (2.2 + s * .12)) * .14; B.rotation.x = Math.sin(t * 2.2 + 1) * .05; }
+    else if (sh === 'octopus') { B.scale.y = 1 + Math.sin(t * 3) * .045; B.position.y = Math.abs(Math.sin(t * 1.5)) * .06; }
+    else if (sh === 'turtle' || sh === 'crab') B.rotation.z = Math.sin(t * (2.5 + s * .25)) * .06;
+    else if (sh === 'seahorse') { B.rotation.z = Math.sin(t * 1.8) * .1; B.position.y = Math.sin(t * 2.2) * .08; }
+    else if (sh === 'boat') { B.rotation.z = Math.sin(t * 1.2) * .06; B.rotation.x = Math.sin(t * .9) * .035 - Math.min(.12, s * .008); }
+    else if (sh === 'angler') B.rotation.x = Math.sin(t * 1.4) * .06;
+    if (air) B.rotation.z += Math.sin(t * 14) * .04;
+  }
   if (U.ring) U.ring.rotation.z = t * .7; if (U.aura) U.aura.scale.setScalar(U.aura.userData.base * (1 + Math.sin(t * 2) * .05));
 }
 /* coloured trail particles */
@@ -2844,18 +2881,18 @@ function updateTrail(dt) { for (const p of trail) if (p.life > 0) { p.life -= dt
 
 const MEGA = { obj: null, rec: null, tag: null, x: 0, z: 0, y: 0, yaw: 0, vx: 0, vz: 0, vy: 0, summoned: false, ridden: false, ripT: 0, saveT: 0, pendingSp: 0, warned: false };
 const activeMegaRec = () => save.megas.find(m => m.id === save.activeMega) || null;
-function megaSpeed(rec) { const hm = rec.hunger <= 0 ? .5 : rec.hunger < 20 ? .75 : 1; return 9 * MEGAS[rec.sp].spd * (1 + .08 * (rec.level - 1)) * hm; }
+function megaSpeed(rec) { const hm = rec.hunger <= 0 ? .5 : rec.hunger < 20 ? .75 : 1; return 9 * MEGAS[rec.sp].spd * (1 + .08 * (rec.level - 1)) * hm * (rec.ch && rec.ch.includes('swift') ? 1.3 : 1); }
 function onLandPad(x, z, pad) { return walkRects.some(w => x >= w.x0 - pad && x <= w.x1 + pad && z >= w.z0 - pad && z <= w.z1 + pad); }
 function isWater(x, z, pad = 2) { if (onLandPad(x, z, pad)) return false; for (const c of swimBlockers) if (Math.hypot(x - c.x, z - c.z) < c.r + pad) return false; return Math.abs(x) < WORLD_H && z > -WORLD_H && z < 130 && terrainH(x, z) < -.6; }
 function buildMegaObj() {
   if (MEGA.obj) scene.remove(MEGA.obj); if (MEGA.tag) scene.remove(MEGA.tag); MEGA.obj = MEGA.tag = null;
   const rec = activeMegaRec(); MEGA.rec = rec; if (!rec) return;
-  const o = makeMega(MEGAS[rec.sp], rec.c1, rec.glow, rec.level); o.visible = MEGA.summoned; scene.add(o); MEGA.obj = o;
+  const dd = rec.ch && rec.ch.includes('buddy') && MEGAS[rec.sp].seats < 2 ? Object.assign({}, MEGAS[rec.sp], { seats: 2 }) : MEGAS[rec.sp]; const o = makeMega(dd, rec.c1, rec.glow, rec.level); o.visible = MEGA.summoned; scene.add(o); MEGA.obj = o;
   MEGA.tag = tagSprite(rec.name); MEGA.tag.visible = MEGA.summoned; scene.add(MEGA.tag);
 }
 function summonMega(rec) {
   if (!MEGA.obj || MEGA.rec !== rec) buildMegaObj();
-  let spot = null; for (let d = 6; d < 60 && !spot; d += 1.5) for (const off of [0, .5, -.5, 1, -1, 1.6, -1.6, 2.3, -2.3, 3]) { const a = me.yaw + off, tx = me.x + Math.sin(a) * d, tz = me.z + Math.cos(a) * d; if (isWater(tx, tz, 3)) { spot = [tx, tz]; break; } }
+  let spot = null; for (let d = 6; d < 60 && !spot; d += 1.5) for (const off of [0, .5, -.5, 1, -1, 1.6, -1.6, 2.3, -2.3, 3]) { const a = me.yaw + off, tx = me.x + Math.sin(a) * d, tz = me.z + Math.cos(a) * d; if (isWater(tx, tz, 3) || (rec.ch && rec.ch.includes('land') && !onLandPad(tx, tz, 2) && Math.hypot(tx - me.x, tz - me.z) > 6)) { spot = [tx, tz]; break; } }
   if (!spot) { toast('No open water in front of you. Turn toward the sea!', 2200, '#ffd43b'); return; }
   MEGA.x = spot[0]; MEGA.z = spot[1]; MEGA.y = 0; MEGA.vx = MEGA.vz = MEGA.vy = 0; MEGA.yaw = Math.atan2(me.x - MEGA.x, me.z - MEGA.z); MEGA.summoned = true; MEGA.obj.visible = true; MEGA.tag.visible = true;
   splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); megaEntrance(MEGAS[rec.sp], MEGA.x, MEGA.z); sfx.bigSplash(); toast(`${rec.name} bursts out of the water! Swim up close and press G to ride.`, 3200, '#6fe8ff');
@@ -2914,10 +2951,10 @@ function updateRide(dt) {
   let nx = MEGA.x + MEGA.vx * dt, nz = MEGA.z + MEGA.vz * dt;
   for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + 1.4; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
   for (const w of walkRects) { const pad = 1.6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), r = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, r, t, b); if (m === l) nx -= l; else if (m === r) nx += r; else if (m === t) nz -= t; else nz += b; } }
-  if (terrainH(nx, nz) > -.3) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -WORLD_H, WORLD_H); nz = clamp(nz, -WORLD_H, 128); MEGA.x = nx; MEGA.z = nz;
-  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = 10 + (boost ? 3 : 0); sfx.megaLeap(); splash(MEGA.x, .1, MEGA.z, 22, 5); megaLeapRain(); }
+  if (terrainH(nx, nz) > -.3 && !megaHas('land')) { nx = MEGA.x; nz = MEGA.z; MEGA.vx *= -.3; MEGA.vz *= -.3; } nx = clamp(nx, -WORLD_H, WORLD_H); nz = clamp(nz, -WORLD_H, 128); MEGA.x = nx; MEGA.z = nz;
+  if (pressedQ.includes('Space') && MEGA.y <= .05 && ui === 'play' && !fishingNow) { MEGA.vy = (10 + (boost ? 3 : 0)) * (megaHas('leap') ? 1.5 : 1); sfx.megaLeap(); splash(MEGA.x, .1, MEGA.z, 22, 5); megaLeapRain(); }
   MEGA.vy -= 24 * dt; MEGA.y += MEGA.vy * dt; if (MEGA.y < 0) { if (MEGA.vy < -6) { splash(MEGA.x, .1, MEGA.z, 40, 6); ripple(MEGA.x, MEGA.z); sfx.splashS(); } MEGA.y = 0; MEGA.vy = 0; }
-  const sc = megaScaleOf(rec.sp, rec.level), U = MEGA.obj.userData, surf = waveH(MEGA.x, MEGA.z, time) + .1;
+  const sc = megaScaleOf(rec.sp, rec.level), U = MEGA.obj.userData, surf = megaSurf(MEGA.x, MEGA.z) + .1;
   me.x = MEGA.x + Math.sin(MEGA.yaw) * U.seatZ * sc; me.z = MEGA.z + Math.cos(MEGA.yaw) * U.seatZ * sc; me.y = surf + MEGA.y + U.seatY * sc; me.vx = MEGA.vx; me.vz = MEGA.vz; me.spd = sp; me.vy = 0; me.grounded = false;
   me.walk += sp * dt * .4; me.sc += (1 - me.sc) * Math.min(1, 3 * dt);
 }
@@ -2939,14 +2976,19 @@ function megaEntrance(def, x, z) {
 }
 function updateMega(dt) {
   const rec = MEGA.rec;
-  for (const m of save.megas) m.hunger = Math.max(0, m.hunger - dt * .04);
+  for (const m of save.megas) if (!MEGAS[m.sp].boat) m.hunger = Math.max(0, m.hunger - dt * .04);
   MEGA.saveT += dt; if (MEGA.saveT > 15) { MEGA.saveT = 0; persist(); }
   if (rec && rec.hunger < 20 && !MEGA.warned) { MEGA.warned = true; toast(`${rec.name} is getting hungry! Feed it in the Mega Stable (M).`, 3000, '#ffd43b'); } if (rec && rec.hunger > 30) MEGA.warned = false;
   if (!MEGA.obj || !MEGA.summoned || !rec) { updateTrail(dt); return; }
-  const o = MEGA.obj, sc = megaScaleOf(rec.sp, rec.level), surf = waveH(MEGA.x, MEGA.z, time);
+  const o = MEGA.obj, sc = megaScaleOf(rec.sp, rec.level), surf = megaSurf(MEGA.x, MEGA.z);
   if (!MEGA.ridden) { const d = Math.hypot(me.x - MEGA.x, me.z - MEGA.z); if (d < 40 && d > 4) MEGA.yaw = lerpAngle(MEGA.yaw, Math.atan2(me.x - MEGA.x, me.z - MEGA.z), 1.5 * dt); MEGA.vx *= .95; MEGA.vz *= .95; }
   const turn = MEGA.ridden ? clamp((Math.atan2(MEGA.vx, MEGA.vz) - MEGA.yaw), -1, 1) * Math.min(1, me.spd / 8) : 0;
-  o.position.set(MEGA.x, surf + .15 + MEGA.y + Math.sin(time * 2) * .08, MEGA.z); o.rotation.set(-clamp(MEGA.vy * .04, -.45, .45) * (MEGA.ridden ? 1 : 0), MEGA.yaw, -turn * .35 * 0 + turn * .3); o.scale.setScalar(sc); animateMega(o, time);
+  if (!MEGA.ridden) { MEGA.idleT = (MEGA.idleT == null ? rnd(4, 8) : MEGA.idleT) - dt; if (MEGA.idleT <= 0 && !(MEGA.hopY > 0)) { MEGA.hopV = rnd(6.5, 9); MEGA.hopY = .01; MEGA.idleT = rnd(7, 13); splash(MEGA.x, .1, MEGA.z, 16, 4); sfx.splashS(); } } else MEGA.hopY = 0;
+  if (MEGA.hopY > 0) { MEGA.hopV -= 20 * dt; MEGA.hopY += MEGA.hopV * dt; if (MEGA.hopY <= 0) { MEGA.hopY = 0; MEGA.hopV = 0; splash(MEGA.x, .1, MEGA.z, 28, 5); ripple(MEGA.x, MEGA.z); sfx.splashS(); } }
+  const airH = MEGA.y + (MEGA.hopY || 0), U1 = o.userData, flipper = ['dolphin', 'koi', 'shark', 'ray', 'whale', 'narwhal', 'serpent'].includes(U1.shape);
+  if (airH > .4) MEGA.spin = Math.min(TAU, (MEGA.spin || 0) + dt * 7.5); else if (airH <= .05) MEGA.spin = 0;   // barrel roll in mid-air
+  const pitchAir = MEGA.ridden ? -clamp(MEGA.vy * .04, -.45, .45) : -clamp((MEGA.hopV || 0) * .05, -.45, .45), spinR = flipper ? (MEGA.spin || 0) : 0;
+  o.position.set(MEGA.x, surf + .15 + MEGA.y + (MEGA.hopY || 0) + Math.sin(time * 2) * .08, MEGA.z); o.rotation.set(pitchAir, MEGA.yaw, turn * .3 + spinR); o.scale.setScalar(sc); animateMega(o, time, Math.hypot(MEGA.vx, MEGA.vz), airH > .4 ? 1 : 0);
   MEGA.tag.position.set(MEGA.x, surf + 3.4 * sc + MEGA.y, MEGA.z); megaAmbientFx(MEGAS[rec.sp], MEGA.x, surf + MEGA.y, MEGA.z, sc, rec.glow);
   if (MEGA.ridden) {
     const sp = Math.hypot(MEGA.vx, MEGA.vz), tailX = MEGA.x - Math.sin(MEGA.yaw) * 1.8 * sc, tailZ = MEGA.z - Math.cos(MEGA.yaw) * 1.8 * sc;
@@ -2992,9 +3034,9 @@ function renderStable() {
   const box = document.createElement('div'); box.className = 'card'; box.style.textAlign = 'left';
   const nameRow = document.createElement('div'); nameRow.innerHTML = '<div class="lab">Name</div>'; const inp = document.createElement('input'); inp.type = 'text'; inp.maxLength = 14; inp.value = rec.name; inp.onchange = () => { rec.name = inp.value.trim().slice(0, 14) || rec.name; persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; nameRow.appendChild(inp); box.appendChild(nameRow);
   const info = document.createElement('div'); info.innerHTML = `<div class="small">${def.n} · Level ${rec.level}/10 · Speed ${megaSpeed(rec).toFixed(1)} m/s</div><div class="small" style="color:#9fe6ff">📍 Found: ${AREA_NAMES[def.area || 'any']}</div><div class="small" style="color:#ffd43b">${def.fish ? '🎣 Fishing Mega: cast your rod while riding! ' : ''}${def.seats === 2 ? '👥 2 seats: a friend can hop on behind you ' : ''}${!def.fish && def.seats !== 2 ? 'Speedy solo ride' : ''}</div><div class="lab">Level</div><div class="bar" style="width:260px"><i style="width:${rec.level >= 10 ? 100 : rec.xp / megaXpNeed(rec.level) * 100}%;background:#74c0fc"></i></div><div class="lab">Hunger</div><div class="bar" style="width:260px"><i style="width:${rec.hunger}%;background:${rec.hunger < 20 ? '#ff6b6b' : '#51cf66'}"></i></div>`; box.appendChild(info);
-  const feed = document.createElement('div'); feed.innerHTML = '<div class="lab">Feed</div>'; for (const [k, f] of Object.entries(FOODS)) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = `${f.e} ${f.n} (${save.food[k] || 0})`; b.onclick = () => { feedMega(rec, k); renderStable(); }; feed.appendChild(b); } box.appendChild(feed);
+  const feed = document.createElement('div'); feed.innerHTML = '<div class="lab">Feed</div>'; for (const [k, f] of Object.entries(FOODS)) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = `${f.e} ${f.n} (${save.food[k] || 0})`; b.onclick = () => { feedMega(rec, k); renderStable(); }; feed.appendChild(b); } if (!def.boat) box.appendChild(feed);
   const mkSw = (label, key) => { const d = document.createElement('div'); d.innerHTML = `<div class="lab">${label}</div>`; for (const c of SWATCH) { const s = document.createElement('span'); s.className = 'sw' + (rec[key].toLowerCase() === c ? ' on' : ''); s.style.background = c; s.onclick = () => { rec[key] = c; persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; d.appendChild(s); } return d; };
-  box.appendChild(mkSw('Body color', 'c1')); box.appendChild(mkSw('Glow color', 'glow'));
+  box.appendChild(mkSw('Body color', 'c1')); box.appendChild(mkSw('Glow color', 'glow')); box.appendChild(charmBox(rec));
   const tr = document.createElement('div'); tr.innerHTML = '<div class="lab">Swim trail</div>'; for (const [k, n] of Object.entries(TRAILS)) { const b = document.createElement('button'); b.className = 'opt' + (rec.trail === k ? ' on' : ''); b.textContent = n; b.onclick = () => { rec.trail = k; persist(); renderStable(); }; tr.appendChild(b); } box.appendChild(tr);
   const act = document.createElement('div'); act.style.marginTop = '8px'; const ab = document.createElement('button'); ab.textContent = rec.id === save.activeMega ? '★ Active Mega' : 'Make active'; ab.disabled = rec.id === save.activeMega; ab.onclick = () => { if (me.riding) dismountMega(); MEGA.summoned = false; save.activeMega = rec.id; persist(); buildMegaObj(); renderStable(); }; act.appendChild(ab); box.appendChild(act);
   body.appendChild(box);
@@ -3066,7 +3108,7 @@ function areaBonus() {
   if (save.maps.outer && me.z < -100 && Math.abs(me.x) < 32) { luck += .15; mega *= 1.5; }
   if (save.maps.island && Math.hypot(me.x - ISL.x, me.z - ISL.z) < ISL.r + 10) luck += .2;
   if (save.maps.cove && Math.hypot(me.x - 85, me.z + 135) < 55) { mega *= 4; luck += .1; }
-  return { luck, mega };
+  const sb = seaBonus(); return { luck: luck + sb.luck, mega: mega * sb.mega };
 }
 function makeSign(tex, w, h, x, y, z, ry, legs = true, bottomY = Y0) { // ONE side has the artwork; the back is plain brown wood; two posts stand BEHIND the board (nothing pokes through it)
   const g = new THREE.Group();
@@ -3105,6 +3147,8 @@ function buildIsland() {
   const sand = new THREE.Mesh(new THREE.CylinderGeometry(1, 1.6, 1, 56, 1, true), mat(0xe9c477)); sand.scale.set(R, Y0 + 6, R); sand.position.set(cx, (Y0 - 6) / 2, cz); scene.add(sand);
   const top = new THREE.Mesh(new THREE.CircleGeometry(R - .6, 56), new THREE.MeshToonMaterial({ map: sandTex, gradientMap: toonGrad })); top.rotation.x = -Math.PI / 2; top.position.set(cx, Y0 + .02, cz); scene.add(top);
   walkRects.push({ x0: cx - 29, x1: cx + 29, z0: cz - 14, z1: cz + 14 }, { x0: cx - 14, x1: cx + 14, z0: cz - 29, z1: cz + 29 }, { x0: cx - 22, x1: cx + 22, z0: cz - 22, z1: cz + 22 }); swimBlockers.push({ x: cx, z: cz, r: R + 2 });
+  for (let k = -R + 1; k < R; k += 3) { const zz = Math.max(Math.abs(k), Math.abs(k + 3.2)), hw = Math.sqrt(Math.max(0, (R - 1.2) ** 2 - zz * zz)); if (hw > 1) walkRects.push({ x0: cx - hw, x1: cx + hw, z0: cz + k, z1: cz + k + 3.2 }); }   // the whole beach is walkable, right down to the dock
+  walkRects.push({ x0: cx - 3, x1: cx + 3, z0: cz + R - 6, z1: cz + R });
   const foam = new THREE.Mesh(new THREE.RingGeometry(R - .5, R + 1.8, 56), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide })); foam.rotation.x = -Math.PI / 2; foam.position.set(cx, .12, cz); scene.add(foam);
   // grassy hills in the middle
   const grass = mat(0x6bbf4a), grass2 = mat(0x56a83a);
@@ -3400,7 +3444,9 @@ function updatePlaza(dt) {
 ========================================================= */
 sfx.quack = () => { tone(520, 300, .1, 'square', .07); tone(460, 260, .12, 'square', .07, .13); }; sfx.squeak = () => tone(1100, 1900, .12, 'sine', .12); sfx.whoosh = () => tone(320, 90, .13, 'sawtooth', .06); sfx.splat = () => tone(220, 60, .16, 'sawtooth', .1); sfx.thunk = () => tone(120, 50, .15, 'sine', .22);
 const HILLS = [[-24, 62, 17, 10], [6, 74, 22, 15], [34, 62, 15, 9], [-50, 52, 13, 7], [52, 54, 13, 6], [-8, 92, 16, 7], [22, 90, 14, 6], [-40, 80, 12, 5]]; // x, z, radius, height
-function terrainH(x, z) { // height of the main island everywhere (deep water = -3.2)
+var ISLE_GRID = null;
+function terrainH(x, z) { const b = terrainBase(x, z); return b > -3.19 || !ISLE_GRID ? b : islandH(x, z, b); }
+function terrainBase(x, z) { // height of the main island everywhere (deep water = -3.2)
   const dx = Math.max(-34 - x, 0, x - 34), dz = Math.max(8 - z, 0, z - 44), dR = Math.hypot(dx, dz);
   const rho = Math.sqrt((x / 62) ** 2 + ((z - 66) / 36) ** 2), dE = (rho - 1) * 38, d = Math.min(dR, dE);
   let hill = 0;
@@ -3555,6 +3601,190 @@ function updateChaos(dt) {
 ========================================================= */
 const EMOTES = [{ e: '👋', m: 'wave' }, { e: '😂', m: 'dance' }, { e: '🕺', m: 'dance' }, { e: '💪', m: 'wave' }, { e: '❤️', m: 'wave' }, { e: '😎', m: 'idle' }, { e: '🎉', m: 'dance' }, { e: '🤯', m: 'dance' }];
 const emojiTexCache = {}; const emojiTex = e => emojiTexCache[e] || (emojiTexCache[e] = canvasTex(128, 128, g => { g.font = '96px "Apple Color Emoji","Segoe UI Emoji",sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.fillText(e, 64, 70); }));
+
+/* =========================================================
+   THE OPEN SEA: islands to discover, fishing hot spots, wandering creatures, message bottles,
+   secret caves, boats, Mega charms, a compass and a world map.
+========================================================= */
+const mulberry = a => () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const OSEA = { isles: [], spots: [], cre: [], bot: [], t: 0, navT: 0, toastT: 0, spotIn: null };
+const CHARMS = {
+  land: { n: 'Land Walker', e: '🦵', d: 'Your Mega can leave the water and walk around on land.', price: 250000, w: 1 },
+  rod: { n: 'Angler Saddle', e: '🎣', d: 'Lets you fish while riding ANY Mega.', price: 150000, w: 2 },
+  swift: { n: 'Swift Charm', e: '💨', d: 'Your Mega swims 30% faster.', price: 120000, w: 3 },
+  leap: { n: 'Leap Charm', e: '🦘', d: 'Your Mega leaps much higher.', price: 80000, w: 3 },
+  lucky: { n: 'Lucky Charm', e: '🍀', d: '+12% fish luck while you ride.', price: 200000, w: 2 },
+  buddy: { n: 'Buddy Seat', e: '👥', d: 'Adds a second seat to a one-seat Mega (for your own ride).', price: 180000, w: 2 }
+};
+const charmSlots = rec => 2 + (rec.level >= 5 ? 1 : 0) + (rec.level >= 10 ? 1 : 0);
+const megaHas = id => !!(MEGA.rec && MEGA.rec.ch && MEGA.rec.ch.includes(id));
+function grantCharm(id) { if (!id) { let t = 0; for (const k in CHARMS) t += CHARMS[k].w; let r = Math.random() * t; for (const k in CHARMS) { r -= CHARMS[k].w; if (r <= 0) { id = k; break; } } } save.charms[id] = (save.charms[id] || 0) + 1; toast(`🔮 You found a charm: ${CHARMS[id].e} ${CHARMS[id].n}! Equip it in the Mega Stable (M).`, 4200, '#d9a8ff'); persist(); return id; }
+const compassDir = (dx, dz) => ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'][((Math.round(Math.atan2(dx, -dz) / (TAU / 8)) % 8) + 8) % 8];
+const gCy = (m, a, b, r, par = scene) => { const A = V3(a[0], a[1], a[2]), v = V3(b[0], b[1], b[2]).sub(A), len = v.length(), o = new THREE.Mesh(FCYL, m); o.position.copy(A).addScaledVector(v, .5); o.quaternion.setFromUnitVectors(UPV, v.normalize()); o.scale.set(r, len, r); par.add(o); return o; };
+const gCn = (m, p, r, len, dir, par = scene) => { const o = new THREE.Mesh(FCONE, m), v = V3(dir[0], dir[1], dir[2]).normalize(); o.position.set(p[0] + v.x * len / 2, p[1] + v.y * len / 2, p[2] + v.z * len / 2); o.quaternion.setFromUnitVectors(UPV, v); o.scale.set(r, len, r); par.add(o); return o; };
+const gEl = (m, p, s, par = scene) => { const o = new THREE.Mesh(FSPH, m); o.position.set(p[0], p[1], p[2]); o.scale.set(s[0], s[1], s[2]); par.add(o); return o; };
+const disposeTree = g => { g.traverse(o => { if (o.geometry && o.geometry !== FSPH && o.geometry !== FCONE && o.geometry !== FCYL) o.geometry.dispose(); }); };
+/* ---- islands ---- */
+const ISLE_NAMES = [['Coconut', 'Sunny', 'Mystic', 'Whisper', 'Sleepy', 'Golden', 'Shark', 'Pirate', 'Crystal', 'Misty', 'Lucky', 'Stormy', 'Emerald', 'Moonlit', 'Hidden', 'Silver', 'Lazy', 'Salty', 'Rainbow', 'Dragon'], ['Cay', 'Isle', 'Atoll', 'Key', 'Haven', 'Point', 'Island', 'Shoals', 'Rock', 'Hideout']];
+function shapeR(I, dx, dz) { const a = Math.atan2(dz, dx); return I.r * (1 + .1 * Math.sin(a * 3 + I.seed) + .06 * Math.sin(a * 5 - I.seed * 2)); }
+function isleH(I, x, z) {
+  const dx = x - I.x, dz = z - I.z, d = Math.hypot(dx, dz), rr = shapeR(I, dx, dz); if (d >= rr) return -3.2;
+  const u = d / rr, plat = Y0 + .012, wob = .8 + .2 * Math.sin(x * .09 + I.seed) * Math.sin(z * .07 - I.seed), top = plat + I.hill * Math.pow(Math.max(0, 1 - u / .6), 1.3) * wob;
+  if (u < .68) return top; const t = THREE.MathUtils.smoothstep(u, .68, 1); return plat + (-3.2 - plat) * t;
+}
+function islandH(x, z, b) { const list = ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return b; let h = b; for (const I of list) { const v = isleH(I, x, z); if (v > h) h = v; } return h; }
+function isleAt(x, z) { const list = ISLE_GRID && ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return null; for (const I of list) if (isleH(I, x, z) > .3) return I; return null; }
+function genOpenSea() {
+  const R = mulberry(20261103), fixed = [[0, 0, 320], [ISL.x, ISL.z, 120], [85, -135, 140], [LAVA.x, LAVA.z, 420], [STORM.x, STORM.z, 420]].concat(NEWW.map(w => [w.x, w.z, 420]));
+  const clear = (x, z, m) => fixed.every(f => Math.hypot(x - f[0], z - f[1]) > f[2] + m);
+  for (let tries = 0; OSEA.isles.length < 72 && tries < 6000; tries++) {
+    const x = (R() * 2 - 1) * (WORLD_H - 260), z = -WORLD_H + 260 + R() * (WORLD_H - 520), big = R() < .12, r = big ? 70 + R() * 50 : 24 + R() * 40;
+    if (!clear(x, z, r) || OSEA.isles.some(q => Math.hypot(q.x - x, q.z - z) < q.r + r + 160)) continue;
+    const biome = x < -2800 ? 'snow' : x > 2800 ? 'volcanic' : z < -3700 ? (R() < .5 ? 'rock' : 'volcanic') : R() < .55 ? 'tropic' : R() < .6 ? 'jungle' : 'rock';
+    const nm = ISLE_NAMES[0][(R() * 20) | 0] + ' ' + ISLE_NAMES[1][(R() * 10) | 0], dup = OSEA.isles.filter(q => q.name.startsWith(nm)).length;
+    OSEA.isles.push({ id: 'i' + OSEA.isles.length, x, z, r, biome, name: dup ? nm + ' ' + (dup + 1) : nm, hill: big ? 1.8 + R() * 1.6 : .5 + R() * 1.1, seed: R() * 100, secret: R() < .17, dig: [], g: null });
+  }
+  for (const I of OSEA.isles) { const n = I.r > 55 ? 3 : I.r > 35 ? 2 : 1; for (let k = 0; k < n; k++) { const a = R() * TAU, d = I.r * (.18 + R() * .35); I.dig.push({ x: I.x + Math.cos(a) * d, z: I.z + Math.sin(a) * d }); } if (I.secret) { const a = R() * TAU; I.sec = { x: I.x + Math.cos(a) * I.r * .3, z: I.z + Math.sin(a) * I.r * .3 }; } }
+  const types = ['whirlpool', 'wreck', 'reef', 'kelp', 'school', 'reef', 'school', 'wreck'];
+  for (let tries = 0; OSEA.spots.length < 110 && tries < 6000; tries++) {
+    const x = (R() * 2 - 1) * (WORLD_H - 200), z = -WORLD_H + 200 + R() * (WORLD_H - 230), r = 14 + R() * 10;
+    if (Math.hypot(x, z + 60) < 260 || !clear(x, z, r + 60) || OSEA.isles.some(q => Math.hypot(q.x - x, q.z - z) < q.r * 1.3 + r + 40) || OSEA.spots.some(q => Math.hypot(q.x - x, q.z - z) < 90)) continue;
+    OSEA.spots.push({ id: 's' + OSEA.spots.length, x, z, r, type: types[OSEA.spots.length % types.length], seed: R() * 50, g: null });
+  }
+  ISLE_GRID = new Map(); for (const I of OSEA.isles) { const m = I.r * 1.25; for (let cx = Math.floor((I.x - m) / 400); cx <= Math.floor((I.x + m) / 400); cx++) for (let cz = Math.floor((I.z - m) / 400); cz <= Math.floor((I.z + m) / 400); cz++) { const k = cx + ',' + cz; if (!ISLE_GRID.has(k)) ISLE_GRID.set(k, []); ISLE_GRID.get(k).push(I); } }
+}
+function buildIsle(I) {
+  const g = new THREE.Group(); g.position.set(I.x, 0, I.z); const R = mulberry((I.seed * 1000) | 0), seg = Math.min(64, Math.max(28, Math.round(I.r / 1.4))), S = I.r * 2.6, plat = Y0 + .012;
+  const geo = new THREE.PlaneGeometry(S, S, seg, seg); geo.rotateX(-Math.PI / 2); const P = geo.attributes.position, cols = new Float32Array(P.count * 3), tmp = new THREE.Color();
+  const grass = { tropic: '#5fc15a', jungle: '#2f8f4a', snow: '#f4fbff', volcanic: '#3a3238', rock: '#8d8a95' }[I.biome], sand = { snow: '#cfeaff', volcanic: '#2a2426', rock: '#b9b4a8' }[I.biome] || '#f2dca0', top = { snow: '#ffffff', volcanic: '#55473f', rock: '#a9a6b2', tropic: '#4aa84a', jungle: '#1f6f38' }[I.biome];
+  for (let i = 0; i < P.count; i++) { const wx = I.x + P.getX(i), wz = I.z + P.getZ(i), y = isleH(I, wx, wz); P.setY(i, y); const u = Math.hypot(wx - I.x, wz - I.z) / I.r; tmp.set(y < plat + .2 || u > .56 ? sand : grass); if (y > plat + I.hill * .55) tmp.lerp(new THREE.Color(top), .7); const n = .94 + .06 * Math.sin(wx * .5) * Math.sin(wz * .45); tmp.multiplyScalar(n); cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b; }
+  geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals(); g.add(new THREE.Mesh(geo, new THREE.MeshToonMaterial({ vertexColors: true, gradientMap: toonGrad })));
+  const at = (u0, u1) => { const a = R() * TAU, d = I.r * (u0 + R() * (u1 - u0)), x = Math.cos(a) * d, z = Math.sin(a) * d; return [x, isleH(I, I.x + x, I.z + z), z]; }, nT = Math.round(I.r / (I.biome === 'rock' ? 7 : 5));
+  const trunk = tm('#8a5a2e'), green = tm('#3fbf4a');
+  for (let i = 0; i < nT; i++) {
+    const [x, y, z] = at(.12, .56); if (y < plat + .1) continue;
+    if (I.biome === 'tropic') { const lean = R() * .6 - .3, h = 4 + R() * 3; gCy(trunk, [x, y, z], [x + lean * 2, y + h, z], .22, g); for (let k = 0; k < 6; k++) { const a = k / 6 * TAU; gCn(green, [x + lean * 2, y + h, z], .3, 2.6, [Math.cos(a), -.35, Math.sin(a)], g); } if (R() < .5) gEl(tm('#5a3a1a'), [x + lean * 2, y + h - .3, z + .2], [.25, .25, .25], g); }
+    else if (I.biome === 'jungle') { const h = 3 + R() * 3; gCy(trunk, [x, y, z], [x, y + h, z], .3, g); gEl(tm(i % 2 ? '#2f8f4a' : '#3fa84a'), [x, y + h + 1.2, z], [2.2 + R(), 1.8 + R() * .6, 2.2 + R()], g); }
+    else if (I.biome === 'snow') { const h = 3 + R() * 3; gCy(trunk, [x, y, z], [x, y + 1, z], .25, g); for (let k = 0; k < 3; k++) gCn(tm(k === 2 ? '#e8f6ff' : '#2f6f4a'), [x, y + 1 + k * h * .28, z], 1.9 - k * .5, h * .5, [0, 1, 0], g); }
+    else if (I.biome === 'volcanic') { gCn(tm('#2a2426'), [x, y - .2, z], .8 + R(), 2 + R() * 3, [R() * .3, 1, R() * .3], g); if (R() < .35) { gEl(gmat('#ff8a1a', 1.8), [x, y + .1, z + .3], [.25, .1, .25], g); } }
+    else { const o = new THREE.Mesh(new THREE.DodecahedronGeometry(1), tm(['#8d8a95', '#6f6c7a', '#a9a6b2'][i % 3])); o.scale.set(1 + R() * 2.2, 1 + R() * 3.2, 1 + R() * 2.2); o.position.set(x, y + .5, z); o.rotation.set(R(), R(), R()); g.add(o); }
+  }
+  if (I.biome === 'volcanic') { gCn(tm('#3a2e30'), [0, plat, 0], I.r * .26, I.r * .3, [0, 1, 0], g); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(2.4, .9, .15), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true })); gl.scale.setScalar(I.r * .5); gl.position.set(0, plat + I.r * .3 + 1, 0); g.add(gl); }
+  if (I.biome === 'snow') { const [x, y, z] = at(.1, .3); gEl(tm('#ffffff'), [x, y + .7, z], [.9, .9, .9], g); gEl(tm('#ffffff'), [x, y + 1.7, z], [.65, .65, .65], g); gEl(tm('#ffffff'), [x, y + 2.4, z], [.45, .45, .45], g); gCn(tm('#ff8a1a'), [x + .4, y + 2.4, z], .1, .5, [1, -.1, 0], g); gEl(tm('#111111'), [x + .3, y + 2.55, z + .15], [.06, .06, .06], g); gEl(tm('#111111'), [x + .3, y + 2.55, z - .15], [.06, .06, .06], g); }
+  for (const d of I.dig) if (!save.isles[I.id + d.x.toFixed(0)]) { gCy(tm('#8a5a2e'), [d.x - I.x, isleH(I, d.x, d.z), d.z - I.z], [d.x - I.x, isleH(I, d.x, d.z) + 1.0, d.z - I.z], .06, g); }
+  if (I.sec) { const sx = I.sec.x - I.x, sz = I.sec.z - I.z, sy = isleH(I, I.sec.x, I.sec.z), st = tm('#6a5a8a'); gCy(st, [sx - 1.6, sy, sz], [sx - 1.6, sy + 3.6, sz], .45, g); gCy(st, [sx + 1.6, sy, sz], [sx + 1.6, sy + 3.6, sz], .45, g); gCy(st, [sx - 2.1, sy + 3.7, sz], [sx + 2.1, sy + 3.7, sz], .5, g); const dsc = new THREE.Mesh(new THREE.CircleGeometry(1.5, 24), new THREE.MeshBasicMaterial({ color: new THREE.Color(1.2, .5, 2.2), transparent: true, opacity: .75, side: THREE.DoubleSide })); dsc.position.set(sx, sy + 1.9, sz); g.add(dsc); I.secMesh = dsc; }
+  const tag = tagSprite(I.name); tag.position.set(0, Y0 + 11 + I.hill * 2, 0); g.add(tag);
+  scene.add(g); I.g = g;
+}
+/* ---- fishing hot spots ---- */
+const SPOT_INFO = { whirlpool: { n: 'Whirlpool', e: '🌀', luck: .4, mega: 3, d: 'EPIC luck and triple Mega chance!' }, wreck: { n: 'Shipwreck', e: '🚢', luck: .25, mega: 1.5, d: 'Rich fishing around old treasure.' }, reef: { n: 'Coral Reef', e: '🪸', luck: .18, mega: 1, d: 'Colorful reef full of rare fish.' }, kelp: { n: 'Kelp Forest', e: '🌿', luck: .12, mega: 1.2, d: 'Fish hide in the kelp.' }, school: { n: 'Fish School', e: '🐟', luck: .3, mega: 1, d: 'A shimmering school: great luck!' } };
+function buildSpot(S) {
+  const g = new THREE.Group(); g.position.set(S.x, 0, S.z); const R = mulberry((S.seed * 977) | 0); S.anim = [];
+  if (S.type === 'whirlpool') { const t = canvasTex(256, 256, c => { c.fillStyle = '#0a4a7a'; c.fillRect(0, 0, 256, 256); for (let k = 0; k < 4; k++) { c.strokeStyle = k % 2 ? '#bfeaff' : '#2fa8e8'; c.lineWidth = 7; c.beginPath(); for (let a = 0; a < 14; a += .1) { const r = 6 + a * 8.5, ang = a + k * 1.57; c.lineTo(128 + Math.cos(ang) * r, 128 + Math.sin(ang) * r); } c.stroke(); } }); const m = new THREE.Mesh(new THREE.CircleGeometry(S.r, 40), new THREE.MeshBasicMaterial({ map: t, transparent: true, opacity: .85, depthWrite: false })); m.rotation.x = -Math.PI / 2; m.position.y = .2; g.add(m); S.anim.push(dt => { m.rotation.z -= dt * 1.2; }); }
+  else if (S.type === 'wreck') { const wood = tm('#5a3a22'), wd2 = tm('#3a2414'); const hull = gEl(wood, [0, .1, 0], [2.4, 1.3, 7], g); hull.rotation.z = .35; hull.rotation.x = .12; for (let k = 0; k < 6; k++) gCy(wd2, [-1.6 + k * .1, .4, -4 + k * 1.5], [-1.6, 2.6 + (k % 2) * .6, -4 + k * 1.5], .1, g); gCy(wd2, [0, .6, 0], [.8, 6, 1.2], .22, g); gEl(tm('#d8c8a8'), [1.4, 4.4, 1.6], [.05, 1.2, 1.4], g); const ch = tm('#c9a24a'); gEl(ch, [3.2, .25, 2], [.6, .4, .45], g); gEl(gmat('#ffd43b', 1.8), [3.2, .65, 2], [.3, .08, .25], g); }
+  else if (S.type === 'reef') { const cs = ['#ff6bb8', '#ff9a3a', '#b04dff', '#ffd43b', '#4dffc4']; for (let k = 0; k < 18; k++) { const a = R() * TAU, d = R() * S.r * .85, x = Math.cos(a) * d, z = Math.sin(a) * d, c = tm(cs[k % 5]); if (k % 3 === 0) gEl(c, [x, .25, z], [1.0 + R(), .7, 1.0 + R()], g); else for (let b = 0; b < 4; b++) gCn(c, [x + (b - 1.5) * .25, 0, z], .22, .8 + R() * 1.1, [R() * .5 - .25, 1, R() * .5 - .25], g); } }
+  else if (S.type === 'kelp') { const m = tm('#2f9e4a', { side: THREE.DoubleSide }); for (let k = 0; k < 34; k++) { const a = R() * TAU, d = R() * S.r * .9, c = gCn(m, [Math.cos(a) * d, -.4, Math.sin(a) * d], .16, 2.4 + R() * 2.6, [0, 1, 0], g); c.userData.ph = R() * 6; S.anim.push((dt, t) => { c.rotation.z = Math.sin(t * 1.4 + c.userData.ph) * .18; }); } }
+  else { const fs = []; const pool = FISH.filter(f => f.r < 3 && f.shape !== 4); for (let k = 0; k < 16; k++) { const f = makeFish3D(pool[(R() * pool.length) | 0]); f.scale.setScalar(.55); g.add(f); fs.push({ f, a: R() * TAU, r: S.r * (.25 + R() * .5), s: .6 + R() * .5, y: .1 + R() * .5 }); } S.anim.push((dt, t) => { for (const q of fs) { q.a += dt * q.s; q.f.position.set(Math.cos(q.a) * q.r, q.y + Math.sin(t * 2 + q.a * 3) * .08 + waveH(S.x, S.z, t) + .2, Math.sin(q.a) * q.r); q.f.rotation.y = -q.a - Math.PI / 2 * 0; } }); }
+  const info = SPOT_INFO[S.type], tag = tagSprite(info.e + ' ' + info.n); tag.position.set(0, 4.5, 0); g.add(tag); const bub = new THREE.Mesh(new THREE.RingGeometry(S.r * .96, S.r * 1.06, 40), new THREE.MeshBasicMaterial({ color: new THREE.Color(.6, 1.6, 2), transparent: true, opacity: .45, depthWrite: false, side: THREE.DoubleSide })); bub.rotation.x = -Math.PI / 2; bub.position.y = .22; g.add(bub);
+  scene.add(g); S.g = g;
+}
+const spotAt = (x, z) => { for (const S of OSEA.spots) { const dx = x - S.x, dz = z - S.z; if (dx * dx + dz * dz < S.r * S.r) return S; } return null; };
+/* ---- creatures, bottles ---- */
+function spawnCre() {
+  const a = Math.random() * TAU, d = 220 + Math.random() * 300, x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d; if (!isWater(x, z, 8) || Math.abs(x) > WORLD_H - 80 || z < -WORLD_H + 80) return;
+  const pool = []; MEGAS.forEach((m, i) => { if (!m.boat) pool.push(i); }); const def = MEGAS[pool[(Math.random() * pool.length) | 0]], o = makeMega(def, def.c1, def.glow, 1), sc = def.size * (.9 + Math.random() * .8); o.scale.setScalar(sc); o.position.set(x, 0, z); scene.add(o);
+  OSEA.cre.push({ o, def, x, z, yaw: Math.random() * TAU, sp: (2.2 + Math.random() * 2.5) * def.spd, sc, t: Math.random() * 9, leap: 6 + Math.random() * 14, y: 0, vy: 0 });
+}
+function spawnBottle() {
+  const a = Math.random() * TAU, d = 50 + Math.random() * 200, x = me.x + Math.cos(a) * d, z = me.z + Math.sin(a) * d; if (!isWater(x, z, 4)) return;
+  const g = new THREE.Group(); gCy(tm('#bfeaff', GLASS(.7)), [0, 0, 0], [0, .5, 0], .18, g); gCy(tm('#bfeaff', GLASS(.7)), [0, .5, 0], [0, .75, 0], .08, g); gEl(tm('#c9a36a'), [0, .8, 0], [.1, .08, .1], g); gEl(tm('#f4e8c0'), [0, .25, 0], [.1, .22, .1], g); const gl = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(1.6, 1.4, .6), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .8 })); gl.scale.setScalar(2.6); gl.position.y = .4; g.add(gl); g.scale.setScalar(1.6); g.position.set(x, 0, z); scene.add(g); OSEA.bot.push({ g, x, z, t: Math.random() * 6 });
+}
+function bottleReward() {
+  const r = Math.random(); sfx.chest(); confetti(me.x, me.y + 1, me.z, 30);
+  if (r < .32) { const g = Math.round((1500 + save.level * 600) * (.7 + Math.random() * 1.2) / 10) * 10; save.gold += g; toast(`🍾 A message in a bottle: "Take my savings!" +$${g.toLocaleString()}`, 4200, '#ffd43b'); }
+  else if (r < .5) { save.bait.glitter = (save.bait.glitter || 0) + 6; toast('🍾 Inside: 6 Glitter Lures!', 3200, '#ffd43b'); }
+  else if (r < .62) { save.bait.mega = (save.bait.mega || 0) + 1; toast('🍾 Inside: a Mega Lure!', 3200, '#ff8ad8'); }
+  else if (r < .78) grantCharm();
+  else { const un = OSEA.isles.filter(I => !save.found[I.id]).sort((a, b) => (b.secret && !save.secrets[b.id] ? 1 : 0) - (a.secret && !save.secrets[a.id] ? 1 : 0) || Math.hypot(a.x - me.x, a.z - me.z) - Math.hypot(b.x - me.x, b.z - me.z))[0]; if (un) { const dx = un.x - me.x, dz = un.z - me.z; toast(`📜 A treasure note: "${un.name} lies ${compassDir(dx, dz)}, about ${Math.round(Math.hypot(dx, dz))} steps away${un.secret && !save.secrets[un.id] ? '. A glowing stone hides there...' : '.'}"`, 7000, '#ffe9a8'); } else { save.gold += 5000; toast('📜 You found everything! +$5,000 for your trouble.', 3000, '#ffd43b'); } }
+  persist();
+}
+/* ---- updates ---- */
+function updateOpenSea(dt) {
+  if (!started) return; OSEA.t += dt; const t = time;
+  for (const S of OSEA.spots) if (S.g) for (const f of S.anim) f(dt, t);
+  if (OSEA.isles.some(I => I.secMesh)) for (const I of OSEA.isles) if (I.secMesh && I.g) I.secMesh.material.opacity = .6 + Math.sin(t * 3) * .2;
+  const cap = TOUCH ? 4 : 6; OSEA.toastT -= dt;
+  for (let i = OSEA.cre.length - 1; i >= 0; i--) {
+    const c = OSEA.cre[i]; c.t += dt; c.yaw += Math.sin(c.t * .23) * dt * .5; let nx = c.x + Math.sin(c.yaw) * c.sp * dt, nz = c.z + Math.cos(c.yaw) * c.sp * dt;
+    if (!isWater(nx, nz, 6) || Math.abs(nx) > WORLD_H - 50 || nz < -WORLD_H + 50) { c.yaw += Math.PI * .6; nx = c.x; nz = c.z; } c.x = nx; c.z = nz;
+    c.leap -= dt; if (c.leap <= 0 && c.y <= 0) { c.vy = 9 + Math.random() * 3; c.leap = 8 + Math.random() * 16; if (Math.hypot(c.x - me.x, c.z - me.z) < 260) splash(c.x, .1, c.z, 20, 4); }
+    if (c.y > 0 || c.vy > 0) { c.vy -= 20 * dt; c.y += c.vy * dt; if (c.y <= 0) { c.y = 0; c.vy = 0; if (Math.hypot(c.x - me.x, c.z - me.z) < 260) { splash(c.x, .1, c.z, 30, 5); ripple(c.x, c.z); sfx.splashS(); } } }
+    c.o.position.set(c.x, waveH(c.x, c.z, t) + .15 + c.y, c.z); c.spin = c.y > .4 ? Math.min(TAU, (c.spin || 0) + dt * 7) : 0; c.o.rotation.set(-clamp(c.vy * .05, -.5, .5), c.yaw, ['dolphin', 'koi', 'shark', 'ray', 'whale', 'narwhal', 'serpent'].includes(c.def.shape) ? c.spin : 0); animateMega(c.o, t, c.sp, c.y > .4 ? 1 : 0);
+    if (Math.hypot(c.x - me.x, c.z - me.z) > 700) { scene.remove(c.o); disposeTree(c.o); OSEA.cre.splice(i, 1); }
+  }
+  for (let i = OSEA.bot.length - 1; i >= 0; i--) { const b = OSEA.bot[i]; b.t += dt; b.g.position.set(b.x, waveH(b.x, b.z, t) + .1, b.z); b.g.rotation.z = Math.sin(b.t * 1.5) * .35; b.g.rotation.y += dt * .5; const d = Math.hypot(b.x - me.x, b.z - me.z); if (d < 3.6 && (me.swim || me.riding) && ui === 'play') { scene.remove(b.g); OSEA.bot.splice(i, 1); bottleReward(); } else if (d > 420) { scene.remove(b.g); OSEA.bot.splice(i, 1); } }
+  OSEA.navT -= dt; if (OSEA.navT > 0) return; OSEA.navT = .5;
+  if (OSEA.cre.length < cap && Math.random() < .5) spawnCre(); if (OSEA.bot.length < 5 && Math.random() < .5) spawnBottle();
+  for (const I of OSEA.isles) {
+    const d = Math.hypot(I.x - me.x, I.z - me.z);
+    if (!I.g && d < 1000) buildIsle(I); else if (I.g && d > 1500) { scene.remove(I.g); disposeTree(I.g); I.g = null; I.secMesh = null; }
+    if (d < I.r + 50 && !save.found[I.id]) { save.found[I.id] = 1; const g = Math.round(I.r * 90); save.gold += g; sfx.lvl(); confetti(me.x, me.y + 1, me.z, 40); toast(`🏝️ DISCOVERED ${I.name.toUpperCase()}! +$${g.toLocaleString()}${I.secret ? ' · something glows here...' : ''}`, 5000, '#ffd43b'); persist(); }
+    if (I.sec && !save.secrets[I.id] && Math.hypot(I.sec.x - me.x, I.sec.z - me.z) < 3.4 && !me.swim) { save.secrets[I.id] = 1; sfx.lvl(); confetti(me.x, me.y + 1, me.z, 80); const g = 20000 + Math.round(I.r * 400); save.gold += g; toast(`🗝️ SECRET CAVE FOUND on ${I.name}! +$${g.toLocaleString()}`, 5200, '#d9a8ff'); grantCharm(Math.random() < .5 ? 'land' : Math.random() < .5 ? 'rod' : 'lucky'); if (I.secMesh) { I.g.remove(I.secMesh); I.secMesh = null; } persist(); }
+  }
+  let inSpot = null; for (const S of OSEA.spots) { const d = Math.hypot(S.x - me.x, S.z - me.z); if (!S.g && d < 800) buildSpot(S); else if (S.g && d > 1200) { scene.remove(S.g); disposeTree(S.g); S.g = null; } if (d < S.r + 10) inSpot = S; }
+  if (inSpot && inSpot !== OSEA.spotIn && OSEA.toastT <= 0) { const i = SPOT_INFO[inSpot.type]; toast(`${i.e} ${i.n}! ${i.d}`, 3200, '#7bf0ff'); OSEA.toastT = 20; save.spotsSeen[inSpot.id] = 1; } OSEA.spotIn = inSpot;
+  const nav = $('navHud'); if (nav) { const pd = Math.hypot(me.x, me.z + 20), dir = compassDir(-me.x, -me.z - 20); nav.textContent = pd < 90 ? '' : `🧭 Pier: ${Math.round(pd)} steps ${dir}   ·   [P] world map`; }
+}
+function seaBonus() {
+  let luck = 0, mega = 1, tx = F.state !== 'idle' ? F.tx : me.x, tz = F.state !== 'idle' ? F.tz : me.z;
+  const S = spotAt(tx, tz); if (S) { const i = SPOT_INFO[S.type]; luck += i.luck; mega *= i.mega; }
+  luck += clamp(Math.hypot(tx, tz + 20) / 9000, 0, .4);   // the farther from home, the better the fish
+  if (me.riding && megaHas('lucky')) luck += .12; return { luck, mega };
+}
+/* ---- boats ---- */
+MEGAS.push(
+  { n: 'Row Boat', shape: 'boat', c1: '#8a5a2e', c2: '#e8d8b0', glow: '#9fe6ff', size: 1.3, spd: 1.9, e: '🚣', w: 0, val: 30000, seats: 2, fish: true, area: 'boat', boat: true, price: 60000 },
+  { n: 'Speedboat', shape: 'boat', c1: '#e53935', c2: '#ffffff', glow: '#ffd43b', size: 1.3, spd: 3.3, e: '🚤', w: 0, val: 200000, seats: 2, fish: true, area: 'boat', boat: true, price: 400000 },
+  { n: 'Sail Yacht', shape: 'boat', c1: '#2f7bff', c2: '#fff7e0', glow: '#bfe3ff', size: 1.5, spd: 4.4, e: '⛵', w: 0, val: 1000000, seats: 2, fish: true, area: 'boat', boat: true, price: 2000000 },
+  { n: 'Hover Ship', shape: 'boat', c1: '#3a2a7a', c2: '#7bf0ff', glow: '#7bf0ff', size: 1.5, spd: 6.2, e: '🛸', w: 0, val: 5000000, seats: 2, fish: true, area: 'boat', boat: true, price: 10000000 }
+);
+Object.assign(AREA_NAMES, { boat: 'the Boat Shop' });
+function megaShopExtras() {
+  const wrap = document.createElement('div');
+  const hdr = t => { const d = document.createElement('div'); d.className = 'sub'; d.style.marginTop = '14px'; d.innerHTML = t; wrap.appendChild(d); };
+  hdr('<b>⛵ BOATS</b>: sail across the giant sea fast, fish from the deck, and carry a friend. They never get hungry.');
+  MEGAS.forEach((def, idx) => { if (!def.boat) return; const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:460px'; d.innerHTML = `<b>${def.e} ${def.n}</b><div class="small">Speed ×${def.spd} · 2 seats · you can fish while riding</div>`; const owned = save.megas.some(m => m.sp === idx), b = document.createElement('button'); b.className = 'opt'; if (owned) { b.textContent = 'Owned ✓'; b.disabled = true; } else { b.textContent = `Buy $${def.price.toLocaleString()}`; b.disabled = save.gold < def.price; b.onclick = () => { if (save.gold < def.price) return; save.gold -= def.price; const rec = { id: 'm' + Date.now(), sp: idx, name: def.n, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'bubble' }; save.megas.push(rec); save.activeMega = rec.id; MEGA.summoned = false; persist(); buildMegaObj(); sfx.lvl(); toast(`${def.e} Your new ${def.n} is ready! Face the water and press G.`, 4200, '#ffd43b'); renderMarket(); }; } d.appendChild(b); wrap.appendChild(d); });
+  hdr('<b>🔮 CHARMS</b>: equip them on a Mega in the Stable (M). Slots: 2, +1 at level 5, +1 at level 10. You can also find them in bottles, island chests and secret caves.');
+  for (const [id, c] of Object.entries(CHARMS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:460px'; d.innerHTML = `<b>${c.e} ${c.n}</b> (you have ${save.charms[id] || 0})<div class="small">${c.d}</div>`; const b = document.createElement('button'); b.className = 'opt'; b.textContent = `Buy $${c.price.toLocaleString()}`; b.disabled = save.gold < c.price; b.onclick = () => { if (save.gold < c.price) return; save.gold -= c.price; save.charms[id] = (save.charms[id] || 0) + 1; persist(); sfx.good(); renderMarket(); }; d.appendChild(b); wrap.appendChild(d); }
+  return wrap;
+}
+function charmBox(rec) {
+  const d = document.createElement('div'); rec.ch = rec.ch || []; const slots = charmSlots(rec); d.innerHTML = `<div class="lab">Charms (${rec.ch.length}/${slots})</div>`;
+  for (const id of rec.ch) { const b = document.createElement('button'); b.className = 'opt on'; b.textContent = `${CHARMS[id].e} ${CHARMS[id].n} ✕`; b.title = CHARMS[id].d; b.onclick = () => { rec.ch = rec.ch.filter(x => x !== id); save.charms[id] = (save.charms[id] || 0) + 1; persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; d.appendChild(b); }
+  for (const [id, c] of Object.entries(CHARMS)) if ((save.charms[id] || 0) > 0) { const b = document.createElement('button'); b.className = 'opt'; b.textContent = `${c.e} ${c.n} (${save.charms[id]})`; b.title = c.d; b.disabled = rec.ch.length >= slots || rec.ch.includes(id); b.onclick = () => { save.charms[id]--; rec.ch.push(id); persist(); if (MEGA.rec === rec) buildMegaObj(); renderStable(); }; d.appendChild(b); }
+  const s = document.createElement('div'); s.className = 'small'; s.textContent = 'Tap a charm to equip. Tap an equipped one to take it off.'; d.appendChild(s); return d;
+}
+/* ---- world map ---- */
+function drawMap() {
+  const c = $('mapCv'), g = c.getContext('2d'), N = c.width, sc = N / (WORLD_H * 2), px = x => (x + WORLD_H) * sc, pz = z => (z + WORLD_H) * sc;
+  g.fillStyle = '#0d5a8c'; g.fillRect(0, 0, N, N); g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * N / 10, 0); g.lineTo(i * N / 10, N); g.moveTo(0, i * N / 10); g.lineTo(N, i * N / 10); g.stroke(); }
+  g.fillStyle = '#ffe39a'; g.beginPath(); g.arc(px(0), pz(30), 6, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('🏠 Pier', px(0), pz(30) - 9);
+  const wl = [[LAVA, 'lava', '🌋', 'Lava'], [STORM, 'storm', '⚡', 'Lightning']].concat(NEWW.map(w => [w, w.id, w.e, w.n.replace(' World', '')])); for (const [w, id, e, n] of wl) { const own = save.maps[id]; g.fillStyle = own ? '#ffd43b' : '#5a7a99'; g.beginPath(); g.arc(px(w.x), pz(w.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText(own ? `${e} ${n}` : '?', px(w.x), pz(w.z) - 8); }
+  for (const I of OSEA.isles) if (save.found[I.id]) { g.fillStyle = { snow: '#e8f6ff', volcanic: '#ff8a4a', rock: '#c9c6d2', tropic: '#7be07a', jungle: '#3fb860' }[I.biome]; g.beginPath(); g.arc(px(I.x), pz(I.z), Math.max(3, I.r * sc), 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = '10px sans-serif'; g.fillText(I.name + (I.secret ? (save.secrets[I.id] ? ' 🗝️✓' : ' ✨') : ''), px(I.x), pz(I.z) - 7); }
+  for (const S of OSEA.spots) if (save.spotsSeen[S.id]) { g.font = '12px sans-serif'; g.fillText(SPOT_INFO[S.type].e, px(S.x), pz(S.z) + 4); }
+  g.save(); g.translate(px(me.x), pz(me.z)); g.rotate(-me.yaw + Math.PI); g.fillStyle = '#ff4d6d'; g.strokeStyle = '#fff'; g.lineWidth = 2; g.beginPath(); g.moveTo(0, -10); g.lineTo(7, 8); g.lineTo(0, 4); g.lineTo(-7, 8); g.closePath(); g.fill(); g.stroke(); g.restore();
+  $('mapInfo').textContent = `Discovered ${Object.keys(save.found).length}/${OSEA.isles.length} islands · ${Object.keys(save.secrets).length} secrets · you are ${Math.round(Math.hypot(me.x, me.z + 20))} steps from the pier`;
+}
+function openMap() { if (ui !== 'play') return; setUI('map'); drawMap(); }
+function closeMap() { setUI('play'); lockPointer(); }
+function warpHome() {
+  if (me.riding) dismountMega(); if (me.passenger) leavePassenger(); MEGA.summoned = false; if (MEGA.obj) MEGA.obj.visible = false; if (MEGA.tag) MEGA.tag.visible = false; if (F.state !== 'idle') resetFishing();
+  worldFx.portalCool = 0; setUI('play'); lockPointer(); warpTo({ x: 0, z: 14, yaw: Math.PI }, 'the pier');
+}
+$('mapClose').onclick = closeMap; $('mapHome').onclick = warpHome;
+function isleDigHit(x, z) { const I = isleAt(x, z); if (!I) return false; for (const d of I.dig) { const k = I.id + d.x.toFixed(0); if (!save.isles[k] && Math.hypot(d.x - x, d.z - z) < 3.4) { save.isles[k] = 1; openChest({ x, z }); const g = Math.round(I.r * 140); save.gold += g; toast(`🏝️ Island treasure! +$${g.toLocaleString()} extra`, 3600, '#ffd43b'); if (Math.random() < .4) grantCharm(); persist(); return true; } } return false; }
+const megaSurf = (x, z) => megaHas('land') ? Math.max(waveH(x, z, time), walkG(x, z)) : waveH(x, z, time);
+genOpenSea();
 const emojiFly = []; let emoteI = 0, emote = { t: 0, m: 'wave' };
 function spawnEmoji(e, who) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e), transparent: true, depthTest: false })); sp.scale.setScalar(1.5); scene.add(sp); emojiFly.push({ sp, who, t: 0 }); }
 function doEmote() { if (me.riding || me.passenger || me.swim || ui !== 'play') return; const em = EMOTES[emoteI++ % EMOTES.length]; emote = { t: 2.6, m: em.m }; spawnEmoji(em.e, null); netEvent({ k: 'emote', id: NET.myId, i: (emoteI - 1) % EMOTES.length }); sfx.pop(); }
@@ -3585,6 +3815,7 @@ function isDiggable(x, z) {
   if (x > 2.8 && x < 28.2 && z > 8 && z < 25.5) return false;                                  // market deck
   if (z >= 27 && z <= 43 && Math.abs(x) <= 30) return true;                                      // the beach
   if (save.maps.island && Math.hypot(x - ISL.x, z - ISL.z) < ISL.r - 4 && Math.hypot(x - ISL.x, z - ISL.z) > 4) return true; // Treasure Island
+  if (isleAt(x, z)) return true;                                                                  // discovered islands
   return false;
 }
 function randDigSpot() { for (let i = 0; i < 60; i++) { let x, z; if (save.maps.island && Math.random() < .5) { const a = rnd(0, TAU), d = rnd(6, ISL.r - 5); x = ISL.x + Math.cos(a) * d; z = ISL.z + Math.sin(a) * d; } else { x = rnd(-29, 29); z = rnd(28, 42); } if (isDiggable(x, z)) return { x, z }; } return { x: 0, z: 38 }; }
@@ -3606,7 +3837,7 @@ function updateDig(dt) {
       digState = null; const hit = buried.findIndex(b => Math.hypot(b.x - me.x, b.z - me.z) < 3);
       const hm = new THREE.Mesh(new THREE.CircleGeometry(.7, 14), new THREE.MeshBasicMaterial({ color: 0x3a2412 })); hm.rotation.x = -Math.PI / 2; hm.position.set(me.x + Math.sin(me.bodyYaw) * .9, Y0 + .04, me.z + Math.cos(me.bodyYaw) * .9); scene.add(hm); holes.push(hm); if (holes.length > 14) scene.remove(holes.shift());
       if (hit >= 0) { const b = buried[hit]; buried.splice(hit, 1); openChest({ x: hm.position.x, z: hm.position.z }); setTimeout(() => { if (buried.length < 3) buried.push(randDigSpot()); }, 15000); }
-      else toast('Just dirt… ' + digHint(), 1800, '#c9a36a');
+      else if (!isleDigHit(hm.position.x, hm.position.z)) toast('Just dirt… ' + digHint(), 1800, '#c9a36a');
     }
   }
 }
@@ -3712,7 +3943,7 @@ function update(dt) {
     if (eatT > 0 || has('disco')) { /* handled in poses for remotes */ }
     if (me.y > Y0 + .05 && has('rocket') === false && me.grounded === false && me.vy < -15) { splash(me.x, Y0, me.z, 14, 3); }
   }
-  updateRemotes(dt); updateParts(dt); updateDetail(dt); updateMega(dt); updatePlaza(dt); updateFun(dt); updateChaos(dt); updateWorlds(dt); updateAmbient(dt); updateEmotes(dt); updateDig(dt); updatePlayground(dt); if (started) updateQuestHUD();
+  updateRemotes(dt); updateParts(dt); updateDetail(dt); updateMega(dt); updatePlaza(dt); updateFun(dt); updateChaos(dt); updateWorlds(dt); updateOpenSea(dt); updateAmbient(dt); updateEmotes(dt); updateDig(dt); updatePlayground(dt); if (started) updateQuestHUD();
   updateFin(dt);
   pressedQ.length = 0; if (started) { updateCamera(dt); updateHUD(); } else { camera.position.set(Math.sin(time * .15) * 10, 4.2, 30); camera.rotation.set(-.05, Math.sin(time * .15) * .4, 0); }
 }
@@ -3723,7 +3954,7 @@ function loop(now) {
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
