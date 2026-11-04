@@ -1467,7 +1467,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104114905';
+const GAME_BUILD = '20261104115111';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2664,6 +2664,60 @@ function megaBody(Lz, H, W, c1, c2, o = {}) {
   }
   geo.setAttribute('color', new THREE.BufferAttribute(cols, 3)); geo.computeVertexNormals(); return new THREE.Mesh(geo, megaBodyMat);
 }
+
+/* every Mega gets its own proportions and a unique set of decorations on top of its body type */
+const MEGA_ANCH = {
+  whale: { hz: 1.45, ty: .8, ty2: .78, bz0: .9, bz1: -1.0, w: .8, tz: -2.2, nz: 2.0 }, ray: { hz: .9, ty: .45, ty2: .25, bz0: .7, bz1: -.9, w: 1.0, tz: -1.8, nz: 1.5 },
+  shark: { hz: 1.4, ty: .65, ty2: .62, bz0: .8, bz1: -1.2, w: .55, tz: -2.1, nz: 2.0 }, serpent: { hz: 1.78, ty: .6, ty2: .5, bz0: .9, bz1: -1.8, w: .35, tz: -4.8, nz: 2.4 },
+  turtle: { hz: 1.45, ty: .45, ty2: .7, bz0: .8, bz1: -.8, w: .8, tz: -1.6, nz: 1.9 }, dolphin: { hz: 1.4, ty: .5, ty2: .48, bz0: .6, bz1: -.9, w: .45, tz: -2.0, nz: 2.3 },
+  octopus: { hz: .3, ty: 1.9, ty2: 1.6, bz0: .1, bz1: -.4, w: .6, tz: -.6, nz: .7 }, narwhal: { hz: 1.55, ty: .55, ty2: .5, bz0: .8, bz1: -1.0, w: .5, tz: -2.2, nz: 2.0 },
+  seahorse: { hz: .2, ty: 2.1, ty2: 1.2, bz0: 0, bz1: -.3, w: .45, tz: -.5, nz: 1.0 }, crab: { hz: .7, ty: .85, ty2: .8, bz0: .6, bz1: -.5, w: .9, tz: -.8, nz: 1.1 },
+  angler: { hz: .5, ty: .85, ty2: .75, bz0: .3, bz1: -.6, w: .6, tz: -1.2, nz: 1.0 }, koi: { hz: 1.1, ty: .6, ty2: .55, bz0: .9, bz1: -1.0, w: .5, tz: -1.8, nz: 1.6 }
+};
+const MEGA_LOOK = {
+  'Glimmer Whale': { d: ['stripes', 'crystals'] }, 'Ember Ray': { sc: [1, 1, 1.1], d: ['mane', 'spikes'] }, 'Neon Shark': { sc: [.95, 1.1, 1.1], d: ['crest', 'stripes'] }, 'Jade Dragonfish': { d: ['whiskers', 'mane', 'spikes'] },
+  'Cosmic Koi': { d: ['orbs', 'frill'] }, 'Tide Turtle': { d: ['shell', 'rocks'] }, 'Splash Dolphin': { sc: [1, .95, 1.15], d: ['crest', 'beak'] }, 'Kraken Kid': { d: ['crown', 'stripes'] },
+  'Frost Narwhal': { d: ['snow', 'crystals'] }, 'Bubble Seahorse': { d: ['crown', 'frill'] }, 'Boulder Crab': { sc: [1.1, 1, 1.1], d: ['rocks', 'horns'] }, 'Lantern Angler': { d: ['plates', 'orbs'] },
+  'Aurora Whale': { sc: [1.05, 1, 1.1], d: ['crest', 'frill', 'orbs'] }, 'Magma Shark': { d: ['mane', 'plates', 'tailflame'] }, 'Golden Dragonfish': { d: ['crown', 'whiskers', 'frill'] }, 'Frost Koi': { d: ['crystals', 'snow'] },
+  'Sunset Manta': { sc: [1.1, 1, 1], d: ['frill', 'stripes'] }, 'Void Leviathan': { sc: [.95, 1.05, 1.15], d: ['horns', 'orbs', 'spikes'] }, 'Rainbow Dolphin': { d: ['crest', 'orbs', 'stripes'] },
+  'Tideline Manatee': { sc: [1.15, 1.05, .9], d: ['whiskers', 'rocks'] }, 'Anchor Crab': { d: ['shell', 'horns'] }, 'Beacon Seahorse': { d: ['lamp', 'crest'] }, 'Palm Turtle': { d: ['palm'] },
+  'Coconut Crab': { d: ['coco', 'whiskers'] }, 'Sunset Dolphin': { d: ['sail', 'beak'] }, 'Pearl Whale': { d: ['pearls', 'frill'] }, 'Lagoon Manta': { d: ['orbs', 'stripes'] }, 'Glow Octopus': { d: ['orbs', 'crown'] },
+  'Magma Kraken': { d: ['horns', 'mane'] }, 'Obsidian Turtle': { d: ['spikes', 'plates'] }, 'Ember Serpent': { d: ['mane', 'tailflame'] }, 'Thunder Whale': { d: ['crest', 'orbs', 'stripes'] }, 'Volt Ray': { d: ['crystals', 'stripes'] },
+  'Storm Dragon': { d: ['horns', 'wings', 'whiskers'] }, 'Glacier Narwhal': { d: ['crystals', 'horns'] }, 'Snow Serpent': { d: ['frill', 'crystals'] }, 'Yeti Crab': { d: ['snow', 'horns', 'whiskers'] },
+  'Slime Kraken': { d: ['frill', 'beard'] }, 'Toxic Turtle': { d: ['mush'] }, 'Acid Eel': { d: ['spikes', 'whiskers'] }, 'Nebula Whale': { d: ['orbs', 'crystals', 'stripes'] }, 'Comet Dolphin': { d: ['beak', 'tailflame'] },
+  'Void Ray': { d: ['horns', 'orbs'] }, 'Abyssal Kraken': { d: ['crown', 'horns', 'lamp'] }, 'Lantern Leviathan': { d: ['lamp', 'spikes', 'plates'] }, 'Deep Serpent': { d: ['lamp', 'crest', 'whiskers'] }
+};
+function megaLook(def, B, U, ctx) {
+  const LK = MEGA_LOOK[def.n]; if (!LK) return; const { E, C, fin, M1, M2, FM2, GM, GS2 } = ctx, A = MEGA_ANCH[def.shape] || MEGA_ANCH.whale, TM = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad }), bone = TM(0xf1e6d0), R = Math.random;
+  if (LK.sc) { B.scale.set(LK.sc[0], LK.sc[1], LK.sc[2]); U.seatY *= LK.sc[1]; U.seatZ *= LK.sc[2]; if (U.seat2) U.seat2 = [U.seat2[0], U.seat2[1] * LK.sc[1], U.seat2[2] * LK.sc[2]]; }
+  const zs = n => Array.from({ length: n }, (_, i) => A.bz0 + (A.bz1 - A.bz0) * (n > 1 ? i / (n - 1) : 0));
+  for (const t of LK.d) switch (t) {
+    case 'horns': for (const s of [-1, 1]) C(bone, [s * A.w * .4, A.ty + .2, A.hz - .1], [.09, .55, .09], [.4, 0, -s * .4]); break;
+    case 'crest': zs(6).forEach((z, i) => C(FM2, [0, A.ty2 + .12 + (i % 2) * .05, z], [.03, .4 + (i % 3) * .12, .24], [-.15, 0, 0])); break;
+    case 'spikes': zs(7).forEach((z, i) => C(M2, [0, A.ty2 + .12, z], [.07, .3 + (i % 2) * .15, .07], [-.25, 0, 0])); break;
+    case 'plates': zs(5).forEach(z => E(M2, [0, A.ty2 + .03, z], [A.w * .42, .07, .2])); break;
+    case 'mane': for (let i = 0; i < 7; i++) C(GM, [(i - 3) * .1, A.ty - .05 - .03 * Math.abs(i - 3), A.hz - .3], [.08, .7 + (i % 2) * .25, .08], [-1.1, 0, (i - 3) * .15]); break;
+    case 'whiskers': for (const s of [-1, 1]) for (let k = 0; k < 2; k++) C(M2, [s * .14, A.ty - .5 - k * .08, A.nz - .35], [.025, 1.0 + k * .3, .025], [Math.PI / 2 - .25 + k * .3, 0, -s * (.5 + k * .3)]); break;
+    case 'crown': for (let i = 0; i < 5; i++) { const a = i / 5 * TAU; C(GM, [Math.cos(a) * .2, A.ty + .12, A.hz + Math.sin(a) * .2], [.06, .3, .06], [0, 0, 0]); } break;
+    case 'sail': fin([[0, 0], [.1, .8], [.5, 1.5], [.95, .9], [1.4, 0]], [1.2, 1.1], [0, A.ty2 - .05, A.bz0 - .1], 'v', FM2); break;
+    case 'wings': for (const s of [-1, 1]) fin([[0, 0], [.9, .3], [1.9, .9], [1.7, .2], [1.1, -.1], [.5, -.2]], [s, 1], [s * A.w * .7, A.ty2 * .6, A.bz0 - .3], 'h', FM2, B, s * .35); break;
+    case 'frill': for (const s of [-1, 1]) for (let i = 0; i < 4; i++) C(FM2, [s * .28, A.ty * .7, A.hz - .35], [.07, .55, .07], [-.3 + i * .12, 0, -s * (.6 + i * .3)]); break;
+    case 'crystals': for (let i = 0; i < 7; i++) C(GS2, [(R() - .5) * A.w * .8, A.ty2 + .1, A.bz1 + R() * (A.bz0 - A.bz1)], [.08, .35 + R() * .3, .08], [R() * .6 - .3, 0, R() * .6 - .3]); break;
+    case 'lamp': C(M2, [0, A.ty + .3, A.hz + .1], [.03, .8, .03], [.9, 0, 0]); E(GM, [0, A.ty + .72, A.hz + .65], [.17, .17, .17]); break;
+    case 'snow': for (let i = 0; i < 6; i++) E(TM(0xffffff), [(R() - .5) * A.w, A.ty2 + .08, A.bz1 + R() * (A.bz0 - A.bz1)], [.18, .1, .18]); break;
+    case 'rocks': for (let i = 0; i < 6; i++) E(TM(0x7a7a85), [(R() - .5) * A.w * .9, A.ty2 + .1, A.bz1 + R() * (A.bz0 - A.bz1)], [.14 + R() * .1, .1, .14 + R() * .1]); break;
+    case 'tailflame': for (let i = 0; i < 4; i++) C(GM, [(i - 1.5) * .08, 0, A.tz + .3], [.12, .9, .12], [-Math.PI / 2, 0, (i - 1.5) * .18]); break;
+    case 'orbs': for (let i = 0; i < 3; i++) E(GM, [(i - 1) * A.w * .9, A.ty + 1.0 + (i % 2) * .3, A.bz0 - i * .6], [.14, .14, .14]); break;
+    case 'stripes': for (const s of [-1, 1]) zs(6).forEach(z => E(GM, [s * A.w * .9, A.ty2 * .5, z], [.04, .04, .13])); break;
+    case 'beard': for (let i = 0; i < 6; i++) E(M2, [0, A.ty - .9 - i * .1, A.nz - .3 - i * .02], [.07, .09, .07]); break;
+    case 'shell': for (let i = 0; i < 8; i++) C(bone, [(R() - .5) * A.w, A.ty2 + .05, A.bz1 + R() * (A.bz0 - A.bz1)], [.1, .24, .1], [0, 0, 0]); break;
+    case 'beak': C(M2, [0, A.ty - .35, A.nz - .25], [.1, .9, .1], [Math.PI / 2, 0, 0]); break;
+    case 'palm': C(TM(0x7a4a28), [0, A.ty2 + .45, -.1], [.09, 1.0, .09], [0, 0, .12]); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU; C(TM(0x3fbf4a), [Math.cos(a) * .08 + .1, A.ty2 + 1.0, -.1 + Math.sin(a) * .08], [.07, .7, .07], [Math.sin(a) * 1.3, 0, -Math.cos(a) * 1.3]); } break;
+    case 'coco': for (const [x, z] of [[-.3, .2], [.3, .1], [0, -.3], [.1, .4]]) E(TM(0x5a3a1a), [x, A.ty2 + .12, z], [.14, .14, .14]); break;
+    case 'pearls': zs(6).forEach((z, i) => E(TM(0xffffff), [(i % 2 - .5) * .25, A.ty2 + .06, z], [.1, .1, .1])); break;
+    case 'mush': for (const [x, z] of [[-.3, .3], [.3, -.1], [0, -.5]]) { C(bone, [x, A.ty2 + .2, z], [.07, .4, .07], [0, 0, 0]); E(TM(0xb04dff), [x, A.ty2 + .6, z], [.2, .1, .2]); E(GM, [x, A.ty2 + .66, z], [.06, .03, .06]); } break;
+  }
+}
 function makeMega(def, c1, glowCol, level = 1) {
   const g = new THREE.Group(), B = new THREE.Group(); g.add(B);
   const M1 = new THREE.MeshToonMaterial({ color: c1, gradientMap: toonGrad }), M2 = new THREE.MeshToonMaterial({ color: def.c2, gradientMap: toonGrad }), gc = new THREE.Color(glowCol), DS = THREE.DoubleSide;
@@ -2754,6 +2808,7 @@ function makeMega(def, c1, glowCol, level = 1) {
       const t = new THREE.Group(); t.position.set(0, 0, -1.45); B.add(t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); fin([[0, 0], [.25, -.55], [.65, -1.1], [.6, -.6], [.9, -.9], [.75, -.2], [0, .0]], [1.3, 1], [0, 0, -.1], 'v', FM2, t); t.children[t.children.length - 1].scale.y = -1; fin([[0, 0], [.3, -.5], [.8, -.9], [.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); fin([[0, 0], [-.3, -.5], [-.8, -.9], [-.6, -.3]], [1, 1], [0, 0, -.3], 'h', FM2, t, 0); U.tail = t; U.seatY = .6; U.seatZ = .1;
     }
   }
+  megaLook(def, B, U, { E, C, fin, M1, M2, FM2, GM, GS2 });
   if (def.seats === 2 && !U.seat2 && U.seat2 !== null) U.seat2 = [0, U.seatY, U.seatZ - 1.0]; if (def.seats !== 2) U.seat2 = null;
   const aura = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: gc.clone().multiplyScalar(1.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: .2 + .02 * level })); aura.scale.setScalar(5 + level * .4); aura.position.y = .3; aura.userData.base = 5 + level * .4; g.add(aura); U.aura = aura;
   // orbiting glow motes (more of them as your Mega levels up) and a heartbeat in its glowing spots
