@@ -1270,7 +1270,7 @@ function fishStd(K) {
   if (d.tail === 'flame') { for (const [dy, l] of [[.3, .5], [0, .65], [-.3, .5]]) K.Cn(gmat(sp.c2, 1.8), [x0, 0, 0], .08, l, [-1, dy, 0]); }
   else if (d.tail === 'spring') { for (let i = 0; i < 5; i++) { const t = new THREE.Mesh(new THREE.TorusGeometry(.1 - i * .012, .018, 5, 14), tm(sp.c2)); t.rotation.y = Math.PI / 2; t.position.set(x0 - .04 - i * .07, 0, 0); g.add(t); } K.fin(FT.round, .5, .5, x0 - .4, 0, 0); }
   else if (d.tail === 'fluke') K.hfin(FT.fluke, tH * 1.3, tH * 1.3, x0, 0, 0);
-  else if (d.tail !== 'none') K.fin(FT[d.tail] || FT.fork, tH, tH, x0, 0, 0);
+  else if (d.tail !== 'none') K.tailObj = K.fin(FT[d.tail] || FT.fork, tH, tH, x0, 0, 0);
   const ds = d.ds || 1, df = (p, u0, wl, hm) => K.fin(p, L * wl, H * hm * ds, u0 * L, K.topY(u0 - wl / 2) * .86, 0);
   switch (d.dors) {
     case 'single': df(FDORS.single, .35, .7, 1.1); break; case 'sail': df(FDORS.sail, .45, .75, .9); break;
@@ -1287,7 +1287,7 @@ function fishStd(K) {
     case 'long': K.fin([[0, 0], [-.1, -.35], [-.8, -.6], [-.5, -.05]], L * 1.0, H * 1.2, L * .3, -H * .25, sd * W * .85, sd * 1.1, .1); break;
     case 'lobed': K.Cy(tm(sp.c1), [L * .22, -H * .4, sd * W * .8], [L * .12, -H * .65, sd * (W + .15)], .045); K.E(tm(sp.c1), [L * .1, -H * .7, sd * (W + .17)], [.12, .05, .08], g, [0, sd * .5, -.3]); break;
   }
-  K.eyes(L * .66, H * .3, W * .76, .085 * d.es, d.eye);
+  if (d.eye !== 'none') K.eyes(L * .66, H * .3, W * .76, .085 * d.es, d.eye);
   if (d.eye3) K.eyes(L * .55, H * .9, 0, .06 * d.es, 'norm');
   K.mouth(L, H, W);
   K.tokens(L, H, W);
@@ -1352,6 +1352,7 @@ function fishTokens(K, L, H, W) {
     case 'carrot': Cn(tm('#ff8a1a'), [L * .98, 0, 0], .06, .26, [1, -.1, 0]); break;
     case 'snowdots': for (let i = 0; i < 6; i++) E(wh, [L * (.6 - i * .22), K.topY(.5 - i * .2) + .06 + (i % 2) * .04, (i % 3 - 1) * .06], [.03, .03, .03]); break;
     case 'mismatch': Cn(tm('#ff4081'), [L * .1, K.topY(.1) * .9, 0], .05, .2, [0, 1, .3]); K.fin([[0, 0], [-.12, -.12], [-.3, -.2], [-.2, 0]], L * 1.3, H * 2, L * .1, -H * .6, W * .7, 1.2, 1.2); break;
+    case 'hammer': { const hx = L * .92; E(c1, [hx, 0, 0], [.14, H * .4, W * 3.6]); for (const sd of [-1, 1]) { E(wh, [hx + .05, H * .05, sd * W * 3.5], [.085, .085, .085]); E(dk, [hx + .11, H * .05, sd * W * 3.5], [.05, .05, .05]); } } break;
     case 'swirlcore': { const r = new THREE.Mesh(new THREE.TorusGeometry(.14, .02, 5, 18), gmat('#b78bff', 1.8)); r.position.set(L * .2, K.topY(.2) + .14, 0); g.add(r); E(tm('#000000'), [L * .2, K.topY(.2) + .14, 0], [.08, .08, .04]); } break;
   }
 }
@@ -1438,10 +1439,10 @@ function fishBoot(K) {
   K.E(tm('#3fa84a'), [.55, -.05, 0], [.04, .1, .02]); K.E(tm('#3fa84a'), [.58, -.02, .02], [.03, .08, .02]); g.rotation.z = .35;
 }
 const FISH_TPL = new Map();
-function fishBuild(sp) {
-  const d = Object.assign({}, FD_DEF, FD[sp.n] || {}, { x: (FD[sp.n] || {}).x || [] }), g = new THREE.Group(), K = fishCtx(g, sp, d); K.mouth = (L, H, W) => fishMouth(K, L, H, W); K.tokens = (L, H, W) => fishTokens(K, L, H, W);
+function fishBuild(sp, ov) {
+  const src = ov || FD[sp.n] || {}, d = Object.assign({}, FD_DEF, src, { x: src.x || [] }), g = new THREE.Group(), K = fishCtx(g, sp, d); K.mouth = (L, H, W) => fishMouth(K, L, H, W); K.tokens = (L, H, W) => fishTokens(K, L, H, W);
   switch (d.type) { case 'boot': fishBoot(K); break; case 'eel': fishEel(K); break; case 'ray': fishRay(K); break; case 'jelly': fishJelly(K); break; case 'blob': fishBlob(K); break; case 'octo': fishOcto(K); break; case 'squid': fishSquid(K); break; default: fishStd(K); }
-  const b = new THREE.Group(); b.add(g); if (d.flip) g.rotation.x = Math.PI; if (d.sc) b.scale.setScalar(d.sc); b.userData.cam = d.type === 'ray' ? 1.0 : d.type === 'jelly' ? .15 : .3; return b;
+  const b = new THREE.Group(); b.add(g); if (d.flip) g.rotation.x = Math.PI; if (d.sc) b.scale.setScalar(d.sc); b.userData.cam = d.type === 'ray' ? 1.0 : d.type === 'jelly' ? .15 : .3; b.userData.tailObj = K.tailObj || null; return b;
 }
 function makeFish3D(sp) { let t = FISH_TPL.get(sp.n); if (!t) { t = fishBuild(sp); FISH_TPL.set(sp.n, t); } return t.clone(true); }
 function drawFishIcon(sp, sil) {   // rendered from the 3D model with a tiny offscreen renderer; falls back to a flat drawing
@@ -1539,7 +1540,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104160729';
+const GAME_BUILD = '20261104161040';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2764,7 +2765,7 @@ const MEGA_LOOK = {
   'Void Ray': { d: ['horns', 'orbs'] }, 'Abyssal Kraken': { d: ['crown', 'horns', 'lamp'] }, 'Lantern Leviathan': { d: ['lamp', 'spikes', 'plates'] }, 'Deep Serpent': { d: ['lamp', 'crest', 'whiskers'] }
 };
 function megaLook(def, B, U, ctx) {
-  const LK = MEGA_LOOK[def.n]; if (!LK) return; const { E, C, fin, M1, M2, FM2, GM, GS2 } = ctx, A = MEGA_ANCH[def.shape] || MEGA_ANCH.whale, TM = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad }), bone = TM(0xf1e6d0), R = Math.random;
+  const LK = MEGA_LOOK[def.n]; if (!LK || def.fd) return; const { E, C, fin, M1, M2, FM2, GM, GS2 } = ctx, A = MEGA_ANCH[def.shape] || MEGA_ANCH.whale, TM = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGrad }), bone = TM(0xf1e6d0), R = Math.random;
   if (LK.sc) { B.scale.set(LK.sc[0], LK.sc[1], LK.sc[2]); U.seatY *= LK.sc[1]; U.seatZ *= LK.sc[2]; if (U.seat2) U.seat2 = [U.seat2[0], U.seat2[1] * LK.sc[1], U.seat2[2] * LK.sc[2]]; }
   const zs = n => Array.from({ length: n }, (_, i) => A.bz0 + (A.bz1 - A.bz0) * (n > 1 ? i / (n - 1) : 0));
   for (const t of LK.d) switch (t) {
@@ -2891,6 +2892,10 @@ function makeMega(def, c1, glowCol, level = 1) {
         U.seatY = .85; U.seatZ = .15;
       }
       break;
+    }
+    case 'fd': {   // built with the same generator as the fish, so every one of these Megas has its own body, tail, face and extras
+      const b = fishBuild({ n: def.n, c1: c1, c2: def.c2 }, def.fd); b.rotation.y = -Math.PI / 2; b.scale.multiplyScalar(def.fs || 2.4); B.add(b); g.updateMatrixWorld(true); const bx = new THREE.Box3().setFromObject(b);
+      U.seatY = Math.max(.6, bx.max.y * .78); U.seatZ = (bx.min.z + bx.max.z) / 2 + .1; U.tail = b.userData.tailObj && def.fd.tail !== 'fluke' ? b.userData.tailObj : null; break;
     }
     default: { // koi
       B.add(megaBody(1.5, .58, .6, c1, def.c2, { patch: new THREE.Color(def.c2), tp: 1.4, tpk: .72, belly2: .55 }));
@@ -3886,6 +3891,41 @@ MEGAS.push(
   { n: 'Hover Ship', shape: 'boat', c1: '#3a2a7a', c2: '#7bf0ff', glow: '#7bf0ff', size: 1.5, spd: 6.2, e: '🛸', w: 0, val: 5000000, seats: 2, fish: true, area: 'boat', boat: true, price: 10000000 }
 );
 Object.assign(AREA_NAMES, { boat: 'the Boat Shop' });
+
+const MEGA_FD = {   // old name -> new look (and sometimes a new name)
+  'Aurora Whale': { fd: { L: .62, H: .34, W: .3, hump: .7, pat: 'ombre', c3: '#ffb3f0', dors: 'none', tail: 'fluke', pect: 'wing', es: 1.2, x: ['aurora', 'spout'] } },
+  'Magma Shark': { name: 'Magma Hammerhead', fd: { L: .62, H: .22, W: .2, hump: .1, pat: 'cracks', dors: 'single', ds: 1.5, tail: 'lunate', ts: 1.2, mouth: 'none', eye: 'none', x: ['hammer', 'glow'] } },
+  'Golden Dragonfish': { fd: { type: 'eel', len: 2.2, amp: .22, waves: 1.7, r: .15, pat: 'bars', es: 1.6, x: ['whisk', 'spines'], wh: 2 }, fs: 2.1 },
+  'Frost Koi': { fd: { L: .55, H: .27, W: .18, pat: 'patch', dors: 'long', tail: 'veil', ts: .9, pect: 'long', x: ['whisk', 'crystals'], wh: 2 } },
+  'Sunset Manta': { fd: { type: 'ray', L: .5, W: .95, tail: 'streamer', pat: 'stripes', es: 1.3 }, fs: 2.6 },
+  'Void Leviathan': { fd: { L: .72, H: .36, W: .34, hump: .4, pat: 'swirl', tail: 'fluke', mouth: 'big', eye: 'angry', x: ['horns', 'glow'] } },
+  'Rainbow Dolphin': { fd: { L: .55, H: .24, W: .17, fp: 1.6, fk: .5, pat: 'rainbow', tail: 'lunate', dors: 'single', pect: 'long', x: ['sparkle'], es: 1.3 } },
+  'Tideline Manatee': { fd: { L: .55, H: .38, W: .4, box: .2, tail: 'round', ts: .9, dors: 'none', pect: 'wing', pat: 'mottle', x: ['whisk'], wh: 2, es: .9 } },
+  'Anchor Crab': { name: 'Anchor Puffer', fd: { L: .42, H: .42, W: .4, pat: 'spots', dors: 'none', tail: 'round', ts: .5, pect: 'wing', x: ['spikes', 'barnacles'], es: 1.2 } },
+  'Beacon Seahorse': { name: 'Beacon Sunfish', fd: { L: .42, H: .5, W: .12, box: .3, pat: 'checker', dors: 'sail', tail: 'round', ts: .6, x: ['lure', 'glow'], es: 1.3 } },
+  'Sunset Dolphin': { name: 'Sunset Swordfish', fd: { L: .62, H: .24, W: .16, pat: 'stripes', dors: 'sail', tail: 'lunate', x: ['bill'], bl: 1.1, mouth: 'none' } },
+  'Pearl Whale': { name: 'Pearl Jelly', fd: { type: 'jelly', rb: .5, hb: .36, tn: 14, rings: 5, es: 1.2 } },
+  'Lagoon Manta': { fd: { type: 'ray', L: .45, W: .8, tail: 'whip', pat: 'mottle', x: ['glow'], es: 1.1 }, fs: 2.6 },
+  'Magma Kraken': { fd: { type: 'octo', big: true, es: 1.2, iris: '#ffb02e' }, fs: 1.7 },
+  'Obsidian Turtle': { name: 'Obsidian Gar', fd: { L: .8, H: .14, W: .12, bp: 1.2, fp: 1, pat: 'spots', dors: 'single', ds: .6, tail: 'round', ts: .8, mouth: 'beak', bl: .5, x: ['shards', 'armor'] } },
+  'Ember Serpent': { fd: { type: 'eel', len: 2.4, amp: .2, waves: 1.5, r: .14, pat: 'cracks', x: ['ember', 'spines'], eye: 'angry' }, fs: 2.1 },
+  'Thunder Whale': { fd: { L: .64, H: .34, W: .3, hump: .8, pat: 'lat', c3: '#fff27a', tail: 'fluke', dors: 'none', pect: 'wing', x: ['sparks', 'coil'] } },
+  'Volt Ray': { fd: { type: 'ray', L: .5, W: .85, tail: 'bolt', x: ['sparks', 'cloud'], pat: 'mottle' }, fs: 2.6 },
+  'Storm Dragon': { fd: { type: 'eel', len: 2.4, amp: .16, waves: 1.3, r: .15, pat: 'stripes', x: ['horns', 'rings'], eye: 'angry' }, fs: 2.1 },
+  'Glacier Narwhal': { fd: { L: .6, H: .32, W: .28, hump: .5, pat: 'mottle', tail: 'fluke', dors: 'none', pect: 'wing', mouth: 'none', x: ['bill', 'ice'], bl: 1.2, spiral: true } },
+  'Snow Serpent': { fd: { type: 'eel', len: 2.3, amp: .18, waves: 1.8, r: .13, pat: 'bars', x: ['crystals'], es: 1.5 }, fs: 2.1 },
+  'Yeti Crab': { name: 'Yeti Cod', fd: { L: .55, H: .4, W: .34, box: .55, hump: .3, pat: 'mottle', dors: 'two', tail: 'round', mouth: 'big', x: ['whisk', 'ice'], wh: 1 } },
+  'Slime Kraken': { name: 'Slime Blob', fd: { type: 'blob', lumps: [[0, 0, 0, .5], [-.4, -.15, .1, .32], [.28, -.25, -.1, .3]], eye3: true, mouth: 'grin', x: ['drips', 'inbubbles'] }, fs: 2.0 },
+  'Acid Eel': { fd: { type: 'eel', len: 2.5, amp: .14, waves: 2.0, r: .13, pat: 'spots', x: ['boils'], eye: 'angry' }, fs: 2.1 },
+  'Toxic Turtle': { name: 'Toxic Catfish', fd: { L: .6, H: .3, W: .42, fp: 2, box: .3, sag: .4, pat: 'mottle', dors: 'single', ds: .6, tail: 'round', mouth: 'big', x: ['whisk', 'warts'], wh: 3 } },
+  'Nebula Whale': { fd: { L: .66, H: .36, W: .32, hump: .7, pat: 'stars', tail: 'fluke', dors: 'none', es: 1.1, x: ['planets', 'spout'] } },
+  'Comet Dolphin': { name: 'Comet Tuna', fd: { L: .6, H: .28, W: .19, bp: 1.3, bk: .85, fp: 2, fk: .35, pat: 'lat', c3: '#ffffff', dors: 'two', tail: 'flame', x: ['finlets', 'sparkle'] } },
+  'Void Ray': { fd: { type: 'ray', L: .55, W: .9, tail: 'streamer', pat: 'swirl', x: ['swirlcore'], es: 1.2 }, fs: 2.6 },
+  'Abyssal Kraken': { name: 'Abyssal Squid', fd: { type: 'squid', es: 1.4 }, fs: 2.4 },
+  'Lantern Leviathan': { fd: { L: .7, H: .3, W: .28, hump: .3, pat: 'spots', tail: 'fluke', dors: 'none', mouth: 'big', eye: 'big', x: ['lure', 'glow'], es: 1.4 } },
+  'Deep Serpent': { fd: { type: 'eel', len: 2.6, amp: .22, waves: 1.4, r: .15, pat: 'spots', x: ['lure', 'spines'], eye: 'big', es: 1.6 }, fs: 2.1 }
+};
+for (const [n, o] of Object.entries(MEGA_FD)) { const d = MEGAS.find(m => m.n === n); if (d) { d.shape = 'fd'; d.fd = o.fd; if (o.fs) d.fs = o.fs; if (o.name) d.n = o.name; } }
 function megaShopExtras() {
   const wrap = document.createElement('div');
   const hdr = t => { const d = document.createElement('div'); d.className = 'sub'; d.style.marginTop = '14px'; d.innerHTML = t; wrap.appendChild(d); };
