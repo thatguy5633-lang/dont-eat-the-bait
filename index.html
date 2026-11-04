@@ -137,6 +137,11 @@
 </div>
 <div id="lids"></div><div id="tint"></div>
 
+<div class="ov" id="styleOv" style="background:linear-gradient(transparent 25%,rgba(10,20,40,.88));align-items:flex-end;z-index:13"><div class="box" style="max-width:1000px;width:97vw;margin-bottom:8px">
+  <h2 class="stroke">🎨 CHOOSE YOUR GAME'S LOOK</h2><div class="small">This changes the whole game: sky, ocean, light, colors and effects. You can switch any time (Y key, or the Art style button).</div>
+  <div id="styleGrid" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:10px 0"></div>
+  <button id="styleDone">✔ Play with this look</button>
+</div></div>
 <div class="ov" id="mapOv"><div class="box" style="max-width:700px;width:96vw">
   <h2 class="stroke">🗺️ WORLD MAP</h2><canvas id="mapCv" width="640" height="640" style="width:min(86vw,60vh);height:min(86vw,60vh);border-radius:14px;border:3px solid #14213d"></canvas>
   <div class="small" id="mapInfo" style="margin:6px"></div><div class="small" style="opacity:.8">Discover islands and secrets to fill the map. Bottles hint where to look!</div>
@@ -167,7 +172,7 @@
   <div class="sub">Catch weird fish. Level up your rod. Eat them if you dare, because every fish does something different.</div>
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
-  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
+  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnStyle">🎨 Art style</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
   <div id="streakBox" class="card" style="margin:8px auto;max-width:460px"></div>
   <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div style="margin-top:8px">🎨 Art style: <select class="styleSel"></select></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
@@ -497,16 +502,33 @@ for (let i = 0; i < 16; i++) {
 
 /* ---------- water ---------- */
 const waveH = (x, z, t) => 0.09 * Math.sin(x * 0.35 + t * 1.2) + 0.07 * Math.sin(z * 0.3 + t * 0.9) + 0.04 * Math.sin((x + z) * 0.2 + t * 1.7);
-const waterGeo = new THREE.PlaneGeometry(900, 900, 70, 70); waterGeo.rotateX(-Math.PI / 2);
-const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ color: 0x167aa8, transparent: true, opacity: 0.9, roughness: .14, metalness: .03, envMapIntensity: .38 }));
+const WSIZE = 420, WSEG = 112, WSTEP = WSIZE / WSEG, WPERIOD = 14;
+const waterGeo = new THREE.PlaneGeometry(WSIZE, WSIZE, WSEG, WSEG); waterGeo.rotateX(-Math.PI / 2); waterGeo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(waterGeo.attributes.position.count * 4).fill(1), 4));
+const causticTex = (() => { const t = canvasTex(256, 256, g => { g.fillStyle = '#dcebf0'; g.fillRect(0, 0, 256, 256); for (let i = 0; i < 52; i++) { const x = Math.random() * 256, y = Math.random() * 256, r = 12 + Math.random() * 26; for (const [dx, dy] of [[0, 0], [256, 0], [-256, 0], [0, 256], [0, -256]]) { const gr = g.createRadialGradient(x + dx, y + dy, r * .5, x + dx, y + dy, r); gr.addColorStop(0, 'rgba(255,255,255,0)'); gr.addColorStop(.85, 'rgba(255,255,255,.6)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.beginPath(); g.arc(x + dx, y + dy, r, 0, Math.PI * 2); g.fill(); } } }); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(WSIZE / WPERIOD, WSIZE / WPERIOD); return t; })();
+const water = new THREE.Mesh(waterGeo, new THREE.MeshStandardMaterial({ vertexColors: true, map: causticTex, transparent: true, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 }));
 scene.add(water);
 const wpos = waterGeo.attributes.position; const wbase = new Float32Array(wpos.array);
-const WSTEP = 900 / 70, farWater = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshStandardMaterial({ color: 0x2a86a8, roughness: .14, metalness: .03, envMapIntensity: .35 })); farWater.rotation.x = -Math.PI / 2; farWater.position.y = -.4; scene.add(farWater);
+const WPAL = { deep: new THREE.Color('#13a8d0'), mid: new THREE.Color('#30d0dc'), shallow: new THREE.Color('#8af5e0'), foam: new THREE.Color('#f4ffff') }; let wGridKey = '', wForce = true;
+const farWater = new THREE.Mesh(new THREE.PlaneGeometry(14000, 14000), new THREE.MeshStandardMaterial({ color: 0x16a0c8, roughness: .22, metalness: 0, envMapIntensity: .22, emissive: new THREE.Color('#22c4b0'), emissiveIntensity: .4 })); farWater.rotation.x = -Math.PI / 2; farWater.position.y = -.4; scene.add(farWater);
+function waterRecolor(ox, oz) {   // a warm, clear, Minecraft-style sea: pale turquoise shallows, bright teal, then deeper blue, with foam where it laps the sand
+  const col = waterGeo.attributes.color, N = wpos.count, c = new THREE.Color();
+  for (let i = 0; i < N; i++) {
+    const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz, d = -terrainH(x, z), n = Math.sin(x * .09) * Math.sin(z * .08) * .5 + Math.sin(x * .21 + z * .17) * .25; let a;
+    if (d < .03) { c.copy(WPAL.foam); a = .88; }
+    else if (d < .5) { const k = d / .5; c.copy(WPAL.foam).lerp(WPAL.shallow, Math.min(1, k * 1.7)); a = .6 + k * .08; }
+    else if (d < 1.8) { const k = (d - .5) / 1.3; c.copy(WPAL.shallow).lerp(WPAL.mid, k); a = .68 + k * .14; }
+    else { const k = Math.min(1, (d - 1.8) / 1.4); c.copy(WPAL.mid).lerp(WPAL.deep, k); a = .82 + k * .12; }
+    c.offsetHSL(0, 0, n * .03); col.setXYZW(i, c.r, c.g, c.b, a);
+  }
+  col.needsUpdate = true;
+}
 function updateWater(t) {   // the detailed sea follows the player (snapped to the wave grid), so the ocean can be endless
   const ox = Math.round(camera.position.x / WSTEP) * WSTEP, oz = Math.round(camera.position.z / WSTEP) * WSTEP; water.position.set(ox, 0, oz); seabed.position.set(ox, -7, oz); farWater.position.x = camera.position.x; farWater.position.z = camera.position.z;
+  const key = ox + ',' + oz; if (key !== wGridKey || wForce) { wGridKey = key; wForce = false; waterRecolor(ox, oz); }
+  causticTex.offset.set(ox / WPERIOD + t * .012, -oz / WPERIOD + t * .008);
   for (let i = 0; i < wpos.count; i++) { const x = wbase[i * 3] + ox, z = wbase[i * 3 + 2] + oz; wpos.setY(i, waveH(x, z, t)); } wpos.needsUpdate = true; waterGeo.computeVertexNormals();
 }
-const seabed = mk(new THREE.PlaneGeometry(900, 900), mat(0xffe39a), [0, -7, 0], null, scene); seabed.rotation.x = -Math.PI / 2;
+const seabed = mk(new THREE.PlaneGeometry(900, 900), mat(0xf2e2a8), [0, -7, 0], null, scene); seabed.rotation.x = -Math.PI / 2;
 
 /* =========================================================
    WORLD
@@ -1045,12 +1067,13 @@ function ik2(S, T, L1, L2, hint) {
 }
 function genPoseGuy(P) {
   const A = P.amp || 0, ph = P.phase || 0, s = Math.sin(ph), c = Math.cos(ph), mode = P.mode || 'hold', L = new Array(15);
-  const bob = Math.abs(s) * .035 * A + (mode === 'dance' ? Math.abs(Math.sin(ph * 3)) * .07 : 0) + (mode === 'cheer' ? Math.abs(Math.sin(ph * 8)) * .1 : mode === 'flail' ? Math.abs(Math.sin(ph * 9)) * .05 : 0) + (P.breath || 0), ride = mode === 'ride';
+  const bob = Math.abs(s) * .035 * A + (mode === 'dance' ? Math.abs(Math.sin(ph * 3)) * .07 : 0) + (mode === 'cheer' ? Math.abs(Math.sin(ph * 8)) * .1 : mode === 'flail' ? Math.abs(Math.sin(ph * 9)) * .05 : 0) - (P.crouch || 0) * .2 + (P.breath || 0), ride = mode === 'ride';
   L[PELV] = [0, (ride ? .46 : .6) + bob, 0]; L[NECK] = [0, (ride ? 1.1 : 1.239) + bob, .02]; L[HEAD] = [0, (ride ? 1.4 : 1.543) + bob, .098];
   L[SHL] = [-.255, (ride ? .97 : 1.111) + bob, 0]; L[SHR] = [.255, (ride ? .97 : 1.111) + bob, 0]; L[HPL] = [-.122, (ride ? .4 : .543) + bob * .6, 0]; L[HPR] = [.122, (ride ? .4 : .543) + bob * .6, 0];
   let fl = [-.122, .092 + Math.max(0, c) * .16 * A, s * .24 * A], fr = [.122, .092 + Math.max(0, -c) * .16 * A, -s * .24 * A];
   if (ride) { fl = [-.34, .2, .2]; fr = [.34, .2, .2]; }
   if (P.kick) { const k = Math.sin(P.kick * Math.PI); fr = [.15, .1 + .45 * k, .1 + .62 * k]; }
+  if (mode === 'jump') { fl = [-.14, .3, .16]; fr = [.14, .2, -.06]; } else if (mode === 'fall') { fl = [-.2, .06, .12]; fr = [.2, .06, -.1]; }
   if (mode === 'swim') { const k = Math.sin(ph * 4); fl = [-.122, .12 + Math.max(0, k) * .2, k * .14]; fr = [.122, .12 + Math.max(0, -k) * .2, -k * .14]; }
   const kl = ik2(L[HPL], fl, GL.th, GL.sh, [0, 0, 1]), kr = ik2(L[HPR], fr, GL.th, GL.sh, [0, 0, 1]); L[KNL] = kl.mid; L[FTL] = kl.end; L[KNR] = kr.mid; L[FTR] = kr.end;
   let hR = [.2, .9, .38], hL = [-.22, .86, .34];
@@ -1064,6 +1087,9 @@ function genPoseGuy(P) {
   else if (ride) { hR = [.16, .78, .4]; hL = [-.16, .78, .4]; }
   else if (mode === 'swim') { const w = Math.sin(ph * 3); hR = [.55, .92 + w * .14, .18]; hL = [-.55, .92 - w * .14, .18]; }
   else if (mode === 'idle') { hR = [.3, .66, .05]; hL = [-.3, .66, .05]; }
+  else if (mode === 'jump') { hR = [.46, 1.6, .05]; hL = [-.46, 1.6, .05]; }
+  else if (mode === 'fall') { hR = [.64, 1.2, .02]; hL = [-.64, 1.2, .02]; }
+  else if (mode === 'sprint') { hR = [.2, .92, .36 + s * .4]; hL = [-.2, .92, .36 - s * .4]; }
   else if (mode === 'juggle') { const w = Math.sin(ph * 6); hR = [.34, 1.0 + .38 * Math.max(0, w), .36]; hL = [-.34, 1.0 + .38 * Math.max(0, -w), .36]; }
   else if (mode === 'cold') { const sh = Math.sin(ph * 30) * .015; hR = [.17 + sh, .98, .3]; hL = [-.17 - sh, .98, .3]; }
   else if (mode === 'cheer') { const w = Math.sin(ph * 8) * .1; hR = [.5, 1.75 + w, 0]; hL = [-.5, 1.75 - w, 0]; }
@@ -1079,7 +1105,7 @@ function genPoseGuy(P) {
   const piv = [0, L[PELV][1], 0], up = [HEAD, NECK, SHL, SHR, ELL, ELR, HNL, HNR];
   if (mode === 'sleep') rotAbout(L[HEAD], [0, L[NECK][1], 0], .6);
   else if (P.lean) for (const i of up) rotAbout(L[i], piv, P.lean);
-  if (P.sway) for (const i of up) L[i][0] += P.sway * (L[i][1] - piv[1]) * 1.1;
+  if (P.sway) for (const i of up) L[i][0] += P.sway * (L[i][1] - piv[1]) * (i === HNL || i === HNR || i === ELL || i === ELR ? .3 : 1.1);   // the torso sways, but the hands (and the rod) stay steady
   return L;
 }
 function rebuildAllChars() {
@@ -1540,7 +1566,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104161040';
+const GAME_BUILD = '20261104162647';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1551,13 +1577,15 @@ function hotSelect(n) { if (n === 0) rodOut = true; else if (bucket[n - 1]) { ro
 function hotCycle(dir) { const n = bucket.length + 1; let cur = rodOut ? 0 : selSlot + 1; cur = (cur + dir + n) % n; hotSelect(cur); }
 const bucketCap = () => 6 + 2 * skill('bucket');
 function stats() {
-  const r = RODS[save.rod];
+  const r = RODS[curRodIdx()];
   return { cast: r.cast * (has('gigantic') ? 1.4 : 1), bite: r.bite * (1 - .08 * skill('patience')) * (has('glow') ? .5 : 1) * (has('magma') ? .7 : 1) * (has('thunder') ? .33 : 1), luck: r.luck + .08 * skill('lucky') + (has('lucky') ? .25 : 0) + (has('thunder') ? .4 : 0) + areaBonus().luck, line: r.line, reel: r.reel * (1 + .1 * skill('arms')) * (has('beefy') ? 1.8 : 1), hook: 1.1 + .2 * skill('hands') };
 }
 
 /* third-person: rod lives in the world, held by the avatar */
-let myRod = makeRod(RODS[save.rod].col); scene.add(myRod);
-function setMyRod() { scene.remove(myRod); myRod = makeRod(RODS[save.rod].col); scene.add(myRod); }
+const curRodIdx = () => Math.min(save.rod, save.rodSel == null ? save.rod : save.rodSel);   // you can always pick a worse rod you own
+let myRod = makeRod(RODS[curRodIdx()].col); scene.add(myRod);
+function setMyRod() { scene.remove(myRod); myRod = makeRod(RODS[curRodIdx()].col); scene.add(myRod); }
+function cycleRod(d) { const i = ((curRodIdx() + d) % (save.rod + 1) + save.rod + 1) % (save.rod + 1); save.rodSel = i; persist(); setMyRod(); toast(`🎣 Using the ${RODS[i].n}`, 1600, '#ffd43b'); sfx.tick(); }
 const myBobber = makeBobber(); scene.add(myBobber); myBobber.visible = false;
 const myLine = makeLine(); myLine.visible = false;
 const heldFish = new THREE.Group(); scene.add(heldFish); heldFish.visible = false;
@@ -1653,12 +1681,12 @@ function landBobber() { sfx.splashW();
 }
 function startFight() {
   const st = stats(); let sp; F.mega = null;
-  const zz = fishZone(); const ROD_MEGA = [.04, .12, .3, .6, 1, 1.4]; let mc = (zz === 'f' ? .0006 : zz === 'm' ? .0002 : .00005) * (1 + st.luck * 3) * (F.bait === 'mega' ? 6 : 1) * areaBonus().mega * ROD_MEGA[Math.min(5, save.rod)];
+  const zz = fishZone(); const ROD_MEGA = [.04, .12, .3, .6, 1, 1.4]; let mc = (zz === 'f' ? .0006 : zz === 'm' ? .0002 : .00005) * (1 + st.luck * 3) * (F.bait === 'mega' ? 6 : 1) * areaBonus().mega * ROD_MEGA[Math.min(5, curRodIdx())];
   if (Math.random() < mc) { const mi = pickMegaSp(); F.mega = { sp: mi }; F.idx = -1; F.kg = 0; sp = { n: MEGAS[mi].n, style: pick(['tension', 'direction', 'rhythm']), diff: .94 }; toast('SOMETHING HUGE is on the line!!', 2800, '#ff5a8a'); sfx.lvl(); }
   else { F.idx = pickFish(zz, F.bait, st.luck); sp = FISH[F.idx]; F.kg = rollKg(sp, st.luck); }
   const dm = DF(); F.bossFish = false; sp = Object.assign({}, sp, { diff: clamp(sp.diff + dm.fight, .05, 1.25) });
   if (!F.mega && FISH[F.idx].shape !== 4 && Math.random() < dm.boss) { F.bossFish = true; sp.diff = clamp(sp.diff + .22, .3, 1.3); F.kg = +(F.kg * 1.8).toFixed(2); toast('👹 BOSS FISH on the line!! It is HUGE and angry!', 3000, '#ff6b6b'); sfx.lvl(); }
-  const G = { style: sp.style, diff: sp.diff, sm: dm.stress, prog: .0, strikes: 0, maxStrikes: 3 + (save.rod >= 3 ? 1 : 0), t: .4, stress: 0, time: 0 };
+  const G = { style: sp.style, diff: sp.diff, sm: dm.stress, prog: .0, strikes: 0, maxStrikes: 3 + (curRodIdx() >= 3 ? 1 : 0), t: .4, stress: 0, time: 0 };
   const rodEase = .75 + .25 * st.line, reel = st.reel;
   switch (sp.style) {
     case 'tension': G.lo = .35; G.hi = .7 + Math.min(.08, (st.line - 1) * .05); G.surge = 0; G.nextSurge = rnd(.6, 1.4); G.prog = .25; G.rate = .13 * reel * (1 - sp.diff * .35); break;
@@ -1869,7 +1897,7 @@ function updatePlayer(dt) {
   if (has('jelly') && (ix || iz)) { ix += Math.sin(time * 5.1) * .7; iz += Math.sin(time * 3.7 + 1) * .5; }
   const fx = Math.sin(me.yaw), fz = Math.cos(me.yaw), rx = -Math.cos(me.yaw), rz = Math.sin(me.yaw);
   let dx = fx * iz + rx * ix, dz = fz * iz + rz * ix; const len = Math.hypot(dx, dz); if (len > 1) { dx /= len; dz /= len; }
-  const sprint = keys.ShiftLeft || keys.ShiftRight; let spd = me.swim ? 3.2 * (sprint ? 1.7 : 1) : 4.2 * (sprint ? 1.5 : 1);
+  const sprint = keys.ShiftLeft || keys.ShiftRight; let spd = me.swim ? 3.2 * (sprint ? 1.7 : 1) : 4.2 * (sprint ? 1.5 : 1) * (me.grounded && walkG(me.x, me.z) < .25 ? .78 : 1);
   if (has('zoomies')) spd *= me.swim ? 1.5 : 1.9; if (has('magma')) spd *= 1.5; if (has('thunder')) spd *= 2.4; if (has('spicy')) spd *= 1.4; if (has('tiny')) spd *= .6; if (has('gigantic')) spd *= 1.25;
   const slip = has('slippery') && !me.swim; const acc = me.swim ? 12 : (me.grounded ? (slip ? 2.5 : 38) : 10);
   const tvx = dx * spd, tvz = dz * spd, ddx = tvx - me.vx, ddz = tvz - me.vz, dd = Math.hypot(ddx, ddz), mx = acc * dt;
@@ -1881,7 +1909,7 @@ function updatePlayer(dt) {
     for (const c of swimBlockers) { const ex = nx - c.x, ez = nz - c.z, d = Math.hypot(ex, ez), min = c.r + .6; if (d < min) { nx = c.x + ex / (d || 1) * min; nz = c.z + ez / (d || 1) * min; } }
     for (const w of walkRects) { if (w.x0 === -34) continue; const pad = .6; if (nx > w.x0 - pad && nx < w.x1 + pad && nz > w.z0 - pad && nz < w.z1 + pad) { const l = nx - (w.x0 - pad), rr = (w.x1 + pad) - nx, t = nz - (w.z0 - pad), b = (w.z1 + pad) - nz, m = Math.min(l, rr, t, b); if (m === l) nx -= l; else if (m === rr) nx += rr; else if (m === t) nz -= t; else nz += b; } }
     nx = clamp(nx, -WORLD_H, WORLD_H); nz = clamp(nz, -WORLD_H, 128);
-  } else if (!air) { if (walkG(nx, me.z) < -.5) { nx = me.x; me.vx = 0; } if (walkG(nx, nz) < -.5) { nz = me.z; me.vz = 0; } }
+  }   // (no invisible wall at the water: the beach slopes down and you start swimming when it gets deep)
   me.x = nx; me.z = nz;
   if (!me.swim) for (let it = 0; it < 2; it++) for (const c of colliders) {
     const cx = clamp(me.x, c.x0, c.x1), cz = clamp(me.z, c.z0, c.z1), ex = me.x - cx, ez = me.z - cz, d2 = ex * ex + ez * ez;
@@ -1896,8 +1924,10 @@ function updatePlayer(dt) {
   } else {
     const grav = has('boing') ? 11 : 28;
     if (canMove && pressedQ.includes('Space') && me.grounded && F.state !== 'fight') { me.vy = has('boing') ? 13 : has('thunder') ? 12 : 9; me.grounded = false; if (has('boing')) sfx.boing(); }
-    const gh = walkG(me.x, me.z);
-    if (me.grounded) { if (me.y - gh > .5) me.grounded = false; else { me.y = gh; me.vy = 0; } }
+    const gh = walkG(me.x, me.z), wade = me.grounded && gh < .25;
+    if (wade && me.spd > 1 && Math.random() < .35) { ripple(me.x, me.z); if (Math.random() < .5) splash(me.x, .05, me.z, 3, 1.2); }
+    if (me.grounded && gh < -.55) { me.swim = true; me.grounded = false; me.vy = 0; ripple(me.x, me.z); splash(me.x, .1, me.z, 10, 2); sfx.splashS(); }   // it got deep: glide into a swim
+    else if (me.grounded) { if (me.y - gh > .5) me.grounded = false; else { me.y += (gh - me.y) * Math.min(1, 14 * dt); if (Math.abs(me.y - gh) < .01) me.y = gh; me.vy = 0; } }
     if (!me.grounded) {
       me.vy -= grav * dt; me.y += me.vy * dt; const g2 = walkG(me.x, me.z);
       if (g2 < -.5) { if (me.y <= waveH(me.x, me.z, time) + .2 && me.vy <= 0) enterSwim(); }
@@ -1943,7 +1973,7 @@ function buildRemoteBody(rp) {
 }
 function localState() {
   return { x: +me.x.toFixed(2), y: +me.y.toFixed(2), z: +me.z.toFixed(2), yaw: +me.bodyYaw.toFixed(2), sc: +me.sc.toFixed(2), spd: +me.spd.toFixed(1), fs: eatT > 0 ? 'eat' : sleepLock > 0 ? 'sleep' : F.state, bx: +(F.bx || 0).toFixed(1), by: +(F.by || 0).toFixed(2), bz: +(F.bz || 0).toFixed(1), bend: +(F.bend || 0).toFixed(2),
-    fx: Object.keys(effects), lvl: save.level, score: save.score, rt: save.rod, pw: +F.power.toFixed(2), name: me.name,
+    fx: Object.keys(effects), lvl: save.level, score: save.score, rt: curRodIdx(), pw: +F.power.toFixed(2), name: me.name,
     sw: me.swim ? 1 : 0, pg: me.passenger || 0, hf: curHold ? [curHold.idx, +curHold.kg.toFixed(1)] : 0, kn: me.kickN | 0, sn: me.shoveN | 0, mg: MEGA.summoned && MEGA.rec ? { s: MEGA.rec.sp, c: MEGA.rec.c1, g: MEGA.rec.glow, n: MEGA.rec.name, l: MEGA.rec.level, t: MEGA.rec.trail, x: +MEGA.x.toFixed(1), z: +MEGA.z.toFixed(1), y: +MEGA.y.toFixed(2), a: +MEGA.yaw.toFixed(2), r: me.riding ? 1 : 0 } : null };
 }
 function applyRemoteState(id, s) {
@@ -2325,7 +2355,7 @@ function updateHUD() {
   const list = [{ n: me.name, s: save.score, me: 1 }]; for (const rp of remotes.values()) list.push({ n: rp.name, s: rp.score || 0 }); list.sort((a, b) => b.s - a.s);
   $('players').firstChild.textContent = `PLAYERS: ${list.length}/8`; $('plist').innerHTML = NET.role === 'solo' ? '' : list.map(p => `<div style="color:${p.me ? '#ffd43b' : '#fff'}">${p.n}  ${p.s}</div>`).join('');
   $('stressbar').firstElementChild.style.width = (F.state === 'fight' && F.G ? clamp(F.G.stress, 0, 1) * 100 : 0) + '%';
-  const key = [bucket.length, selSlot, rodOut, save.baitSel, save.bait.shrimp, save.bait.glitter, Object.keys(effects).join(), save.rod, bucketCap()].join('|');
+  const key = [bucket.length, selSlot, rodOut, save.baitSel, save.bait.shrimp, save.bait.glitter, Object.keys(effects).join(), curRodIdx(), bucketCap()].join('|');
   if (key !== lastHudKey) { lastHudKey = key; updateBucketUI(); }
   const it = rodOut ? null : bucket[selSlot];
   if (it) { const sp = FISH[it.idx], b = save.book[it.idx], f = FX[sp.fx]; $('card').style.display = 'flex'; $('card').innerHTML = `<img src="${ICON[it.idx]}"><div><div class="nm" style="color:${R_COL[sp.r]}">${sp.n}</div><div class="sm">Lv ${fishLevel(sp, it.kg)} · ${lbs(it.kg)} lbs · ${R_NAMES[sp.r]}</div><div class="sm">Effect if eaten: ${b && b.fx ? f.e + ' ' + f.n : '❓ ???'}</div><div class="sm">Press E to eat · Q to switch</div></div>`; } else $('card').style.display = 'none';
@@ -2361,7 +2391,7 @@ function renderMarket() {
   } else if (mTab === 'rod') {
     const g = document.createElement('div'); g.className = 'grid'; g.style.gridTemplateColumns = 'repeat(auto-fill,minmax(230px,1fr))';
     RODS.forEach((r, i) => { const d = document.createElement('div'); d.className = 'card'; d.innerHTML = `<b style="color:${r.col === '#343a40' ? '#adb5bd' : r.col}">${r.n}</b><div class="small">${r.d}</div><div class="small">Cast ${r.cast}m · Bite speed ×${(1 / r.bite).toFixed(1)} · Luck +${Math.round(r.luck * 100)}% · Line ×${r.line}</div>`; const b = document.createElement('button'); b.className = 'opt';
-      if (save.rod === i) { b.textContent = 'Equipped ✓'; b.disabled = true; } else if (save.rod > i) { b.textContent = 'Owned'; b.disabled = true; } else { b.textContent = `Buy $${r.price}`; b.disabled = save.gold < r.price || i !== save.rod + 1; if (i !== save.rod + 1) b.textContent = 'Locked'; b.onclick = () => { save.gold -= r.price; save.rod = i; persist(); setMyRod(); sfx.cash(); toast(`New rod: ${r.n}!`, 2000, '#ffd43b'); renderMarket(); }; } d.appendChild(b); g.appendChild(d); });
+      if (save.rod >= i) { if (curRodIdx() === i) { b.textContent = 'Equipped ✓'; b.disabled = true; } else { b.textContent = 'Use this rod'; b.onclick = () => { save.rodSel = i; persist(); setMyRod(); sfx.tick(); toast(`🎣 Using the ${r.n}`, 1600, '#ffd43b'); renderMarket(); }; } } else { b.textContent = `Buy $${r.price}`; b.disabled = save.gold < r.price || i !== save.rod + 1; if (i !== save.rod + 1) b.textContent = 'Locked'; b.onclick = () => { save.gold -= r.price; save.rod = i; save.rodSel = i; persist(); setMyRod(); sfx.cash(); toast(`New rod: ${r.n}!`, 2000, '#ffd43b'); renderMarket(); }; } d.appendChild(b); g.appendChild(d); });
     body.appendChild(g);
   } else if (mTab === 'mega') {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Food keeps your Mega fed (hungry Megas swim slower) and levels it up: faster, bigger and glowier. Open the Mega Stable (M) to feed them.</div>');
@@ -2513,6 +2543,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyT') { skillsFrom = null; openSkills(); }
     if (e.code === 'KeyM') { stableFrom = null; openStable(); }
     if (e.code === 'KeyP') openMap();
+    if (e.code === 'BracketLeft') cycleRod(-1); if (e.code === 'BracketRight') cycleRod(1);
     if (e.code === 'Escape') setUI('pause');
   } else if (e.code === 'KeyF' && ui === 'market') { setUI('play'); lockPointer(); }
   else if (e.code === 'KeyB' && ui === 'book') closeBook();
@@ -2992,10 +3023,11 @@ function mountMega(rec) {
   if (F.state !== 'idle') resetFishing(); me.riding = true; MEGA.ridden = true; me.vx = me.vz = 0; me.grounded = false; me.yaw = MEGA.yaw + Math.PI * 0; sfx.boing(); splash(MEGA.x, .2, MEGA.z, 22, 4);
   toast(`Riding ${rec.name}! WASD swim · Shift boost · Space leap · G dismount`, 4200, '#6fe8ff');
 }
-function dismountMega() {
-  const w = nearestWalk(me.x, me.z); me.riding = false; MEGA.ridden = false; me.vy = 0; me.grounded = true; me.y = Y0;
-  if (w && w.d < 20) { me.x = w.x; me.z = w.z; } else { me.x = 0; me.z = -32; toast('Too far from land. You swim back to the dock.', 2200, '#ffd43b'); }
-  splash(me.x, Y0, me.z, 18, 4); toast(`Dismounted. Press G to call ${MEGA.rec ? MEGA.rec.name : 'your Mega'} again.`, 2200);
+function dismountMega() {   // you just hop off right where you are: into the water (or onto the ground if your Mega is on land)
+  const onLand = megaHas('land') && walkG(MEGA.x, MEGA.z) > .3, ang = MEGA.yaw + Math.PI / 2; me.riding = false; MEGA.ridden = false; me.vx = me.vz = 0;
+  me.x = MEGA.x + Math.sin(ang) * 2.8; me.z = MEGA.z + Math.cos(ang) * 2.8;
+  if (onLand) { me.grounded = true; me.y = walkG(me.x, me.z); me.vy = 0; } else { me.y = waveH(me.x, me.z, time) + 1.6; me.vy = 3; me.grounded = false; enterSwim(); }
+  toast(`You hop off ${MEGA.rec ? MEGA.rec.name : 'your Mega'}. Press G to hop back on.`, 2200);
 }
 let rainCool = 0;
 function megaLeapRain() { if (rainCool > 0 || Math.random() > .1) return; rainCool = 45; const seed = (Math.random() * 1e9) | 0; netEvent({ k: 'chaos', t: 'rain', seed, x: MEGA.x, z: MEGA.z }); runChaos('rain', seed, MEGA.x, MEGA.z); }
@@ -3766,7 +3798,7 @@ function buildIsle(I) {
     else if (y > .75) tmp.copy(cSand).lerp(cG, clamp(nz - .55, 0, .3));
     else if (y > .25) tmp.copy(cWet);
     else if (y > -.12) tmp.copy(cFoam).lerp(cWet, .15);
-    else tmp.copy(cWet).multiplyScalar(.7);
+    else tmp.copy(cSand).lerp(cWet, .25);
     if (I.biome === 'rock' && y > plat) tmp.multiplyScalar(.85 + .25 * Math.sin(y * 4.5));
     cols[i * 3] = tmp.r; cols[i * 3 + 1] = tmp.g; cols[i * 3 + 2] = tmp.b;
   }
@@ -3970,25 +4002,29 @@ function makeRidge(rad, base, amp, col, seed) {
 
 /* ---------- ART STYLES: one pick changes the post-processing, banding, sky, fog, lighting and water ---------- */
 const ART = [
-  { n: 'Sunny Cartoon', e: '☀️', steps: [88, 118, 150, 182, 210, 232, 247, 255], hard: false, fog: '#cdeeff', sky: ['#1d63d8', '#3f93e8', '#8cc8f2', '#cdeeff'], exp: 1.2, hemi: 1.15, sun: 2.7, bloom: [.3, .5, 1.05], water: '#167aa8', far: '#2a86a8' },
-  { n: 'Storybook Watercolor', e: '🎨', steps: [150, 168, 186, 204, 222, 238, 250, 255], hard: false, fog: '#e6e9dc', sky: ['#7fb0e0', '#a8cde6', '#d8e6dc', '#e6e9dc'], exp: 1.1, hemi: 1.1, sun: 2.4, bloom: [.12, .7, 1.15], water: '#5aa6b8', far: '#79b4bf' },
-  { n: 'Retro Pixel', e: '👾', steps: [60, 60, 130, 130, 200, 200, 255, 255], hard: true, fog: '#bfe4ff', sky: ['#2a6fe8', '#4aa4f0', '#8ed0ff', '#bfe4ff'], exp: 1.15, hemi: 1.1, sun: 2.6, bloom: [0, .4, 1.5], water: '#1c70c0', far: '#2c7ac4' },
-  { n: 'Comic Ink', e: '💥', steps: [70, 70, 70, 150, 150, 150, 255, 255], hard: true, fog: '#d9f2ff', sky: ['#0a7cff', '#33a8ff', '#8fd8ff', '#d9f2ff'], exp: 1.2, hemi: 1.1, sun: 2.9, bloom: [.1, .4, 1.2], water: '#0a86c8', far: '#1a90c8' },
-  { n: 'Cinematic Realism', e: '🎬', steps: [30, 62, 100, 148, 196, 228, 248, 255], hard: false, fog: '#aebfca', sky: ['#4a78b0', '#7ba2c6', '#b0c6d4', '#aebfca'], exp: 1.0, hemi: .85, sun: 3.4, bloom: [.22, .6, 1.0], water: '#0f5a7c', far: '#1c6684' },
-  { n: 'Neon Synthwave', e: '🌆', steps: [40, 40, 120, 120, 190, 190, 255, 255], hard: true, fog: '#40206a', sky: ['#14073a', '#5a1a8a', '#e0409a', '#ff9a4a'], exp: .85, hemi: .7, sun: 1.8, bloom: [.38, .7, .95], water: '#240a5a', far: '#34106a' },
-  { n: 'Dreamy Pastel', e: '🌸', steps: [170, 188, 206, 222, 236, 246, 253, 255], hard: false, fog: '#ffd6ec', sky: ['#7f98ff', '#b79cff', '#ffb6dc', '#ffd6ec'], exp: 1.05, hemi: 1.1, sun: 2.3, bloom: [.3, .8, .95], water: '#7ab6e8', far: '#9ac2ee' },
-  { n: 'Old Photograph', e: '📷', steps: [60, 90, 125, 160, 195, 225, 245, 255], hard: false, fog: '#cbbba0', sky: ['#9a8a70', '#bbaa8e', '#d2c3a8', '#cbbba0'], exp: 1.1, hemi: 1.0, sun: 2.4, bloom: [.12, .5, 1.1], water: '#4a6a70', far: '#5a7a80' }
+  { n: 'Sunny Cartoon', e: '☀️', steps: [88, 118, 150, 182, 210, 232, 247, 255], hard: false, fog: '#cdeeff', sky: ['#1d63d8', '#3f93e8', '#8cc8f2', '#cdeeff'], exp: 1.2, hemi: 1.15, sun: 2.7, bloom: [.3, .5, 1.05], water: '#12b6c6', far: '' },
+  { n: 'Storybook Watercolor', e: '🎨', steps: [150, 168, 186, 204, 222, 238, 250, 255], hard: false, fog: '#e6e9dc', sky: ['#7fb0e0', '#a8cde6', '#d8e6dc', '#e6e9dc'], exp: 1.1, hemi: 1.1, sun: 2.4, bloom: [.12, .7, 1.15], water: '#58b8c8', far: '' },
+  { n: 'Retro Pixel', e: '👾', steps: [60, 60, 130, 130, 200, 200, 255, 255], hard: true, fog: '#bfe4ff', sky: ['#2a6fe8', '#4aa4f0', '#8ed0ff', '#bfe4ff'], exp: 1.15, hemi: 1.1, sun: 2.6, bloom: [0, .4, 1.5], water: '#22a0e0', far: '' },
+  { n: 'Comic Ink', e: '💥', steps: [70, 70, 70, 150, 150, 150, 255, 255], hard: true, fog: '#d9f2ff', sky: ['#0a7cff', '#33a8ff', '#8fd8ff', '#d9f2ff'], exp: 1.2, hemi: 1.1, sun: 2.9, bloom: [.1, .4, 1.2], water: '#10b0e0', far: '' },
+  { n: 'Cinematic Realism', e: '🎬', steps: [30, 62, 100, 148, 196, 228, 248, 255], hard: false, fog: '#b4d0d8', sky: ['#4a7cb4', '#7eaac8', '#b4ccd6', '#b4d0d8'], exp: 1.0, hemi: .85, sun: 3.4, bloom: [.22, .6, 1.0], water: '#12b2c2', far: '' },
+  { n: 'Neon Synthwave', e: '🌆', steps: [40, 40, 120, 120, 190, 190, 255, 255], hard: true, fog: '#40206a', sky: ['#14073a', '#5a1a8a', '#e0409a', '#ff9a4a'], exp: .85, hemi: .7, sun: 1.8, bloom: [.38, .7, .95], water: '#3a1a8a', far: '' },
+  { n: 'Dreamy Pastel', e: '🌸', steps: [170, 188, 206, 222, 236, 246, 253, 255], hard: false, fog: '#ffd6ec', sky: ['#7f98ff', '#b79cff', '#ffb6dc', '#ffd6ec'], exp: 1.05, hemi: 1.1, sun: 2.3, bloom: [.3, .8, .95], water: '#78b8f0', far: '' },
+  { n: 'Old Photograph', e: '📷', steps: [60, 90, 125, 160, 195, 225, 245, 255], hard: false, fog: '#cbbba0', sky: ['#9a8a70', '#bbaa8e', '#d2c3a8', '#cbbba0'], exp: 1.1, hemi: 1.0, sun: 2.4, bloom: [.12, .5, 1.1], water: '#506a70', far: '' }
 ];
 function setStyle(i) {
   i = ((i % ART.length) + ART.length) % ART.length; const A = ART[i]; save.style = i; try { persist(); } catch (e) { }
   stylePass.uniforms.uMode.value = i; toonGrad.image.data.set(A.steps); toonGrad.minFilter = toonGrad.magFilter = A.hard ? THREE.NearestFilter : THREE.LinearFilter; toonGrad.needsUpdate = true;
-  scene.fog.color.set(A.fog); renderer.toneMappingExposure = A.exp; hemi.intensity = A.hemi; sun.intensity = A.sun; bloom.strength = A.bloom[0]; bloom.radius = A.bloom[1]; bloom.threshold = A.bloom[2]; water.material.color.set(A.water); farWater.material.color.set(A.far);
+  scene.fog.color.set(A.fog); renderer.toneMappingExposure = A.exp; hemi.intensity = A.hemi; sun.intensity = A.sun; bloom.strength = A.bloom[0]; bloom.radius = A.bloom[1]; bloom.threshold = A.bloom[2]; SKYOBJ.ridges && SKYOBJ.ridges.forEach((r, i) => r.material.color.set(A.fog).lerp(new THREE.Color('#7f9cb0'), [.34, .26, .18][i])); WPAL.deep.set(A.water); WPAL.mid.set(A.water).lerp(new THREE.Color('#40f0cc'), .5); WPAL.shallow.set(A.water).lerp(new THREE.Color('#b8fff0'), .7); wForce = true; farWater.material.color.set(A.water).lerp(new THREE.Color('#ffffff'), .04);
   const cv = SKYOBJ.tex.image, g2 = cv.getContext('2d'), gr = g2.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, A.sky[0]); gr.addColorStop(.22, A.sky[1]); gr.addColorStop(.4, A.sky[2]); gr.addColorStop(.5, A.sky[3]); gr.addColorStop(1, A.sky[3]); g2.fillStyle = gr; g2.fillRect(0, 0, 4, 256); SKYOBJ.tex.needsUpdate = true;
-  for (const el of document.querySelectorAll('.styleSel')) el.value = String(i);
+  for (const el of document.querySelectorAll('.styleSel')) el.value = String(i); if (window.__markStyle) window.__markStyle();
 }
 function initStyles() {
   for (const el of document.querySelectorAll('.styleSel')) { el.innerHTML = ART.map((a, k) => `<option value="${k}">${a.e} ${a.n}</option>`).join(''); el.onchange = () => setStyle(+el.value); }
-  setStyle(save.style || 0);
+  const D = ['Bright and bouncy (the original)', 'Soft paper and paint', 'Chunky retro pixels', 'Bold ink lines and halftone dots', 'Moody, warm and cinematic', 'Glowing neon night', 'Candy-pastel haze', 'Faded sepia film'];
+  const grid = $('styleGrid'); ART.forEach((a, k) => { const c = document.createElement('div'); c.className = 'card'; c.dataset.k = k; c.style.cssText = `width:118px;text-align:center;cursor:pointer;padding:0 0 6px;overflow:hidden;border:3px solid #14213d;background:#2b63e6`; c.innerHTML = `<div style="height:62px;background:linear-gradient(${a.sky[0]},${a.sky[2]} 55%,${a.sky[3]} 56%,${a.water} 57%,${a.water})"></div><div style="font-size:15px;font-weight:900;margin-top:4px">${a.e} ${a.n}</div><div class="small" style="padding:0 4px">${D[k]}</div>`; c.onclick = () => { setStyle(k); save.styleChosen = true; persist(); }; grid.appendChild(c); });
+  const mark = () => grid.querySelectorAll('.card').forEach(c => { c.style.borderColor = +c.dataset.k === (save.style || 0) ? '#ffd43b' : '#14213d'; c.style.transform = +c.dataset.k === (save.style || 0) ? 'translateY(-4px)' : ''; });
+  window.__markStyle = mark; $('styleDone').onclick = () => { save.styleChosen = true; persist(); $('styleOv').style.display = 'none'; }; $('btnStyle').onclick = () => { mark(); $('styleOv').style.display = 'flex'; };
+  if (save.styleChosen) setStyle(save.style || 0); else { setStyle(4); mark(); $('styleOv').style.display = 'flex'; }
   addEventListener('keydown', e => { if (e.code === 'KeyY' && (ui === 'play' || ui === 'pause') && !e.repeat) { setStyle((save.style || 0) + 1); toast(`🎨 Art style: ${ART[save.style].e} ${ART[save.style].n}`, 1800, '#ffd43b'); } });
 }
 function initHorizon() {   // hazy layered ridges, a low cloud bank and sky reflections in the water make the horizon look real
@@ -4120,10 +4156,11 @@ function updateFun(dt) {
 }
 
 /* ---------- extra character animations and facial expressions ---------- */
-const ANIM = { cheer: 0, sad: 0, idle: 0, stretch: 0, blink: 2.5, blinkT: 0 }, ANIM_PHASE = ['dance', 'eat', 'juggle', 'cheer', 'flail', 'fan', 'cold', 'stretch'];
+const ANIM = { cheer: 0, sad: 0, idle: 0, stretch: 0, blink: 2.5, blinkT: 0, air: 0, landT: 0 }, ANIM_PHASE = ['dance', 'eat', 'juggle', 'cheer', 'flail', 'fan', 'cold', 'stretch'];
 const coldHere = () => { const f = NEWW[0], I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps[f.id] && Math.hypot(me.x - f.x, me.z - f.z) < f.r + 70) || (I && I.biome === 'snow'); };
 const hotHere = () => { const I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps.lava && Math.hypot(me.x - LAVA.x, me.z - LAVA.z) < LAVA.r + 55) || (I && I.biome === 'volcanic') || has('magma'); };
 function animTick(dt) {
+  { const air = !me.grounded && !me.swim && !me.riding && !me.passenger && !me.fly && ui === 'play'; if (air) ANIM.air += dt; else { if (ANIM.air > .25) ANIM.landT = .3; ANIM.air = 0; } ANIM.landT = Math.max(0, ANIM.landT - dt); }
   ANIM.cheer = Math.max(0, ANIM.cheer - dt); ANIM.sad = Math.max(0, ANIM.sad - dt); ANIM.stretch = Math.max(0, ANIM.stretch - dt); ANIM.blink -= dt; ANIM.blinkT -= dt; if (ANIM.blink <= 0) { ANIM.blinkT = .14; ANIM.blink = 2.4 + Math.random() * 3.2; }
   if (me.spd < .3 && F.state === 'idle' && !me.riding && !me.swim && !me.passenger && ui === 'play') { ANIM.idle += dt; if (ANIM.idle > 16) { ANIM.idle = 0; ANIM.stretch = 2.8; } } else ANIM.idle = 0;
 }
@@ -4151,7 +4188,8 @@ function updateMeAvatar(dt) {
   if (mnt && !fishNow) mode = 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (digState) mode = 'fight'; else if (emote.t > 0) mode = emote.m; else if (has('disco')) mode = 'dance';
   animTick(dt);
   if (!mnt && !me.swim) {
-    if (ANIM.cheer > 0) mode = 'cheer'; else if (ANIM.sad > 0) mode = 'sad'; else if (me.knockT > 0) mode = 'flail'; else if (has('spicy') && eatT <= 0) mode = 'juggle';
+    if (ANIM.air > .06 && F.state === 'idle') mode = me.vy > 0 ? 'jump' : 'fall'; else if (ANIM.cheer > 0) mode = 'cheer'; else if (ANIM.sad > 0) mode = 'sad'; else if (me.knockT > 0) mode = 'flail'; else if (has('spicy') && eatT <= 0) mode = 'juggle';
+    else if (mode === 'hold' && me.spd > 7.5 && me.grounded) mode = 'sprint';
     else if (mode === 'hold' || mode === 'idle') { if (ANIM.stretch > 0) mode = 'stretch'; else if (coldHere() && me.spd < .5) mode = 'cold'; else if (hotHere() && me.spd < .5) mode = 'fan'; }
   }
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
@@ -4162,7 +4200,7 @@ function updateMeAvatar(dt) {
   let lean = clamp(me.spd * .045, 0, .3) + Math.sin(time * 9) * .1 * me.wob;
   if (mode === 'fight') lean = -.12 - stress * .3 + Math.sin(time * 16) * .06 * stress; else if (mode === 'cast') lean = lerp(-.35, .4, clamp(F.t / .25, 0, 1)); else if (mode === 'ride') lean = .08 + me.spd * .012; else if (mode === 'swim') lean = .15 + me.spd * .06;
   const sway = Math.sin(time * 13) * (.04 + .2 * me.wob) + Math.sin(me.walk * 2.2) * .09 * mv + Math.sin(time * 19) * .1 * stress;
-  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, u: clamp(F.t / .25, 0, 1), lean, sway: sway + (mode === 'cold' ? Math.sin(time * 38) * .02 : 0), kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
+  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, crouch: ANIM.landT > 0 ? Math.sin(ANIM.landT / .3 * Math.PI) : 0, u: clamp(F.t / .25, 0, 1), lean, sway: sway + (mode === 'cold' ? Math.sin(time * 38) * .02 : 0), kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
   const up = mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? lerp(1.5, .5, clamp(F.t / .25, 0, 1)) : .9;

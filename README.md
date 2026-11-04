@@ -65,3 +65,6 @@ Character model "Simple Guy" by jpraptor001 (https://sketchfab.com/3d-models/sim
 - **Art styles:** pick one in the main menu or pause menu, or press `Y` to cycle: Sunny Cartoon, Storybook Watercolor, Retro Pixel, Comic Ink, Cinematic Realism, Neon Synthwave, Dreamy Pastel, Old Photograph.
 - **Animations:** your face now changes (happy, panic, hot, cold, sad, dizzy, sleepy, chewing, yawning, straining), you juggle a too-hot rod like a hot potato, shiver in the cold, fan yourself in the heat, cheer, flail when shoved, stretch when idle. Gulls wheel overhead and fish leap out of the sea.
 - **Unique Megas:** about 30 Megas were rebuilt with their own bodies (hammerhead, jellyfish, puffer, sunfish, mantas, squid, eels, whales...). Some were renamed to match.
+- **Pick your game's look** on first launch (or any time with the Art style button / `Y`). Cinematic Realism is the default.
+- **Rods:** you can always switch to a worse rod you own (market Rod tab, or `[` and `]` in game).
+- **Warm ocean:** clear turquoise shallows, bright teal water and foam where it meets the sand. Walk straight into the sea from any beach and glide into a swim. Hopping off a Mega drops you right into the water. Jumping, falling and landing have their own animations.
