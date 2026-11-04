@@ -169,12 +169,12 @@
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
   <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
   <div id="streakBox" class="card" style="margin:8px auto;max-width:460px"></div>
-  <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
+  <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div style="margin-top:8px">🎨 Art style: <select class="styleSel"></select></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
 </div></div>
 
 <div class="ov" id="pause"><div class="box"><h2>Paused</h2><div class="sub" id="pauseSub">The fish will wait. (Online players keep fishing!)</div>
-<div id="pauseMain"><div><button id="btnResume">Resume</button></div><div id="pauseDiff" style="margin:8px 0"></div>
+<div id="pauseMain"><div><button id="btnResume">Resume</button></div><div id="pauseDiff" style="margin:8px 0"></div><div style="margin:8px 0">🎨 Art style (Y): <select class="styleSel"></select></div>
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button id="btnDict" class="sec">📖 Fish Dictionary</button><button id="btnStable" class="sec">🐋 Mega Stable</button><button id="btnSkills" class="sec">⭐ Skills</button><button id="btnMenu" class="sec">🏠 Main menu</button><button id="btnSound" class="sec">🔊 Sound: ON</button></div></div>
 <div id="menuAsk" style="display:none"><div class="sub" id="menuAskTxt"></div><div><button id="btnLeave" style="background:#ff6b6b;box-shadow:0 4px 0 #c92a2a">🚪 Leave room &amp; go to main menu</button></div><div style="margin-top:8px"><button id="btnStay" class="sec">Stay in the room</button></div></div>
 </div></div>
@@ -420,7 +420,7 @@ const FOG = 0xcdeeff;
 scene.fog = new THREE.Fog(FOG, 220, 1150); const WORLD_H = 5200;   // the sea is ~10,000 steps across
 const camera = new THREE.PerspectiveCamera(72, 1, 0.05, 1800);
 camera.rotation.order = 'YXZ'; scene.add(camera);
-scene.add(new THREE.HemisphereLight(0xd6e8ff, 0xb6a58c, 1.15));
+const hemi = new THREE.HemisphereLight(0xd6e8ff, 0xb6a58c, 1.15); scene.add(hemi);
 const sun = new THREE.DirectionalLight(0xfff0d6, 2.7); sun.position.set(-50, 42, -70); scene.add(sun); scene.add(sun.target);
 sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0005; sun.shadow.normalBias = 0.04; sun.shadow.radius = 3;
 Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 170 }); sun.shadow.camera.updateProjectionMatrix();
@@ -429,17 +429,38 @@ const fillLight = new THREE.DirectionalLight(0x9cc8ff, .45); fillLight.position.
 const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 }));
 composer.addPass(new RenderPass(scene, camera));
 const bloom = new UnrealBloomPass(new THREE.Vector2(512, 512), 0.3, 0.5, 1.05); composer.addPass(bloom);
-composer.addPass(new ShaderPass({
-  uniforms: { tDiffuse: { value: null } },
+const stylePass = new ShaderPass({
+  uniforms: { tDiffuse: { value: null }, uMode: { value: 0 }, uRes: { value: new THREE.Vector2(1280, 720) }, uTime: { value: 0 } },
   vertexShader: 'varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }',
-  fragmentShader: `uniform sampler2D tDiffuse; varying vec2 vUv;
-    void main(){ vec4 c=texture2D(tDiffuse,vUv); float l=dot(c.rgb,vec3(.299,.587,.114));
-      c.rgb*=mix(vec3(.95,.99,1.05),vec3(1.05,1.0,.94),smoothstep(.15,.75,l));
-      c.rgb=mix(vec3(l),c.rgb,.98);
-      float d=distance(vUv,vec2(.5)); c.rgb*=1.0-smoothstep(.55,1.0,d)*.2; gl_FragColor=c; }`
-}));
+  fragmentShader: `uniform sampler2D tDiffuse; uniform vec2 uRes; uniform float uMode, uTime; varying vec2 vUv;
+    float lum(vec3 c){ return dot(c, vec3(.299,.587,.114)); }
+    float hsh(vec2 p){ return fract(sin(dot(p, vec2(12.9898,78.233))) * 43758.5453); }
+    vec3 S(vec2 uv){ return texture2D(tDiffuse, uv).rgb; }
+    vec3 blur(vec2 uv, float r){ vec2 o = r / uRes; vec3 c = S(uv)*.2; c += S(uv+vec2(o.x,0.))*.1 + S(uv-vec2(o.x,0.))*.1 + S(uv+vec2(0.,o.y))*.1 + S(uv-vec2(0.,o.y))*.1; c += S(uv+o)*.1 + S(uv-o)*.1 + S(uv+vec2(o.x,-o.y))*.1 + S(uv+vec2(-o.x,o.y))*.1; return c; }
+    float edge(vec2 uv){ vec2 o = 1.2 / uRes; float tl=lum(S(uv+vec2(-o.x,o.y))), t=lum(S(uv+vec2(0.,o.y))), tr=lum(S(uv+o)), l=lum(S(uv-vec2(o.x,0.))), r=lum(S(uv+vec2(o.x,0.))), bl=lum(S(uv-o)), b=lum(S(uv-vec2(0.,o.y))), br=lum(S(uv+vec2(o.x,-o.y))); float gx=-tl-2.*l-bl+tr+2.*r+br, gy=-tl-2.*t-tr+bl+2.*b+br; return length(vec2(gx,gy)); }
+    void main(){
+      vec2 uv = vUv; float d = distance(vUv, vec2(.5)); vec3 c; float l;
+      if (uMode > 1.5 && uMode < 2.5) { vec2 px = vec2(max(3., uRes.y/190.)) / uRes; uv = (floor(uv/px)+.5)*px; }
+      if (uMode > 3.5 && uMode < 4.5) { vec2 dir = (vUv-.5); c = vec3(S(uv+dir*.0018*d*8.).r, S(uv).g, S(uv-dir*.0018*d*8.).b); }
+      else if (uMode > 4.5 && uMode < 5.5) { vec2 dir = (vUv-.5); c = vec3(S(uv+dir*.004*d*6.).r, S(uv).g, S(uv-dir*.004*d*6.).b); }
+      else if (uMode > .5 && uMode < 1.5) c = blur(uv, 1.6);
+      else if (uMode > 5.5 && uMode < 6.5) c = mix(S(uv), blur(uv, 3.2), .4);
+      else if (uMode > 6.5) c = blur(uv, 1.1);
+      else c = S(uv);
+      l = lum(c);
+      if (uMode < .5) { c *= mix(vec3(.95,.99,1.05), vec3(1.05,1.0,.94), smoothstep(.15,.75,l)); c = mix(vec3(l), c, .98); c *= 1.0 - smoothstep(.55,1.0,d)*.2; }
+      else if (uMode < 1.5) { float e = edge(uv); c = mix(vec3(l), c, .85); c = c*.9 + .06; c *= vec3(1.04,1.0,.93); c *= .93 + .1*hsh(floor(vUv*uRes/2.)); c *= 1.0 - smoothstep(.15,.9,e)*.28; c *= 1.0 - smoothstep(.5,1.0,d)*.3; }
+      else if (uMode < 2.5) { vec3 g = pow(max(c,0.), vec3(1./2.2)); g = floor(g*6.+.5)/6.; c = pow(g, vec3(2.2)); c = mix(vec3(lum(c)), c, 1.15); }
+      else if (uMode < 3.5) { float e = edge(uv); float band = floor(l*4.+.5)/4.; c *= mix(1., band/max(l,.001), .55); c = mix(vec3(l), c, 1.4); float dots = step(.5, sin(vUv.x*uRes.x*.55)*sin(vUv.y*uRes.y*.55)+.1); c *= mix(1., .55, dots*smoothstep(.45,.12,l)); c = mix(c, vec3(.02), smoothstep(.14,.32,e)*.92); }
+      else if (uMode < 4.5) { c *= mix(vec3(.86,1.0,1.08), vec3(1.12,1.0,.88), smoothstep(.08,.85,l)); c = (c-.45)*1.16+.45; c = mix(vec3(lum(c)), c, .86); c += (hsh(vUv*uRes+uTime)-.5)*.05; c *= 1.0 - smoothstep(.35,1.0,d)*.4; }
+      else if (uMode < 5.5) { c = pow(max(c,0.), vec3(.9)); c *= mix(vec3(1.15,.62,1.3), vec3(.75,1.2,1.35), smoothstep(.1,.7,l)); c *= .9 + .1*sin(vUv.y*uRes.y*1.6); c += vec3(.02,0.,.04); c *= 1.0 - smoothstep(.4,1.0,d)*.45; }
+      else if (uMode < 6.5) { c = mix(c, vec3(1.,.82,.94), .1); c = mix(vec3(lum(c)), c, 1.0); c = (c-.45)*1.08+.47; c = mix(c, vec3(1.0,.9,.97), smoothstep(.5,1.,d)*.28); }
+      else { float s2 = l*1.05; c = vec3(s2*1.18, s2*1.0, s2*.78); c = (c-.5)*1.12+.5; c += (hsh(floor(vUv*uRes/1.5)+floor(uTime*12.))-.5)*.09; float sc = step(.997, hsh(vec2(floor(vUv.x*uRes.x/2.), floor(uTime*8.)))); c = mix(c, vec3(1.), sc*.4); c *= 1.0 - smoothstep(.25,.95,d)*.65; }
+      gl_FragColor = vec4(c, 1.0); }`
+});
+composer.addPass(stylePass);
 composer.addPass(new OutputPass());
-function resize() { renderer.setSize(innerWidth, innerHeight, false); composer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
+function resize() { stylePass.uniforms.uRes.value.set(innerWidth * Math.min(devicePixelRatio, 1.5), innerHeight * Math.min(devicePixelRatio, 1.5)); renderer.setSize(innerWidth, innerHeight, false); composer.setPixelRatio(Math.min(devicePixelRatio, 1.5)); composer.setSize(innerWidth, innerHeight); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
 
 const toonGrad = (() => { const t = new THREE.DataTexture(new Uint8Array([88, 118, 150, 182, 210, 232, 247, 255]), 8, 1, THREE.RedFormat); t.minFilter = t.magFilter = THREE.LinearFilter; t.needsUpdate = true; return t; })();
@@ -1518,7 +1539,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104160057';
+const GAME_BUILD = '20261104160729';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -3906,13 +3927,37 @@ function makeRidge(rad, base, amp, col, seed) {
   const N = 180, pos = [], idx = []; for (let i = 0; i <= N; i++) { const a = i / N * TAU, n = Math.sin(a * 7 + seed) * .5 + Math.sin(a * 17 + seed * 2) * .3 + Math.sin(a * 41 + seed * 3) * .2, h = base + Math.max(0, n + .2) * amp; pos.push(Math.cos(a) * rad, -30, Math.sin(a) * rad, Math.cos(a) * rad, h, Math.sin(a) * rad); if (i < N) { const k = i * 2; idx.push(k, k + 2, k + 1, k + 1, k + 2, k + 3); } }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); g.setIndex(idx); const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide })); m.frustumCulled = false; scene.add(m); return m;
 }
+
+/* ---------- ART STYLES: one pick changes the post-processing, banding, sky, fog, lighting and water ---------- */
+const ART = [
+  { n: 'Sunny Cartoon', e: '☀️', steps: [88, 118, 150, 182, 210, 232, 247, 255], hard: false, fog: '#cdeeff', sky: ['#1d63d8', '#3f93e8', '#8cc8f2', '#cdeeff'], exp: 1.2, hemi: 1.15, sun: 2.7, bloom: [.3, .5, 1.05], water: '#167aa8', far: '#2a86a8' },
+  { n: 'Storybook Watercolor', e: '🎨', steps: [150, 168, 186, 204, 222, 238, 250, 255], hard: false, fog: '#e6e9dc', sky: ['#7fb0e0', '#a8cde6', '#d8e6dc', '#e6e9dc'], exp: 1.1, hemi: 1.1, sun: 2.4, bloom: [.12, .7, 1.15], water: '#5aa6b8', far: '#79b4bf' },
+  { n: 'Retro Pixel', e: '👾', steps: [60, 60, 130, 130, 200, 200, 255, 255], hard: true, fog: '#bfe4ff', sky: ['#2a6fe8', '#4aa4f0', '#8ed0ff', '#bfe4ff'], exp: 1.15, hemi: 1.1, sun: 2.6, bloom: [0, .4, 1.5], water: '#1c70c0', far: '#2c7ac4' },
+  { n: 'Comic Ink', e: '💥', steps: [70, 70, 70, 150, 150, 150, 255, 255], hard: true, fog: '#d9f2ff', sky: ['#0a7cff', '#33a8ff', '#8fd8ff', '#d9f2ff'], exp: 1.2, hemi: 1.1, sun: 2.9, bloom: [.1, .4, 1.2], water: '#0a86c8', far: '#1a90c8' },
+  { n: 'Cinematic Realism', e: '🎬', steps: [30, 62, 100, 148, 196, 228, 248, 255], hard: false, fog: '#aebfca', sky: ['#4a78b0', '#7ba2c6', '#b0c6d4', '#aebfca'], exp: 1.0, hemi: .85, sun: 3.4, bloom: [.22, .6, 1.0], water: '#0f5a7c', far: '#1c6684' },
+  { n: 'Neon Synthwave', e: '🌆', steps: [40, 40, 120, 120, 190, 190, 255, 255], hard: true, fog: '#40206a', sky: ['#14073a', '#5a1a8a', '#e0409a', '#ff9a4a'], exp: .85, hemi: .7, sun: 1.8, bloom: [.38, .7, .95], water: '#240a5a', far: '#34106a' },
+  { n: 'Dreamy Pastel', e: '🌸', steps: [170, 188, 206, 222, 236, 246, 253, 255], hard: false, fog: '#ffd6ec', sky: ['#7f98ff', '#b79cff', '#ffb6dc', '#ffd6ec'], exp: 1.05, hemi: 1.1, sun: 2.3, bloom: [.3, .8, .95], water: '#7ab6e8', far: '#9ac2ee' },
+  { n: 'Old Photograph', e: '📷', steps: [60, 90, 125, 160, 195, 225, 245, 255], hard: false, fog: '#cbbba0', sky: ['#9a8a70', '#bbaa8e', '#d2c3a8', '#cbbba0'], exp: 1.1, hemi: 1.0, sun: 2.4, bloom: [.12, .5, 1.1], water: '#4a6a70', far: '#5a7a80' }
+];
+function setStyle(i) {
+  i = ((i % ART.length) + ART.length) % ART.length; const A = ART[i]; save.style = i; try { persist(); } catch (e) { }
+  stylePass.uniforms.uMode.value = i; toonGrad.image.data.set(A.steps); toonGrad.minFilter = toonGrad.magFilter = A.hard ? THREE.NearestFilter : THREE.LinearFilter; toonGrad.needsUpdate = true;
+  scene.fog.color.set(A.fog); renderer.toneMappingExposure = A.exp; hemi.intensity = A.hemi; sun.intensity = A.sun; bloom.strength = A.bloom[0]; bloom.radius = A.bloom[1]; bloom.threshold = A.bloom[2]; water.material.color.set(A.water); farWater.material.color.set(A.far);
+  const cv = SKYOBJ.tex.image, g2 = cv.getContext('2d'), gr = g2.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, A.sky[0]); gr.addColorStop(.22, A.sky[1]); gr.addColorStop(.4, A.sky[2]); gr.addColorStop(.5, A.sky[3]); gr.addColorStop(1, A.sky[3]); g2.fillStyle = gr; g2.fillRect(0, 0, 4, 256); SKYOBJ.tex.needsUpdate = true;
+  for (const el of document.querySelectorAll('.styleSel')) el.value = String(i);
+}
+function initStyles() {
+  for (const el of document.querySelectorAll('.styleSel')) { el.innerHTML = ART.map((a, k) => `<option value="${k}">${a.e} ${a.n}</option>`).join(''); el.onchange = () => setStyle(+el.value); }
+  setStyle(save.style || 0);
+  addEventListener('keydown', e => { if (e.code === 'KeyY' && (ui === 'play' || ui === 'pause') && !e.repeat) { setStyle((save.style || 0) + 1); toast(`🎨 Art style: ${ART[save.style].e} ${ART[save.style].n}`, 1800, '#ffd43b'); } });
+}
 function initHorizon() {   // hazy layered ridges, a low cloud bank and sky reflections in the water make the horizon look real
   SKYOBJ.ridges = [makeRidge(980, 10, 85, '#a9c0d2', 2), makeRidge(840, 8, 62, '#8aa8c0', 1), makeRidge(720, 6, 34, '#6f93ae', 3)];
   SKYOBJ.bank = []; for (let i = 0; i < 30; i++) { const a = i / 30 * TAU + Math.random() * .2, sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: 0xffffff, transparent: true, opacity: .3, depthWrite: false })); sp.scale.set(rnd(240, 420), rnd(36, 80), 1); sp.userData = { a, r: 880 + Math.random() * 100, y: rnd(18, 60) }; scene.add(sp); SKYOBJ.bank.push(sp); }
   try { const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: SKYOBJ.tex, side: THREE.BackSide }))); scene.environment = pm.fromScene(es, .02).texture; pm.dispose(); } catch (e) { }
 }
 const megaSurf = (x, z) => megaHas('land') ? Math.max(waveH(x, z, time), walkG(x, z)) : waveH(x, z, time);
-genOpenSea(); initHorizon(); initGulls();
+genOpenSea(); initHorizon(); initGulls(); initStyles();
 const emojiFly = []; let emoteI = 0, emote = { t: 0, m: 'wave' };
 function spawnEmoji(e, who) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e), transparent: true, depthTest: false })); sp.scale.setScalar(1.5); scene.add(sp); emojiFly.push({ sp, who, t: 0 }); }
 function doEmote() { if (me.riding || me.passenger || me.swim || ui !== 'play') return; const em = EMOTES[emoteI++ % EMOTES.length]; emote = { t: 2.6, m: em.m }; spawnEmoji(em.e, null); netEvent({ k: 'emote', id: NET.myId, i: (emoteI - 1) % EMOTES.length }); sfx.pop(); }
@@ -4102,10 +4147,10 @@ let last = performance.now();
 function loop(now) {
   requestAnimationFrame(loop);
   const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt);
-  composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
+  stylePass.uniforms.uTime.value = performance.now() / 1000; composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { setStyle, ART, stylePass, paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
