@@ -56,3 +56,5 @@ Progress is saved in `localStorage`.
 Character model "Simple Guy" by jpraptor001 (https://sketchfab.com/3d-models/simple-guy-dff46ae295684c37a4860f1b374cd4ef), under the Sketchfab Standard license. Check that license before publishing the model file (`simple_guy.glb` / `simple_guy_b64.js`) publicly.
 
 - **Daily streak:** play on consecutive days to claim bigger gifts each day (money, bait, Mega Lures), with extra-big ones on days 3, 7, 14 and 30. Miss a day and it resets.
+- **Friends:** main menu → 👥 Friends. Share your 6-character friend code, add friends' codes, see who is online, and tap Join to hop into their room.
+- **Accounts:** main menu → 🔑 Sign in. Create a username and password and your whole game (fish, money, Megas, friends) saves online, encrypted with your password, so you can sign in from any device.

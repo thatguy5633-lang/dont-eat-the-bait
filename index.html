@@ -133,12 +133,32 @@
 </div>
 <div id="lids"></div><div id="tint"></div>
 
+<div class="ov" id="accOv" style="z-index:12"><div class="box" style="max-width:480px;width:92vw">
+  <h2 class="stroke">🔑 ACCOUNT</h2>
+  <div id="accOut"><div class="small">Sign in to save your game online and play on any device. Your fish, money, Megas and friends come with you.</div>
+    <div style="margin:10px 0"><input type="text" id="accUser" maxlength="16" placeholder="Username" autocomplete="username" style="width:200px"></div>
+    <div><input type="password" id="accPass" maxlength="40" placeholder="Password" autocomplete="current-password" style="width:200px"></div>
+    <div style="margin-top:10px"><button id="accIn">Sign in</button> <button class="sec" id="accNew">Create account</button></div>
+    <div class="small" style="opacity:.75;margin-top:8px">New here? Pick a username and password, then press Create account. Your save is encrypted with your password. If you forget it, nobody can recover it, so remember it!</div></div>
+  <div id="accIn2" style="display:none"><div id="accWho" style="font-size:20px;margin:8px"></div><div class="small">Your game saves online automatically while you play.</div>
+    <div style="margin-top:10px"><button id="accSave" class="sec">Save now</button> <button id="accOutBtn" class="sec">Sign out</button></div></div>
+  <div class="small" id="accMsg" style="min-height:18px;margin-top:8px"></div>
+  <div style="margin-top:8px"><button id="accClose">Back</button></div>
+</div></div>
+<div class="ov" id="friends" style="z-index:11"><div class="box" style="max-width:560px;width:92vw">
+  <h2 class="stroke">👥 FRIENDS</h2>
+  <div class="small">Your friend code: <b id="frCode" style="font-size:22px;letter-spacing:3px"></b> <button class="sec" id="frCopy">Copy</button></div>
+  <div class="small" style="opacity:.8">Share it. Friends who add your code see when you are online and can join your room.</div>
+  <div style="margin:10px 0"><input type="text" id="frIn" maxlength="6" placeholder="FRIEND CODE" style="width:160px;text-transform:uppercase"> <button class="sec" id="frAdd">Add friend</button></div>
+  <div class="small" id="frMsg" style="min-height:16px"></div><div id="frList"></div>
+  <div style="margin-top:10px"><button id="frClose">Back</button></div>
+</div></div>
 <div class="ov" id="menu"><div class="box" style="max-width:620px">
   <h1 class="stroke">DON'T EAT<br>THE BAIT!</h1>
   <div class="sub">Catch weird fish. Level up your rod. Eat them if you dare, because every fish does something different.</div>
   <div><input type="text" id="nameIn" maxlength="12" placeholder="Your name"> <button class="sec" id="btnCloset">👕 Closet</button></div>
   <div style="margin-top:10px"><button id="btnSolo">🎣 Play solo</button> <button id="btnHost">🌐 Host online room</button></div>
-  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button></div>
+  <div style="margin-top:6px"><input type="text" id="codeIn" maxlength="4" placeholder="ROOM CODE" style="width:140px;text-transform:uppercase"> <button class="sec" id="btnJoin">Join room</button> <button class="sec" id="btnFriends">👥 Friends</button> <button class="sec" id="btnAcct">🔑 Sign in</button></div>
   <div id="streakBox" class="card" style="margin:8px auto;max-width:460px"></div>
   <div style="margin-top:8px"><button id="btnUpdate" class="sec">🔄 Check for updates</button> <span class="small" id="updInfo"></span></div><div id="diffBox" style="margin-top:8px"></div><div class="small" style="opacity:.6;margin-top:8px">online v2</div><div class="small" id="menuStatus" style="margin-top:10px;min-height:20px"></div>
   <div class="small">Up to 8 players per room. Rooms connect directly between browsers (no server).</div>
@@ -375,7 +395,8 @@ const save = { gold: 0, score: 0, xp: 0, level: 1, spent: 0, skills: {}, rod: 0,
 try { const s = JSON.parse(localStorage.getItem('dontEatBait_v1') || '{}'); Object.assign(save, s); save.ap = Object.assign({}, DEFAULT_AP, s.ap || {}); if (s.apv !== 2) save.ap = Object.assign({}, DEFAULT_AP); } catch (e) { }
 save.apv = 2;
 save.megas = save.megas || []; save.food = Object.assign({ krill: 0, squid: 0, tuna: 0 }, save.food || {}); save.maps = save.maps || {}; save.activeMega = save.activeMega || null; save.bait = Object.assign({ shrimp: 0, glitter: 0, mega: 0 }, save.bait || {});
-const persist = () => { try { localStorage.setItem('dontEatBait_v1', JSON.stringify(save)); } catch (e) { } };
+let acctDirty = false;
+const persist = () => { save.ts = Date.now(); acctDirty = true; try { localStorage.setItem('dontEatBait_v1', JSON.stringify(save)); } catch (e) { } };
 const skill = k => save.skills[k] || 0;
 
 /* =========================================================
@@ -1132,7 +1153,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261103210228';
+const GAME_BUILD = '20261103212934';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1707,7 +1728,7 @@ function hostRoom() {
   try { peer = new MPeer('deb-' + code); } catch (e) { setStatus('Could not start online play: ' + e); return; }
   const to = setTimeout(() => fallback('timeout'), 10000);
   peer.on('open', id => {
-    if (settled) return; settled = true; clearTimeout(to); NET.role = 'host'; NET.peer = peer; NET.myId = id; NET.room = code; me.id = id; NET.players.set(id, { name: me.name, ap: save.ap });
+    if (settled) return; settled = true; clearTimeout(to); NET.role = 'host'; NET.peer = peer; NET.myId = id; NET.room = code; FR.room = code; frPub(); me.id = id; NET.players.set(id, { name: me.name, ap: save.ap });
     $('room').textContent = `ROOM CODE: ${code}  (share it!)`; enterWorld();
   });
   peer.on('connection', conn => {
@@ -1737,7 +1758,7 @@ function joinRoom() {
     const conn = peer.connect('deb-' + code);
     conn.on('open', () => { conn.send({ t: 'hello', name: me.name, ap: save.ap }); });
     conn.on('data', d => {
-      if (d.t === 'welcome') { done = true; clearTimeout(to); NET.role = 'client'; NET.peer = peer; NET.hostConn = conn; NET.myId = d.id; me.id = d.id; NET.room = code; for (const [pid, info] of Object.entries(d.players)) NET.players.set(pid, info); $('room').textContent = `ROOM: ${code}`; enterWorld(); }
+      if (d.t === 'welcome') { done = true; clearTimeout(to); NET.role = 'client'; NET.peer = peer; NET.hostConn = conn; NET.myId = d.id; me.id = d.id; NET.room = code; FR.room = code; frPub(); for (const [pid, info] of Object.entries(d.players)) NET.players.set(pid, info); $('room').textContent = `ROOM: ${code}`; enterWorld(); }
       else if (d.t === 'full') { done = true; clearTimeout(to); setStatus('That room is full (8/8).'); try { peer.destroy(); } catch (e) { } }
       else if (d.t === 'snap') {
         if (d.w) applyWorld(d.w);
@@ -1750,6 +1771,119 @@ function joinRoom() {
   peer.on('error', e => { if (!done) { done = true; clearTimeout(to); setStatus(e.type === 'peer-unavailable' ? 'No room with that code.' : 'Network error: ' + e.type); try { peer.destroy(); } catch (x) { } } });
 }
 
+/* =========================================================
+   FRIENDS: a saved friend list with live online status. Each player publishes a small retained "presence" message
+   (name + the room they are in) on both brokers; a will message clears it when they disconnect.
+========================================================= */
+const FR = { cls: [], st: {}, room: '', started: false, t0: Date.now(), was: {} };
+const FID_CH = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', frTopic = id => 'debait1/pres/' + id;
+const frMyName = () => (($('nameIn') && $('nameIn').value.trim()) || save.name || 'Angler').slice(0, 12);
+function frStatus(id) { const e = FR.st[id]; if (!e) return null; let best = null; for (const k of Object.keys(e)) { const x = e[k]; if (x && !x.off && Date.now() - x.seen < 75000 && (!best || x.seen > best.seen)) best = x; } return best; }
+function frPub() { if (!FR.started || !save.fid) return; const msg = JSON.stringify({ n: frMyName(), room: FR.room, t: Date.now() }); for (const cl of FR.cls) if (cl && cl.connected) cl.publish(frTopic(save.fid), msg, { qos: 0, retain: true }); }
+function frSub(cl) { for (const f of save.friends) cl.subscribe(frTopic(f.id), { qos: 0 }); }
+function frInit() {
+  save.friends = save.friends || []; if (FR.started || !window.mqtt) return; if (!save.fid) { save.fid = ''; for (let i = 0; i < 6; i++) save.fid += FID_CH[(Math.random() * FID_CH.length) | 0]; } save.friends = save.friends || []; persist(); FR.started = true;
+  BROKERS.forEach((url, bi) => {
+    const cl = mqtt.connect(url, { clientId: 'debf_' + save.fid + '_' + Math.random().toString(36).slice(2, 6), connectTimeout: 8000, reconnectPeriod: 3000, keepalive: 20, clean: true, will: { topic: frTopic(save.fid), payload: JSON.stringify({ off: 1 }), qos: 0, retain: true } }); FR.cls[bi] = cl;
+    cl.on('connect', () => { frSub(cl); frPub(); });
+    cl.on('error', () => { });
+    cl.on('message', (t, pl, pk) => {
+      const id = t.slice(t.lastIndexOf('/') + 1); let d; try { d = JSON.parse(pl.toString()); } catch (e) { return; } if (!d || typeof d !== 'object') return;
+      if (pk && pk.retain && !d.off && Math.abs(Date.now() - (d.t || 0)) > 60000) return;
+      (FR.st[id] = FR.st[id] || {})[bi] = { off: !!d.off, n: String(d.n || '').slice(0, 12), room: /^[A-Z]{4}$/.test(d.room || '') ? d.room : '', seen: Date.now() };
+      const f = save.friends.find(q => q.id === id); if (f && d.n && !d.off && f.name !== String(d.n).slice(0, 12)) { f.name = String(d.n).slice(0, 12); persist(); }
+      frRefresh();
+    });
+  });
+  setInterval(frPub, 20000); setInterval(frRefresh, 5000);
+  addEventListener('pagehide', () => { for (const cl of FR.cls) if (cl && cl.connected) try { cl.publish(frTopic(save.fid), JSON.stringify({ off: 1 }), { qos: 0, retain: true }); } catch (e) { } });
+}
+function frRefresh() {
+  let on = 0; for (const f of save.friends || []) { const s = frStatus(f.id); if (s) { on++; if (!FR.was[f.id] && Date.now() - FR.t0 > 8000) toast(`🟢 ${f.name} is online${s.room ? ' (in a room!)' : ''}`, 3000, '#7bf0a0'); } FR.was[f.id] = !!s; }
+  const b = $('btnFriends'); if (b) b.textContent = '👥 Friends' + (on ? ` (${on} online)` : '');
+  if ($('friends').style.display === 'flex') renderFriends();
+}
+function renderFriends() {
+  $('frCode').textContent = save.fid || '…'; const list = $('frList'); list.innerHTML = '';
+  if (!save.friends.length) { list.innerHTML = '<div class="small" style="margin:8px">No friends yet. Add a friend code above.</div>'; return; }
+  const rows = save.friends.map(f => ({ f, s: frStatus(f.id) })).sort((a, b) => (!!b.s - !!a.s) || a.f.name.localeCompare(b.f.name));
+  for (const { f, s } of rows) {
+    const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:6px 0;display:flex;align-items:center;gap:8px'; const info = document.createElement('div'); info.style.flex = '1';
+    const nm = document.createElement('b'); nm.textContent = f.name; const st = document.createElement('div'); st.className = 'small'; st.textContent = s ? (s.room ? `🟢 Online · in room ${s.room}` : '🟢 Online · in the menu') : '⚫ Offline'; info.append(nm, st); d.appendChild(info);
+    if (s && s.room) { const j = document.createElement('button'); j.className = 'opt'; j.textContent = 'Join'; j.onclick = () => { $('friends').style.display = 'none'; $('codeIn').value = s.room; startCommon(); joinRoom(); }; d.appendChild(j); }
+    const x = document.createElement('button'); x.className = 'sec'; x.textContent = '✕'; x.title = 'Remove friend'; x.onclick = () => { save.friends = save.friends.filter(q => q.id !== f.id); delete FR.st[f.id]; persist(); renderFriends(); }; d.appendChild(x); list.appendChild(d);
+  }
+}
+$('btnFriends').onclick = () => { frInit(); save.friends = save.friends || []; $('frMsg').textContent = window.mqtt ? '' : 'Friends need internet.'; $('friends').style.display = 'flex'; renderFriends(); };
+$('frClose').onclick = () => { $('friends').style.display = 'none'; };
+$('frCopy').onclick = () => { try { navigator.clipboard.writeText(save.fid); $('frMsg').textContent = 'Copied!'; } catch (e) { $('frMsg').textContent = 'Your code is ' + save.fid; } };
+$('frAdd').onclick = () => {
+  frInit(); const id = $('frIn').value.trim().toUpperCase(), msg = $('frMsg');
+  if (!/^[A-Z2-9]{6}$/.test(id) || /[IO01]/.test(id)) { msg.textContent = 'A friend code is 6 letters or numbers.'; return; }
+  if (id === save.fid) { msg.textContent = 'That is your own code!'; return; } if (save.friends.some(f => f.id === id)) { msg.textContent = 'Already your friend.'; return; }
+  save.friends.push({ id, name: 'Friend ' + id.slice(0, 3) }); persist(); for (const cl of FR.cls) if (cl && cl.connected) cl.subscribe(frTopic(id), { qos: 0 }); $('frIn').value = ''; msg.textContent = 'Added! Their name and status show up when they are online.'; renderFriends();
+};
+/* =========================================================
+   ACCOUNTS: sign in from any device. The save is encrypted in the browser with a key made from the password
+   (PBKDF2 + AES-GCM) and stored as a retained message on the same public brokers; only the password can open it.
+========================================================= */
+const ACC = { key: null, aid: '', busy: false }, KEYSTORE = 'deb_acct_key';
+const b64e = u8 => { let t = ''; for (let i = 0; i < u8.length; i += 8192) t += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(t); }, b64d = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
+async function accDerive(user, pass) {
+  const u = user.trim().toLowerCase(), E = new TextEncoder(), aid = [...new Uint8Array(await crypto.subtle.digest('SHA-256', E.encode('deb-acct:' + u)))].map(b => b.toString(16).padStart(2, '0')).join('').slice(0, 24);
+  const km = await crypto.subtle.importKey('raw', E.encode(pass), 'PBKDF2', false, ['deriveKey']);
+  return { aid, key: await crypto.subtle.deriveKey({ name: 'PBKDF2', salt: E.encode('deb:' + u), iterations: 120000, hash: 'SHA-256' }, km, { name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']) };
+}
+async function accSeal(key, obj) { const iv = crypto.getRandomValues(new Uint8Array(12)), ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, new TextEncoder().encode(JSON.stringify(obj)))); return JSON.stringify({ v: 1, ts: obj.ts || Date.now(), iv: b64e(iv), ct: b64e(ct) }); }
+async function accOpen(key, o) { return JSON.parse(new TextDecoder().decode(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: b64d(o.iv) }, key, b64d(o.ct)))); }
+function accFetch(aid, ms = 4500) {
+  return new Promise(res => {
+    const got = []; let up = 0, fin = false; const done = () => { if (fin) return; fin = true; cls.forEach(c => { try { c.end(true); } catch (e) { } }); res({ got: got.sort((a, b) => b.ts - a.ts), up }); };
+    const cls = BROKERS.map(url => { const c = mqtt.connect(url, { clientId: 'debacc_' + Math.random().toString(36).slice(2, 9), connectTimeout: 6000, reconnectPeriod: 0, clean: true }); c.on('connect', () => { up++; c.subscribe('debait1/acct/' + aid); }); c.on('message', (t, p) => { try { const o = JSON.parse(p.toString()); if (o && o.ct) got.push(o); } catch (e) { } }); c.on('error', () => { }); return c; });
+    setTimeout(done, ms);
+  });
+}
+async function accPush() {
+  if (!ACC.key || !save.acct || !window.mqtt) return false; frInit(); const str = await accSeal(ACC.key, save); let ok = false;
+  for (const cl of FR.cls) if (cl && cl.connected) { cl.publish('debait1/acct/' + save.acct.aid, str, { qos: 1, retain: true }); ok = true; }
+  if (ok) acctDirty = false; return ok;
+}
+async function accStoreKey(key) { try { localStorage.setItem(KEYSTORE, b64e(new Uint8Array(await crypto.subtle.exportKey('raw', key)))); } catch (e) { } }
+function accReplaceLocal(data, acct) { data.acct = acct; try { localStorage.setItem('dontEatBait_v1', JSON.stringify(data)); } catch (e) { } try { sessionStorage.setItem('deb_acct_synced', '1'); } catch (e) { } location.reload(); }
+function accRender() {
+  const on = !!save.acct; $('accOut').style.display = on ? 'none' : ''; $('accIn2').style.display = on ? '' : 'none'; if (on) $('accWho').textContent = '👤 Signed in as ' + save.acct.u;
+  $('btnAcct').textContent = on ? '👤 ' + save.acct.u : '🔑 Sign in';
+}
+async function accSubmit(create) {
+  const msg = $('accMsg'), user = $('accUser').value.trim(), pass = $('accPass').value;
+  if (ACC.busy) return; if (!window.crypto || !crypto.subtle) { msg.textContent = 'Sign in needs a secure page (https).'; return; } if (!window.mqtt) { msg.textContent = 'Sign in needs internet.'; return; }
+  if (!/^[A-Za-z0-9_]{3,16}$/.test(user)) { msg.textContent = 'Username: 3-16 letters, numbers or _.'; return; } if (pass.length < 4) { msg.textContent = 'Password needs at least 4 characters.'; return; }
+  ACC.busy = true; msg.textContent = 'Working…';
+  try {
+    const { aid, key } = await accDerive(user, pass), r = await accFetch(aid); if (!r.up) { msg.textContent = 'Could not reach the servers. Check your internet.'; return; }
+    if (create) {
+      if (r.got.length) { msg.textContent = 'That username is already taken. Try another, or sign in.'; return; }
+      ACC.key = key; save.acct = { u: user, aid }; await accStoreKey(key); persist(); if (!(await accPush())) { msg.textContent = 'Account made, but the first save did not upload yet. It will retry.'; } else msg.textContent = '✅ Account created! Your game now saves online.'; accRender(); $('accPass').value = '';
+    } else {
+      if (!r.got.length) { msg.textContent = 'No account with that username.'; return; }
+      let data; for (const o of r.got) { try { data = await accOpen(key, o); break; } catch (e) { } } if (!data) { msg.textContent = 'Wrong password.'; return; }
+      if ((save.level > 1 || save.gold > 500) && !confirm('Replace the game on this device with your saved game from the account?')) { msg.textContent = 'Cancelled.'; return; }
+      await accStoreKey(key); msg.textContent = '✅ Signed in! Loading your game…'; accReplaceLocal(data, { u: user, aid });
+    }
+  } catch (e) { msg.textContent = 'Something went wrong: ' + (e && e.message || e); } finally { ACC.busy = false; }
+}
+async function accInit() {
+  setInterval(() => { if (acctDirty && ACC.key) accPush(); }, 15000); addEventListener('pagehide', () => { if (acctDirty && ACC.key) accPush(); });
+  if (!save.acct || !window.crypto || !crypto.subtle) { accRender(); return; }
+  try { const raw = localStorage.getItem(KEYSTORE); if (!raw) { delete save.acct; persist(); accRender(); return; } ACC.key = await crypto.subtle.importKey('raw', b64d(raw), 'AES-GCM', true, ['encrypt', 'decrypt']); } catch (e) { accRender(); return; }
+  accRender(); let synced = false; try { synced = sessionStorage.getItem('deb_acct_synced') === '1'; sessionStorage.removeItem('deb_acct_synced'); } catch (e) { }
+  if (!synced && window.mqtt) { const r = await accFetch(save.acct.aid); const o = r.got[0]; if (o && o.ts > (save.ts || 0) + 2000) { try { accReplaceLocal(await accOpen(ACC.key, o), save.acct); return; } catch (e) { } } else if (r.up) acctDirty = true; }
+}
+$('btnAcct').onclick = () => { $('accMsg').textContent = ''; accRender(); $('accOv').style.display = 'flex'; };
+$('accClose').onclick = () => { $('accOv').style.display = 'none'; };
+$('accIn').onclick = () => accSubmit(false); $('accNew').onclick = () => accSubmit(true);
+$('accSave').onclick = async () => { persist(); $('accMsg').textContent = (await accPush()) ? '✅ Saved online.' : 'Could not reach the servers yet. Will retry.'; };
+$('accOutBtn').onclick = () => { delete save.acct; ACC.key = null; try { localStorage.removeItem(KEYSTORE); } catch (e) { } persist(); accRender(); $('accMsg').textContent = 'Signed out. The game on this device is kept.'; };
 /* =========================================================
    UI: toasts, hud, overlays
 ========================================================= */
@@ -3210,8 +3344,8 @@ function loop(now) {
   const dt = Math.min(.05, (now - last) / 1000); last = now; update(dt);
   composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
-renderStreak(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
+window.__game = { accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
