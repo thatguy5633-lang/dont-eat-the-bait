@@ -1601,7 +1601,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261105115854';
+const GAME_BUILD = '20261105115940';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -1806,7 +1806,7 @@ function addToBucket(idx, kg, boss) {
 function updateFishing(dt) {
   const onFishMega = (me.riding || me.passenger) && megaCanFish(megaMountDef());
   if (((me.riding || me.passenger) && !onFishMega) || me.swim) { if (F.state !== 'idle') resetFishing(); mouse.pressed = false; mouse.rpressed = false; return; }
-  const canAct = ui === 'play' && sleepLock <= 0 && rodOut && !uwDiving();
+  const canAct = ui === 'play' && sleepLock <= 0 && rodOut && !uwDiving() && !onScooter();
   if (!canAct) { F.power = 0; }
   switch (F.state) {
     case 'idle':
@@ -3959,6 +3959,7 @@ function rodIcon(i) { if (!ROD_ICONS[i]) { const r = makeRod(RODS[i].col, i); r.
 function gunIcon(i) { if (!GUN_ICONS[i]) { const g2 = makeGunMesh(i); g2.rotation.y = Math.PI / 2; GUN_ICONS[i] = render3DIcon(g2, .3); } return GUN_ICONS[i]; }
 const curSpear = () => (save.spear == null || save.spear < 0) ? -1 : Math.min(save.spear, save.spearSel == null ? save.spear : save.spearSel);
 const uwDiving = () => me.dive > .4 || (me.riding && MEGA.y < -.4);
+const onScooter = () => me.riding && MEGA.rec && MEGAS[MEGA.rec.sp] && MEGAS[MEGA.rec.sp].scooter;   // harpoon works on the scooter even at the surface
 const UWF = { fish: [], schools: [], t: 0, st: 0 }, SPX = { aim: 0, cd: 0, down: false, proj: [], reel: [], gun: null, gunIdx: -2, cross: null };
 const SCHOOL_GEO = (() => { const g = new THREE.SphereGeometry(1, 10, 7), P = g.attributes.position; for (let i = 0; i < P.count; i++) { let x = P.getX(i), y = P.getY(i), z = P.getZ(i); const ox = x; x *= .36; y *= .1; z *= .055; if (ox < -.55) { const k = (-ox - .55) * 3.4; y *= 1 + k * 2.4; z *= .35; } P.setXYZ(i, x, y, z); } g.computeVertexNormals(); g.userData.shared = true; return g; })();
 const MAT_SCHOOL = new THREE.MeshLambertMaterial({ color: 0xffffff });
@@ -4030,7 +4031,7 @@ function fireSpear(S) {
   SPX.proj.push({ g, line, p: org.clone(), v: d2.multiplyScalar(S.speed), life: S.range / S.speed, S }); SPX.cd = S.reload; sfx.cast(); for (let i = 0; i < 6; i++) emitTrail(org.x, org.y, org.z, 'bubble', '#cfeeff');
 }
 function updateSpear(dt) {
-  const S = SPEARS[curSpear()], diving = uwDiving(), canAim = !!S && diving && ui === 'play', X = SPX, hand = V3(me.x, me.y + 1.0 * me.sc, me.z); X.cd = Math.max(0, X.cd - dt);
+  const S = SPEARS[curSpear()], diving = uwDiving() || onScooter(), canAim = !!S && diving && ui === 'play', X = SPX, hand = V3(me.x, me.y + 1.0 * me.sc, me.z); X.cd = Math.max(0, X.cd - dt);
   for (let i = X.proj.length - 1; i >= 0; i--) {
     const q = X.proj[i]; q.v.multiplyScalar(1 - .18 * dt); const step = q.v.clone().multiplyScalar(dt); let hit = null;
     for (const f of UWF.fish) { const c = V3(f.x, f.y, f.z), t = clamp(c.clone().sub(q.p).dot(step) / Math.max(1e-6, step.lengthSq()), 0, 1), cp = q.p.clone().addScaledVector(step, t); if (cp.distanceTo(c) < .5 * f.sc + .3) { hit = f; break; } }
