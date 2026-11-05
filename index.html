@@ -1601,7 +1601,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261105115940';
+const GAME_BUILD = '20261105120302';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -3149,8 +3149,8 @@ function updateMega(dt) {
   if (airH > .4) MEGA.spin = Math.min(TAU, (MEGA.spin || 0) + dt * 7.5); else if (airH <= .05) MEGA.spin = 0;   // barrel roll in mid-air
   const pitchAir = MEGA.ridden ? -clamp(MEGA.vy * .04, -.45, .45) : -clamp((MEGA.hopV || 0) * .05, -.45, .45), spinR = flipper ? (MEGA.spin || 0) : 0;
   o.position.set(MEGA.x, surf + .15 + MEGA.y + (MEGA.hopY || 0) + Math.sin(time * 2) * .08, MEGA.z); o.rotation.set(pitchAir, MEGA.yaw, turn * .3 + spinR); o.scale.set(sc, sc * (1 - .45 * (MEGA.duck || 0)), sc); animateMega(o, time, Math.hypot(MEGA.vx, MEGA.vz), airH > .4 ? 1 : 0);
-  MEGA.tag.position.set(MEGA.x, surf + 3.4 * sc + MEGA.y, MEGA.z); megaAmbientFx(MEGAS[rec.sp], MEGA.x, surf + MEGA.y, MEGA.z, sc, rec.glow);
-  if (MEGA.ridden) {
+  MEGA.tag.position.set(MEGA.x, surf + 3.4 * sc + MEGA.y, MEGA.z); if (!MEGAS[rec.sp].scooter) megaAmbientFx(MEGAS[rec.sp], MEGA.x, surf + MEGA.y, MEGA.z, sc, rec.glow);
+  if (MEGA.ridden && !MEGAS[rec.sp].scooter) {   // scooters have no sparkle/foam trail so you can see
     const sp = Math.hypot(MEGA.vx, MEGA.vz), tailX = MEGA.x - Math.sin(MEGA.yaw) * 1.8 * sc, tailZ = MEGA.z - Math.cos(MEGA.yaw) * 1.8 * sc;
     if (sp > 6) for (let i = 0; i < 2; i++) emitTrail(tailX + rnd(-1, 1), surf + .3, tailZ + rnd(-1, 1), 'bubble', '#ffffff');
     if (sp > 1.5) { const n = sp > 14 ? 3 : 1; for (let i = 0; i < n; i++) emitTrail(tailX, surf + .2 + MEGA.y, tailZ, rec.trail || 'sparkle', rec.glow); MEGA.ripT -= dt; if (MEGA.ripT <= 0 && MEGA.y < .2) { MEGA.ripT = .22; ripple(tailX, tailZ); } }
@@ -3968,7 +3968,7 @@ function pickUWFish(D, luck) {
   let x = Math.random() * tot; for (let i = 0; i < ws.length; i++) { x -= ws[i]; if (x <= 0 && ws[i] > 0) return i; } return 1;
 }
 function spawnUWFish() {
-  const a = Math.random() * TAU, d = 12 + Math.random() * 55, x = camera.position.x + Math.cos(a) * d, z = camera.position.z + Math.sin(a) * d, fy = floorY(x, z), D = -fy; if (D < 2.8) return;
+  const a = Math.random() * TAU, d = 8 + Math.random() * 45, x = camera.position.x + Math.cos(a) * d, z = camera.position.z + Math.sin(a) * d, fy = floorY(x, z), D = -fy; if (D < 2.8) return;
   const y = Math.max(fy + 1, waveH(x, z, time) - 2 - Math.random() * Math.min(22, D - 3)), idx = pickUWFish(D, curSpear() >= 0 ? SPEARS[curSpear()].luck : 0), sp = FISH[idx], kg = rollKg(sp, .1), m = new THREE.Group(), f = makeFish3D(sp), sc = clamp(.9 + Math.log(1 + kg) * .4, .9, 2.8) * 1.5; f.scale.setScalar(sc); m.add(f); scene.add(m);
   UWF.fish.push({ m, f, idx, kg, sc, x, y, z, h: Math.random() * TAU, sp: 1.2 + Math.random() * 2.2, tgx: x, tgz: z, tgy: y, t: 0, spooked: 0 });
 }
@@ -3983,7 +3983,7 @@ function steer(f, dt, spread, yMin) {
   let dh = Math.atan2(f.tgz - f.z, f.tgx - f.x) - f.h; dh = Math.atan2(Math.sin(dh), Math.cos(dh)); f.h += dh * Math.min(1, 2 * dt); const sp = f.sp * (1 + (f.spooked || 0) * 2); f.x += Math.cos(f.h) * sp * dt; f.z += Math.sin(f.h) * sp * dt; f.y += ((f.tgy || f.y) - f.y) * Math.min(1, .6 * dt); f.y = Math.min(f.y, waveH(f.x, f.z, time) - .8); if (f.spooked) f.spooked = Math.max(0, f.spooked - dt);
 }
 function updateUWLife(dt) {
-  UWF.st -= dt; if (UWF.st <= 0) { UWF.st = .4; if (UWF.fish.length < 16) spawnUWFish(); if (UWF.schools.length < 10) spawnSchool(); }
+  UWF.st -= dt; if (UWF.st <= 0) { UWF.st = .3; if (UWF.fish.length < 28) { spawnUWFish(); spawnUWFish(); } if (UWF.schools.length < 10) spawnSchool(); }
   const cp = camera.position;
   for (let i = UWF.fish.length - 1; i >= 0; i--) { const f = UWF.fish[i]; steer(f, dt, 22); f.m.position.set(f.x, f.y, f.z); f.m.rotation.y = -f.h; f.f.rotation.z = clamp(((f.tgy || f.y) - f.y) * .2, -.4, .4); f.f.rotation.y = Math.sin(time * 7 + f.sp * 3) * .12; if (Math.hypot(f.x - cp.x, f.z - cp.z) > 120) { scene.remove(f.m); UWF.fish.splice(i, 1); } }
   for (let i = UWF.schools.length - 1; i >= 0; i--) {
@@ -4034,11 +4034,11 @@ function updateSpear(dt) {
   const S = SPEARS[curSpear()], diving = uwDiving() || onScooter(), canAim = !!S && diving && ui === 'play', X = SPX, hand = V3(me.x, me.y + 1.0 * me.sc, me.z); X.cd = Math.max(0, X.cd - dt);
   for (let i = X.proj.length - 1; i >= 0; i--) {
     const q = X.proj[i]; q.v.multiplyScalar(1 - .18 * dt); const step = q.v.clone().multiplyScalar(dt); let hit = null;
-    for (const f of UWF.fish) { const c = V3(f.x, f.y, f.z), t = clamp(c.clone().sub(q.p).dot(step) / Math.max(1e-6, step.lengthSq()), 0, 1), cp = q.p.clone().addScaledVector(step, t); if (cp.distanceTo(c) < .5 * f.sc + .3) { hit = f; break; } }
-    q.p.add(step); q.life -= dt; q.g.position.copy(q.p); q.g.lookAt(q.p.x + q.v.x, q.p.y + q.v.y, q.p.z + q.v.z); const pa = q.line.geometry.attributes.position; pa.setXYZ(0, hand.x, hand.y, hand.z); pa.setXYZ(1, q.p.x, q.p.y, q.p.z); pa.needsUpdate = true;
+    for (const f of UWF.fish) { const c = V3(f.x, f.y, f.z), t = clamp(c.clone().sub(q.p).dot(step) / Math.max(1e-6, step.lengthSq()), 0, 1), cp = q.p.clone().addScaledVector(step, t); if (cp.distanceTo(c) < .85 * f.sc + .6) { hit = f; break; } }
+    q.p.add(step); q.life -= dt; if (q.p.y < waveH(q.p.x, q.p.z, time) - .1) q.wet = true; q.g.position.copy(q.p); q.g.lookAt(q.p.x + q.v.x, q.p.y + q.v.y, q.p.z + q.v.z); const pa = q.line.geometry.attributes.position; pa.setXYZ(0, hand.x, hand.y, hand.z); pa.setXYZ(1, q.p.x, q.p.y, q.p.z); pa.needsUpdate = true;
     for (const f of UWF.fish) if (Math.hypot(f.x - q.p.x, f.y - q.p.y, f.z - q.p.z) < 9) f.spooked = 2.5;
-    if (hit) { UWF.fish.splice(UWF.fish.indexOf(hit), 1); X.reel.push({ f: hit, g: q.g, line: q.line, t: 0, from: V3(hit.x, hit.y, hit.z) }); X.proj.splice(i, 1); sfx.good(); for (let k = 0; k < 10; k++) emitTrail(hit.x, hit.y, hit.z, 'sparkle', '#ffd43b'); }
-    else if (q.life <= 0 || q.p.y > waveH(q.p.x, q.p.z, time) + .1 || q.p.y < floorY(q.p.x, q.p.z) + .1) { scene.remove(q.g); scene.remove(q.line); q.line.geometry.dispose(); X.proj.splice(i, 1); for (let k = 0; k < 5; k++) emitTrail(q.p.x, q.p.y, q.p.z, 'bubble', '#cfeeff'); }
+    if (hit) { UWF.fish.splice(UWF.fish.indexOf(hit), 1); X.reel.push({ f: hit, g: q.g, line: q.line, t: 0, from: V3(hit.x, hit.y, hit.z) }); X.proj.splice(i, 1); sfx.good(); hit.f.rotation.x = Math.PI; note(`🔱 Speared a ${FISH[hit.idx].n}!`, 2500, '#ffe58a'); for (let k = 0; k < 14; k++) emitTrail(hit.x, hit.y, hit.z, k % 2 ? 'sparkle' : 'bubble', k % 2 ? '#ffd43b' : '#cfeeff'); }
+    else if (q.life <= 0 || (q.wet && q.p.y > waveH(q.p.x, q.p.z, time) + .1) || q.p.y < floorY(q.p.x, q.p.z) + .1) { scene.remove(q.g); scene.remove(q.line); q.line.geometry.dispose(); X.proj.splice(i, 1); for (let k = 0; k < 5; k++) emitTrail(q.p.x, q.p.y, q.p.z, 'bubble', '#cfeeff'); }
   }
   for (let i = X.reel.length - 1; i >= 0; i--) {
     const r = X.reel[i]; r.t += dt / .8; const e = Math.min(1, r.t), ee = e * e * (3 - 2 * e); r.f.m.position.lerpVectors(r.from, hand, ee); r.f.m.rotation.z += dt * 9; r.g.position.copy(r.f.m.position); const pa = r.line.geometry.attributes.position; pa.setXYZ(0, hand.x, hand.y, hand.z); pa.setXYZ(1, r.f.m.position.x, r.f.m.position.y, r.f.m.position.z); pa.needsUpdate = true;
