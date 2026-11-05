@@ -75,3 +75,5 @@ Character model "Simple Guy" by jpraptor001 (https://sketchfab.com/3d-models/sim
 - **Shops:** Fin's market sells Sea Scooters and Charms. Boats have their own shop: **Skipper's Boat Shop** on its own island east of the pier (press `P` for the map, then the Warp to the Boat Shop button). Press `F` near Captain Barnacle to buy a boat.
 - **Deep sea:** the water now gets gradually deeper away from every island, down to about 45 m. Warm-ocean reefs (tube, brain, bubble, fire and horn coral, towers, fans, sea pickles and kelp) grow in the clear, deeper water.
 - **Docks:** Megas can leap over docks or duck and swim right under them. Only Sea Scooters can dive underwater.
+- **Unique gear:** all 6 rods and all 7 spears and spear guns have their own 3D designs (with pictures in the shops). Your equipped spear is in your hands the moment you go underwater.
+- **Mega on the line:** when you hook a Mega you brace, then lie flat on your back with your feet planted while it drags you along the dock.
