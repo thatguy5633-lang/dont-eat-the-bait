@@ -58,12 +58,14 @@
   body.touch #chat{bottom:170px;font-size:13px;width:min(300px,42vw)}
   body.touch #chatIn{bottom:130px}
   body.touch #prompt{top:44%;font-size:17px}
+  body.touch #prompt.corner{top:auto;bottom:80px;font-size:12px}
   @media (max-height:520px){ #card{display:none!important} #bait{bottom:84px!important} .box{padding:10px 16px!important} .box h1,#menu h1{font-size:30px!important;margin:2px 0!important} .box h2{font-size:20px!important;margin:2px 0!important} .box .sub{font-size:13px!important;margin:4px 0!important} .box button{padding:6px 12px!important;font-size:15px!important} }
   #bait{position:absolute;left:50%;bottom:132px;transform:translateX(-50%);font-size:14px;font-weight:800}
   #fx{position:absolute;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
   .chip{font-size:15px;font-weight:800;padding:4px 10px;border-radius:20px;border:3px solid #14213d}
   .chip.g{background:#51cf66;color:#0b3d0b}.chip.b{background:#ff6b6b;color:#4a0000}.chip.n{background:#ffd43b;color:#3d2f00}
   #prompt{position:absolute;left:50%;top:58%;transform:translateX(-50%);font-size:22px;font-weight:900}
+  #prompt.corner{left:auto;right:14px;top:auto;bottom:96px;transform:none;font-size:13px;font-weight:700;text-align:right;max-width:34%;opacity:.92}
   #power{position:absolute;left:50%;bottom:160px;transform:translateX(-50%);width:260px;display:none}
   #power i{background:linear-gradient(90deg,#ffd43b,#ff6b6b)}
   #help{position:absolute;left:18px;top:112px;font-size:12px;opacity:.95;line-height:1.5;display:none;max-width:250px}
@@ -1599,7 +1601,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261105100716';
+const GAME_BUILD = '20261105115854';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2347,6 +2349,11 @@ function toast(txt, ms = 1800, color = '#fff') {
   const d = document.createElement('div'); d.className = 'toast stroke'; d.textContent = txt; d.style.color = color; $('feed').appendChild(d); setTimeout(() => d.remove(), ms);
   while ($('feed').children.length > 4) $('feed').firstChild.remove();
 }
+function note(txt, ms = 5000, color = '#cfeeff') {   // small corner notification (not for fishing)
+  let c = $('cornerFeed'); if (!c) { c = document.createElement('div'); c.id = 'cornerFeed'; c.style.cssText = 'position:fixed;right:14px;bottom:170px;display:flex;flex-direction:column;align-items:flex-end;gap:3px;max-width:30%;pointer-events:none;z-index:6'; document.body.appendChild(c); }
+  const d = document.createElement('div'); d.className = 'stroke'; d.style.cssText = `font-size:12px;font-weight:700;text-align:right;color:${color}`; d.textContent = txt; c.appendChild(d); setTimeout(() => d.remove(), ms);
+  while (c.children.length > 3) c.firstChild.remove();
+}
 function setUI(s) {
   ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills', map: 'mapOv', earl: 'earlOv', dev: 'devOv', boats: 'boatOv' };
   for (const k of Object.values(ov)) $(k).style.display = 'none';
@@ -2399,7 +2406,7 @@ function updateHUD() {
   const bi = BAITS[save.baitSel]; $('bait').textContent = `${bi.e} ${bi.n}${save.baitSel === 'worm' ? ' (∞)' : ' ×' + save.bait[save.baitSel]}  [R]`;
   $('fx').innerHTML = Object.entries(effects).map(([k, t]) => { const f = FX[k]; return `<div class="chip ${f.g === true ? 'g' : f.g === false ? 'b' : 'n'}">${f.e} ${f.n} ${Math.ceil(t)}s</div>`; }).join('');
   let pr = ''; if (ui === 'play') { if (Math.hypot(me.x - STALL.x, me.z - (STALL.z + 1.5)) < 6) pr = '[F] Fin\'s Fish Market'; else if (F.state === 'idle' && bucket.length === 0) pr = ''; if (F.state === 'wait') pr = 'Waiting for a bite… (click to reel in)'; } if (ui === 'play') { if (me.swim) pr = '[Space] climb out at a dock · Shift swim fast'; else if (me.passenger) pr = '[G] Hop off' + (megaCanFish(megaMountDef()) ? ' · hold click to fish from here!' : ''); else if (me.riding) pr = '[G] Dismount · Shift boost · Space leap' + (megaCanFish(MEGAS[MEGA.rec.sp]) ? ' · hold click to FISH from your Mega!' : ''); else if (findSeat()) pr = `[G] Hop on ${findSeat().name}'s Mega (2nd seat)`; else if (MEGA.summoned && MEGA.rec && Math.hypot(MEGA.x - me.x, MEGA.z - me.z) < 12) pr = `[G] Hop on ${MEGA.rec.name}`; else if (MEGA.summoned && MEGA.rec) pr = `${MEGA.rec.name} is out in the water. Swim up close and press [G] to ride!`; else if (save.megas.length && F.state === 'idle' && rodOut && !pr) pr = '🐋 [G] Call your Mega (face the sea) · [M] Stable'; }
-  $('prompt').textContent = pr;
+  $('prompt').textContent = pr; $('prompt').classList.toggle('corner', !(F.state === 'wait' && !me.swim));
 }
 function drawIcon(i, found) { return `<img src="${found ? ICON[i] : ICON_SIL[i]}">`; }
 /* ---- market ---- */
@@ -3076,7 +3083,7 @@ function updatePassenger(dt) {
 }
 function mountMega(rec) {
   if (F.state !== 'idle') resetFishing(); me.riding = true; MEGA.ridden = true; me.vx = me.vz = 0; me.grounded = false; me.yaw = MEGA.yaw + Math.PI * 0; sfx.boing(); splash(MEGA.x, .2, MEGA.z, 22, 4);
-  toast(MEGAS[rec.sp].scooter ? `🛴 SEA SCOOTER! Hold Z to DIVE underwater · Space to rise · WASD steer · Shift boost · G hop off. Earl's Spear Shack is on the sea floor near the pier!` : `Riding ${rec.name}! WASD swim · Shift boost · Space leap · G dismount`, MEGAS[rec.sp].scooter ? 7500 : 4200, '#6fe8ff');
+  note(MEGAS[rec.sp].scooter ? `🛴 Sea Scooter: Z dive · Space rise · WASD steer · Shift boost · G hop off. Earl's Spear Shack is on the sea floor near the pier.` : `Riding ${rec.name}: WASD swim · Shift boost · Space leap · G dismount`, MEGAS[rec.sp].scooter ? 7500 : 4200);
 }
 function dismountMega() {   // you just hop off right where you are: into the water (or onto the ground if your Mega is on land)
   const onLand = megaHas('land') && walkG(MEGA.x, MEGA.z) > .3, ang = MEGA.yaw + Math.PI / 2; me.riding = false; MEGA.ridden = false; me.vx = me.vz = 0;
@@ -3907,7 +3914,7 @@ function reefTick(dt) {
 }
 function initUW() {
   const tint = document.createElement('div'); tint.id = 'uwTint'; tint.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;transition:opacity .3s;background:radial-gradient(ellipse at center,rgba(60,190,210,.05),rgba(6,80,130,.32))'; document.body.appendChild(tint);
-  const hud = document.createElement('div'); hud.id = 'uwHud'; hud.className = 'stroke'; hud.style.cssText = 'position:fixed;left:50%;top:78px;transform:translateX(-50%);font-size:15px;pointer-events:none;z-index:6;display:none;text-align:center'; document.body.appendChild(hud);
+  const hud = document.createElement('div'); hud.id = 'uwHud'; hud.className = 'stroke'; hud.style.cssText = 'position:fixed;right:14px;bottom:128px;max-width:34%;font-size:13px;pointer-events:none;z-index:6;display:none;text-align:right'; document.body.appendChild(hud);
   const tex = canvasTex(32, 256, g => { const gr = g.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, 'rgba(255,255,255,.95)'); gr.addColorStop(.5, 'rgba(180,240,255,.35)'); gr.addColorStop(1, 'rgba(180,240,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 32, 256); const gx = g.createLinearGradient(0, 0, 32, 0); gx.addColorStop(0, 'rgba(0,0,0,1)'); gx.addColorStop(.5, 'rgba(0,0,0,0)'); gx.addColorStop(1, 'rgba(0,0,0,1)'); g.globalCompositeOperation = 'destination-out'; g.fillStyle = gx; g.fillRect(0, 0, 32, 256); });
   const sg = new THREE.Group(); UW.shafts = sg; for (let i = 0; i < 16; i++) { const m = new THREE.Mesh(new THREE.PlaneGeometry(5 + Math.random() * 5, 70), new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: .12, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, fog: false })); m.userData = { a: Math.random() * 6.28, r: 6 + Math.random() * 40, ph: Math.random() * 6 }; sg.add(m); } sg.visible = false; scene.add(sg);
   const N = 420, pos = new Float32Array(N * 3); for (let i = 0; i < N * 3; i++) pos[i] = (Math.random() - .5) * 36; const pg = new THREE.BufferGeometry(); pg.setAttribute('position', new THREE.BufferAttribute(pos, 3)); UW.plank = new THREE.Points(pg, new THREE.PointsMaterial({ size: .1, map: glowTex, color: new THREE.Color(.8, 1.3, 1.4), transparent: true, opacity: .55, depthWrite: false, blending: THREE.AdditiveBlending })); UW.plank.frustumCulled = false; UW.plank.visible = false; scene.add(UW.plank);
@@ -4002,7 +4009,7 @@ function initSpear() {
 }
 
 function diveGearUpdate() {   // mask, strap and snorkel appear while you ride a Sea Scooter or dive
-  if (!meChar || !meChar.head) return; const on = (me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter) || me.dive > .4;
+  if (!meChar || !meChar.head) return; const on = false;   // goggles removed
   if (!meChar.dgear) { const gr = new THREE.Group(), dk = tm('#14141c'), yl = tm('#ffe14a'), glass = tm('#9fe8ff', { transparent: true, opacity: .4, depthWrite: false });
     const strap = new THREE.Mesh(new THREE.TorusGeometry(.47, .03, 6, 22), dk); strap.rotation.x = Math.PI / 2; strap.position.set(0, .07, 0); gr.add(strap);
     for (const sd of [-1, 1]) { const f = new THREE.Mesh(new THREE.TorusGeometry(.13, .028, 6, 16), dk); f.scale.set(1, .85, 1); f.position.set(sd * .16, .1, .44); gr.add(f); const l = new THREE.Mesh(FSPH, glass); l.scale.set(.125, .105, .03); l.position.set(sd * .16, .1, .44); gr.add(l); }
@@ -4044,7 +4051,7 @@ function updateSpear(dt) {
     if (X.down || X.aim > 0) me.bodyYaw = lerpAngle(me.bodyYaw, me.yaw, 12 * dt);
     cross.style.display = 'block'; const sz = 28 + (1 - X.aim) * 90; cross.style.width = cross.style.height = sz + 'px'; cross.style.margin = `${-sz / 2}px 0 0 ${-sz / 2}px`; cross.style.borderColor = X.cd > 0 ? '#ff8a8a' : X.aim >= .98 ? '#ffd43b' : '#ffffff';
   }
-  if (hud) { if (!diving && me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter) { hud.style.display = 'block'; hud.innerHTML = '🛴 Hold <b>Z</b> to dive underwater · <b>Space</b> to rise · look where you want to go'; } else if (diving) { const dm = UW.under ? Math.max(0, -(me.y) + .95) : 0, airTxt = me.riding ? '💨 ∞ (Mega air)' : `💨 ${Math.max(0, Math.ceil(me.air))}s`, tip = S ? (X.cd > 0 ? `🔄 Reloading ${X.cd.toFixed(1)}s` : `🎯 ${S.n}: hold click to aim, release to fire`) : "🔱 You need a spear! Find Earl's Spear Shack (P = map)"; hud.style.display = 'block'; hud.innerHTML = `🤿 ${dm.toFixed(1)} m &nbsp; ${airTxt}<br><span style="font-size:13px">${tip} · Z dive · Space rise</span>`; } else hud.style.display = 'none'; }
+  if (hud) { if (!diving && me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter) { hud.style.display = 'block'; hud.innerHTML = '🛴 Hold <b>Z</b> to dive underwater · <b>Space</b> to rise · look where you want to go'; } else if (diving) { const dm = UW.under ? Math.max(0, -(me.y) + .95) : 0, airTxt = me.riding ? '💨 ∞ (Mega air)' : `💨 ${Math.max(0, Math.ceil(me.air))}s`, tip = S ? (X.cd > 0 ? `🔄 Reloading ${X.cd.toFixed(1)}s` : `🎯 ${S.n}: hold click to aim, release to fire`) : "🔱 You need a spear! Find Earl's Spear Shack (P = map)"; hud.style.display = 'block'; hud.innerHTML = `🤿 ${dm.toFixed(1)} m &nbsp; ${airTxt}<br><span style="font-size:12px">${tip} · Z dive · Space rise</span>`; } else hud.style.display = 'none'; }
 }
 /* ---- Earl's Spear Shack (a shop on the sea floor) ---- */
 const EARL = { x: -35, z: -85, y: -4, ch: null, buoy: null, bub: [], prompt: 0 };
