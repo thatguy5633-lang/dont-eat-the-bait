@@ -1071,11 +1071,11 @@ function ik2(S, T, L1, L2, hint) {
   let pr = [hint[0] - dot * dir[0], hint[1] - dot * dir[1], hint[2] - dot * dir[2]]; const pl = Math.hypot(pr[0], pr[1], pr[2]) || 1; pr = [pr[0] / pl, pr[1] / pl, pr[2] / pl];
   return { mid: [S[0] + dir[0] * a + pr[0] * h, S[1] + dir[1] * a + pr[1] * h, S[2] + dir[2] * a + pr[2] * h], end: [S[0] + d[0], S[1] + d[1], S[2] + d[2]] };
 }
-function genProne(P) {   // holding the scooter grips with both hands, body stretched out behind, fins kicking gently
-  const t = (P.phase || 0) / 3, k = Math.sin(t * 6), L = new Array(15);
-  L[HEAD] = [0, .13, .24]; L[NECK] = [0, .06, -.04]; L[SHL] = [-.255, .02, -.2]; L[SHR] = [.255, .02, -.2]; L[PELV] = [0, -.02, -1.0]; L[HPL] = [-.122, -.02, -1.0]; L[HPR] = [.122, -.02, -1.0];
-  const fl = [-.12, -.06 + k * .1, -2.0], fr = [.12, -.06 - k * .1, -2.04], kl = ik2(L[HPL], fl, GL.th, GL.sh, [0, 1, -.2]), kr = ik2(L[HPR], fr, GL.th, GL.sh, [0, 1, -.2]); L[KNL] = kl.mid; L[FTL] = kl.end; L[KNR] = kr.mid; L[FTR] = kr.end;
-  const ar = ik2(L[SHR], [.33, .02, .2], GL.ua, GL.fa, [.6, .3, 0]), al = ik2(L[SHL], [-.33, .02, .2], GL.ua, GL.fa, [-.6, .3, 0]); L[ELR] = ar.mid; L[HNR] = ar.end; L[ELL] = al.mid; L[HNL] = al.end; return L;
+function genProne(P) {   // lying flat, one hand on the scooter and the other free for the spear; the scooter pulls you along and your legs trail behind
+  const t = (P.phase || 0) / 3, k = Math.sin(t * 6), L = new Array(15), aim = P.aim ? 1 : 0;
+  L[HEAD] = [0, .15, -.5]; L[NECK] = [0, .08, -.62]; L[SHL] = [-.255, .03, -.75]; L[SHR] = [.255, .03, -.75]; L[PELV] = [0, -.02, -1.5]; L[HPL] = [-.122, -.02, -1.5]; L[HPR] = [.122, -.02, -1.5];
+  const fl = [-.12, -.06 + k * .1, -2.5], fr = [.12, -.06 - k * .1, -2.54], kl = ik2(L[HPL], fl, GL.th, GL.sh, [0, 1, -.2]), kr = ik2(L[HPR], fr, GL.th, GL.sh, [0, 1, -.2]); L[KNL] = kl.mid; L[FTL] = kl.end; L[KNR] = kr.mid; L[FTR] = kr.end;
+  const hl = [-.04, .03, 0], hr = aim ? [.22, .1, -.02] : [.3, -.12, -.5 + k * .03], al = ik2(L[SHL], hl, GL.ua, GL.fa, [-.5, .3, 0]), ar = ik2(L[SHR], hr, GL.ua, GL.fa, [.6, .2, 0]); L[ELL] = al.mid; L[HNL] = al.end; L[ELR] = ar.mid; L[HNR] = ar.end; return L;
 }
 function genLie(P) {   // lying on your back with your feet braced, hauling a Mega on both hands (a ninja on the ground)
   const t = (P.phase || 0) / 3, s2 = Math.sin(t * 7), L = new Array(15), py = .2 + Math.abs(Math.sin(t * 3)) * .02;
@@ -1599,7 +1599,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104183218';
+const GAME_BUILD = '20261105100716';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2963,13 +2963,14 @@ function makeMega(def, c1, glowCol, level = 1) {
       }
       break;
     }
-    case 'scooter': {   // a real sea scooter: a compact torpedo with a nose light, a dome, two long grips at the back and a propeller in a shroud. You hold the grips and trail behind it.
-      const DK = mat(0x2a2a3a), big = def.n === 'Turbo Scooter';
-      E(M1, [0, .5, .05], [.3, .26, .8]); E(DK, [0, .5, .74], [.21, .2, .22]); E(GS2, [0, .69, .3], [.17, .12, .27]); E(GM, [0, .5, .95], [.11, .11, .05]); C(GS2, [0, .5, 2.1], [.32, 2.3, .32], [Math.PI / 2, 0, 0]); E(M2, [0, .27, .08], [.22, .08, .6]); E(DK, [0, .65, -.2], [.07, .02, .42]);
-      const sh = new THREE.Mesh(new THREE.TorusGeometry(.29, .05, 8, 24), DK); sh.position.set(0, .5, -.84); B.add(sh); const sh2 = new THREE.Mesh(new THREE.CylinderGeometry(.3, .27, .3, 20, 1, true), M2.clone()); sh2.material.side = THREE.DoubleSide; sh2.rotation.x = Math.PI / 2; sh2.position.set(0, .5, -.7); B.add(sh2);
-      const pr = new THREE.Group(); pr.position.set(0, .5, -.8); E(DK, [0, 0, 0], [.07, .07, .09], pr); for (let k = 0; k < (big ? 6 : 4); k++) { const a2 = k / (big ? 6 : 4) * Math.PI * 2; E(M2, [Math.cos(a2) * .16, Math.sin(a2) * .16, 0], [.18, .045, .025], pr, [0, 0, a2]); } B.add(pr); U.prop = pr;
-      for (const sd of [-1, 1]) { C(DK, [sd * .33, .5, -.58], [.035, .9, .035], [-Math.PI / 2, 0, 0]); E(DK, [sd * .33, .5, -1.0], [.055, .055, .13]); E(M1, [sd * .33, .5, -.93], [.06, .06, .05]); E(M1, [sd * .4, .5, .1], [.22, .04, .2]); E(GM, [sd * .12, .72, .02], [.03, .03, .03]); }
-      U.seatY = .5; U.seatZ = -1.0; break;
+    case 'scooter': {   // a small handheld sea scooter like in the photo: black nose, yellow body, a round propeller cage at the back and one grip you hold while it pulls you along
+      const DK = mat(0x1d1d24), big = def.n === 'Turbo Scooter', Y = -.2;
+      E(DK, [0, Y, .42], [.2, .2, .26]); E(M1, [0, Y, 0], [.27, .25, .52]); E(DK, [0, Y + .25, .02], [.14, .05, .3]); E(GS2, [0, Y + .19, .27], [.1, .07, .15]); E(GM, [0, Y, .67], [.07, .07, .04]); for (const sd of [-1, 1]) E(DK, [sd * .26, Y, -.05], [.02, .12, .4]);
+      const cg = new THREE.Mesh(new THREE.CylinderGeometry(.28, .28, .16, 22, 1, true), new THREE.MeshToonMaterial({ color: 0x1d1d24, gradientMap: toonGrad, transparent: true, opacity: .45, side: THREE.DoubleSide })); cg.rotation.x = Math.PI / 2; cg.position.set(0, Y, -.58); B.add(cg);
+      for (const z of [-.5, -.66]) { const r = new THREE.Mesh(new THREE.TorusGeometry(.28, .03, 6, 22), DK); r.position.set(0, Y, z); B.add(r); }
+      const pr = new THREE.Group(); pr.position.set(0, Y, -.58); E(DK, [0, 0, 0], [.07, .07, .08], pr); for (let k = 0; k < (big ? 6 : 5); k++) { const a2 = k / (big ? 6 : 5) * Math.PI * 2; E(DK, [Math.cos(a2) * .15, Math.sin(a2) * .15, 0], [.17, .04, .02], pr, [0, 0, a2]); } B.add(pr); U.prop = pr;
+      E(DK, [0, Y + .31, -.2], [.045, .045, .15]); E(DK, [0, Y + .22, -.13], [.03, .1, .03]); E(DK, [0, Y + .22, -.27], [.03, .1, .03]); E(M1, [0, Y + .31, -.2], [.05, .05, .07]);
+      U.seatY = .26; U.seatZ = -.2; break;
     }
     case 'sub': {
       const DK = mat(0x2a2a3a);
@@ -3999,6 +4000,17 @@ function makeSpearMesh() { const g = new THREE.Group(); gCy(tm('#e8e8e8'), [0, 0
 function initSpear() {
   const c = document.createElement('div'); c.id = 'uwCross'; c.style.cssText = 'position:fixed;left:50%;top:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border:3px solid #fff;border-radius:50%;pointer-events:none;z-index:6;display:none;box-shadow:0 0 8px rgba(0,0,0,.5)'; c.innerHTML = '<div style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px;background:#fff;border-radius:50%"></div>'; document.body.appendChild(c); SPX.cross = c;
 }
+
+function diveGearUpdate() {   // mask, strap and snorkel appear while you ride a Sea Scooter or dive
+  if (!meChar || !meChar.head) return; const on = (me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter) || me.dive > .4;
+  if (!meChar.dgear) { const gr = new THREE.Group(), dk = tm('#14141c'), yl = tm('#ffe14a'), glass = tm('#9fe8ff', { transparent: true, opacity: .4, depthWrite: false });
+    const strap = new THREE.Mesh(new THREE.TorusGeometry(.47, .03, 6, 22), dk); strap.rotation.x = Math.PI / 2; strap.position.set(0, .07, 0); gr.add(strap);
+    for (const sd of [-1, 1]) { const f = new THREE.Mesh(new THREE.TorusGeometry(.13, .028, 6, 16), dk); f.scale.set(1, .85, 1); f.position.set(sd * .16, .1, .44); gr.add(f); const l = new THREE.Mesh(FSPH, glass); l.scale.set(.125, .105, .03); l.position.set(sd * .16, .1, .44); gr.add(l); }
+    const br = new THREE.Mesh(boxGeo, dk); br.scale.set(.1, .04, .05); br.position.set(0, .1, .46); gr.add(br);
+    gCy(yl, [.17, -.2, .42], [.43, -.12, .3], .045, gr); gCy(yl, [.43, -.12, .3], [.48, .55, .0], .045, gr); gEl(yl, [.48, .57, .0], [.06, .06, .06], gr); gEl(tm('#ff8a3a'), [.17, -.2, .43], [.07, .05, .06], gr);
+    meChar.head.add(gr); meChar.dgear = gr; }
+  meChar.dgear.visible = !!on;
+}
 function uwGunUpdate() {
   const S = curSpear(), show = S >= 0 && (uwDiving() || (me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter)) && meChar; if (SPX.gun && (!show || SPX.gunIdx !== S)) { scene.remove(SPX.gun); SPX.gun = null; } if (!show) return;
   if (!SPX.gun) { SPX.gun = makeGunMesh(S); SPX.gunIdx = S; scene.add(SPX.gun); }
@@ -4084,8 +4096,8 @@ $('devClose').onclick = closeDev; $('earlClose').onclick = closeEarl; document.q
 MEGAS.push(
   { n: 'Dive Turtle', shape: 'turtle', c1: '#2f9e6a', c2: '#f2d27a', glow: '#7bffd0', size: 1.5, spd: 1.5, e: '🐢', w: 0, val: 60000, seats: 2, fish: true, area: 'dive', boat: true, hidden: true, price: 60000 },
   { n: 'Reef Manta', shape: 'fd', fd: { type: 'ray', L: .5, W: .95, tail: 'whip', pat: 'mottle', x: ['glow'], es: 1.2 }, fs: 2.6, c1: '#6ad7ff', c2: '#ffffff', glow: '#9fe6ff', size: 1.5, spd: 2.4, e: '🐟', w: 0, val: 300000, seats: 2, fish: true, area: 'dive', boat: true, hidden: true, price: 300000 },
-  { n: 'Sea Scooter', shape: 'scooter', c1: '#ffd43b', c2: '#2a2a3a', glow: '#ffffaa', size: 1.25, spd: 2.5, e: '🛴', w: 0, val: 30000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, price: 60000 },
-  { n: 'Turbo Scooter', shape: 'scooter', c1: '#ff5a3a', c2: '#2a2a3a', glow: '#ff9a6a', size: 1.4, spd: 3.8, e: '🚀', w: 0, val: 300000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, earl: true, price: 600000 }
+  { n: 'Sea Scooter', shape: 'scooter', c1: '#ffd43b', c2: '#2a2a3a', glow: '#ffffaa', size: 1.0, spd: 2.5, e: '🛴', w: 0, val: 30000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, price: 60000 },
+  { n: 'Turbo Scooter', shape: 'scooter', c1: '#ff5a3a', c2: '#2a2a3a', glow: '#ff9a6a', size: 1.15, spd: 3.8, e: '🚀', w: 0, val: 300000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, earl: true, price: 600000 }
 );
 Object.assign(AREA_NAMES, { dive: "Earl's Spear Shack" });
 save.megas.forEach(m => { if (MEGAS[m.sp] && MEGAS[m.sp].scooter && /^(mini sub|sea scooter)$/i.test(m.name)) m.name = MEGAS[m.sp].n; });   // old saves called it a Mini Sub
@@ -4552,12 +4564,12 @@ function updateMeAvatar(dt) {
   let lean = clamp(me.spd * .045, 0, .3) + Math.sin(time * 9) * .1 * me.wob;
   if (mode === 'brace') lean = -.6; else if (mode === 'lie') lean = 0; else if (mode === 'fight') lean = -.12 - stress * .3 + Math.sin(time * 16) * .06 * stress; else if (mode === 'cast') lean = lerp(-.35, .4, clamp(F.t / .25, 0, 1)); else if (mode === 'ride') lean = .08 + me.spd * .012; else if (mode === 'swim') lean = .15 + me.spd * .06;
   const sway = Math.sin(time * 13) * (.04 + .2 * me.wob) + Math.sin(me.walk * 2.2) * .09 * mv + Math.sin(time * 19) * .1 * stress;
-  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, crouch: ANIM.landT > 0 ? Math.sin(ANIM.landT / .3 * Math.PI) : 0, u: clamp(F.t / .25, 0, 1), lean, sway: sway + (mode === 'cold' ? Math.sin(time * 38) * .02 : 0), kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
+  const L = genPose({ amp: mv, phase: me.walk * 2.2 + (ANIM_PHASE.includes(mode) ? time * 3 : 0), mode, aim: (SPX.down || SPX.aim > 0) ? 1 : 0, crouch: ANIM.landT > 0 ? Math.sin(ANIM.landT / .3 * Math.PI) : 0, u: clamp(F.t / .25, 0, 1), lean, sway: sway + (mode === 'cold' ? Math.sin(time * 38) * .02 : 0), kick: me.kickT > 0 ? 1 - me.kickT / .4 : 0, shove: me.shoveT > 0 ? 1 - me.shoveT / .35 : 0 });
   meChar.setTargets(L, { x: me.x, y: me.y, z: me.z }, me.bodyYaw, me.sc); meChar.follow(true); meChar.sync(time);
   const hand = meChar.guy ? meChar.handPos(_hp) : meChar.p[HNR]; myRod.position.copy(hand); myRod.scale.setScalar(me.sc);
   const up = mode === 'lie' ? 1.25 : mode === 'brace' ? .8 : mode === 'charge' ? 1.5 : mode === 'fight' ? .5 : mode === 'cast' ? lerp(1.5, .5, clamp(F.t / .25, 0, 1)) : .9;
   myRod.rotation.set(-up, me.bodyYaw, 0, 'YXZ'); bendRod(myRod, F.bend); myRod.visible = !(mnt && !fishNow && !megaCanFish(megaMountDef())) && !me.swim && !curHold && !uwDiving(); setHeld(heldSlot, curHold, meChar, me.bodyYaw, me.sc);
-  if (mode === 'juggle') juggleRod(myRod, me.x, me.y, me.z, me.bodyYaw, me.sc); uwGunUpdate();
+  if (mode === 'juggle') juggleRod(myRod, me.x, me.y, me.z, me.bodyYaw, me.sc); uwGunUpdate(); diveGearUpdate();
   faceSet(meChar, pickFace({ knock: me.knockT > 0, spicy: has('spicy'), eat: eatT > 0, sleep: sleepLock > 0, dizzy: has('dizzy'), cheer: ANIM.cheer > 0, sad: ANIM.sad > 0, fight: st === 'fight', bite: st === 'bite', yawn: ANIM.stretch > 0, cold: !mnt && coldHere(), hot: !mnt && hotHere(), fast: mnt && me.spd > 8, blink: ANIM.blinkT > 0 }));
 }
 function update(dt) {
