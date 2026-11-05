@@ -192,7 +192,7 @@
 <div class="ov" id="market"><div class="box" style="width:min(780px,96vw)">
   <h2>🐟 Fin's Fish Market</h2>
   <div class="stroke" style="font-size:26px;color:#ffd43b" id="mGold"></div>
-  <div class="tabs"><button class="sec" data-t="sell">Sell fish</button><button class="sec" data-t="rod">Rods</button><button class="sec" data-t="bait">Bait</button><button class="sec" data-t="mega">Mega food</button><button class="sec" data-t="scooter">🛴 Sea Scooters</button><button class="sec" data-t="charms">🔮 Charms</button><button class="sec" data-t="map">Map</button></div>
+  <div class="tabs"><button class="sec" data-t="sell">Sell fish</button><button class="sec" data-t="rod">Rods</button><button class="sec" data-t="bait">Bait</button><button class="sec" data-t="mega">Mega food</button><button class="sec" data-t="charms">🔮 Charms</button><button class="sec" data-t="map">Map</button></div>
   <div id="mBody"></div>
   <button id="mClose">Back to fishing (F)</button>
 </div></div>
@@ -1071,6 +1071,12 @@ function ik2(S, T, L1, L2, hint) {
   let pr = [hint[0] - dot * dir[0], hint[1] - dot * dir[1], hint[2] - dot * dir[2]]; const pl = Math.hypot(pr[0], pr[1], pr[2]) || 1; pr = [pr[0] / pl, pr[1] / pl, pr[2] / pl];
   return { mid: [S[0] + dir[0] * a + pr[0] * h, S[1] + dir[1] * a + pr[1] * h, S[2] + dir[2] * a + pr[2] * h], end: [S[0] + d[0], S[1] + d[1], S[2] + d[2]] };
 }
+function genProne(P) {   // holding the scooter grips with both hands, body stretched out behind, fins kicking gently
+  const t = (P.phase || 0) / 3, k = Math.sin(t * 6), L = new Array(15);
+  L[HEAD] = [0, .13, .24]; L[NECK] = [0, .06, -.04]; L[SHL] = [-.255, .02, -.2]; L[SHR] = [.255, .02, -.2]; L[PELV] = [0, -.02, -1.0]; L[HPL] = [-.122, -.02, -1.0]; L[HPR] = [.122, -.02, -1.0];
+  const fl = [-.12, -.06 + k * .1, -2.0], fr = [.12, -.06 - k * .1, -2.04], kl = ik2(L[HPL], fl, GL.th, GL.sh, [0, 1, -.2]), kr = ik2(L[HPR], fr, GL.th, GL.sh, [0, 1, -.2]); L[KNL] = kl.mid; L[FTL] = kl.end; L[KNR] = kr.mid; L[FTR] = kr.end;
+  const ar = ik2(L[SHR], [.33, .02, .2], GL.ua, GL.fa, [.6, .3, 0]), al = ik2(L[SHL], [-.33, .02, .2], GL.ua, GL.fa, [-.6, .3, 0]); L[ELR] = ar.mid; L[HNR] = ar.end; L[ELL] = al.mid; L[HNL] = al.end; return L;
+}
 function genLie(P) {   // lying on your back with your feet braced, hauling a Mega on both hands (a ninja on the ground)
   const t = (P.phase || 0) / 3, s2 = Math.sin(t * 7), L = new Array(15), py = .2 + Math.abs(Math.sin(t * 3)) * .02;
   L[PELV] = [0, py, 0]; L[NECK] = [0, py + .02, -.68]; L[HEAD] = [0, py + .1, -1.0 - .05 * s2]; L[SHL] = [-.255, py + .02, -.6]; L[SHR] = [.255, py + .02, -.6]; L[HPL] = [-.122, py, 0]; L[HPR] = [.122, py, 0];
@@ -1078,7 +1084,7 @@ function genLie(P) {   // lying on your back with your feet braced, hauling a Me
   const hR = [.16, py + .75 + .06 * s2, -.32], hL = [-.12, py + .7 - .06 * s2, -.22], ar = ik2(L[SHR], hR, GL.ua, GL.fa, [.6, .3, 0]), al = ik2(L[SHL], hL, GL.ua, GL.fa, [-.6, .3, 0]); L[ELR] = ar.mid; L[HNR] = ar.end; L[ELL] = al.mid; L[HNL] = al.end; return L;
 }
 function genPoseGuy(P) {
-  if (P.mode === 'lie') return genLie(P);
+  if (P.mode === 'lie') return genLie(P); if (P.mode === 'prone') return genProne(P);
   const A = P.amp || 0, ph = P.phase || 0, s = Math.sin(ph), c = Math.cos(ph), mode = P.mode || 'hold', L = new Array(15);
   const bob = Math.abs(s) * .035 * A + (mode === 'dance' ? Math.abs(Math.sin(ph * 3)) * .07 : 0) + (mode === 'cheer' ? Math.abs(Math.sin(ph * 8)) * .1 : mode === 'flail' ? Math.abs(Math.sin(ph * 9)) * .05 : 0) - (P.crouch || 0) * .2 - (mode === 'brace' ? .16 : 0) + (P.breath || 0), ride = mode === 'ride';
   L[PELV] = [0, (ride ? .46 : .6) + bob, 0]; L[NECK] = [0, (ride ? 1.1 : 1.239) + bob, .02]; L[HEAD] = [0, (ride ? 1.4 : 1.543) + bob, .098];
@@ -1593,7 +1599,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104174151';
+const GAME_BUILD = '20261104183218';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2573,7 +2579,7 @@ addEventListener('keydown', e => {
     if (e.code === 'KeyT') { skillsFrom = null; openSkills(); }
     if (e.code === 'KeyM') { stableFrom = null; openStable(); }
     if (e.code === 'KeyP') openMap();
-    if (e.code === 'KeyZ' && me.swim && !me.riding && performance.now() - (window.__zHint || 0) > 4000) { window.__zHint = performance.now(); toast('🛴 You need a SEA SCOOTER to go underwater! Buy one at Fin\'s market (F → Sea Scooters tab).', 4200, '#7bf0ff'); }
+    if (e.code === 'KeyZ' && me.swim && !me.riding && performance.now() - (window.__zHint || 0) > 4000) { window.__zHint = performance.now(); toast('🛴 You need a SEA SCOOTER to go underwater! Buy one at Skipper\'s Boat Shop (press P for the map, then Warp to the Boat Shop).', 4200, '#7bf0ff'); }
     if (e.code === 'BracketLeft') cycleRod(-1); if (e.code === 'BracketRight') cycleRod(1);
     if (e.code === 'Escape') setUI('pause');
   } else if (e.code === 'KeyF' && ui === 'market') { setUI('play'); lockPointer(); }
@@ -2957,13 +2963,13 @@ function makeMega(def, c1, glowCol, level = 1) {
       }
       break;
     }
-    case 'scooter': {   // a sea scooter: a torpedo body with a saddle, handlebars, a headlight and a spinning propeller in a shroud
+    case 'scooter': {   // a real sea scooter: a compact torpedo with a nose light, a dome, two long grips at the back and a propeller in a shroud. You hold the grips and trail behind it.
       const DK = mat(0x2a2a3a), big = def.n === 'Turbo Scooter';
-      E(M1, [0, .5, 0], [.62, .5, 1.7]); E(M2, [0, .32, .25], [.5, .2, 1.2]); E(DK, [0, .98, -.15], [.36, .12, .6]); C(DK, [0, .95, .6], [.05, .4, .05], [0, 0, 0]); E(DK, [0, 1.15, .6], [.55, .05, .05]); for (const sd of [-1, 1]) { E(DK, [sd * .5, 1.15, .6], [.09, .09, .09]); E(M2, [sd * .72, .5, -1.1], [.4, .05, .3]); }
-      E(GS2, [0, .8, .95], [.3, .22, .4]); E(GM, [0, .5, 1.68], [.22, .22, .14]); C(GS2, [0, .5, 2.7], [.55, 1.9, .55], [Math.PI / 2, 0, 0]);
-      const sh = new THREE.Mesh(new THREE.TorusGeometry(.52, .08, 8, 24), DK); sh.position.set(0, .5, -1.8); B.add(sh); const pr = new THREE.Group(); pr.position.set(0, .5, -1.75); E(DK, [0, 0, 0], [.12, .12, .14], pr); for (let k = 0; k < (big ? 6 : 4); k++) { const a = k / (big ? 6 : 4) * Math.PI * 2; E(M2, [Math.cos(a) * .27, Math.sin(a) * .27, 0], [.3, .07, .035], pr, [0, 0, a]); } B.add(pr); U.prop = pr;
-      for (const k of [-1, 1]) E(GM, [k * .25, 1.05, -.6], [.05, .05, .05]);
-      U.seatY = 1.18; U.seatZ = -.1; break;
+      E(M1, [0, .5, .05], [.3, .26, .8]); E(DK, [0, .5, .74], [.21, .2, .22]); E(GS2, [0, .69, .3], [.17, .12, .27]); E(GM, [0, .5, .95], [.11, .11, .05]); C(GS2, [0, .5, 2.1], [.32, 2.3, .32], [Math.PI / 2, 0, 0]); E(M2, [0, .27, .08], [.22, .08, .6]); E(DK, [0, .65, -.2], [.07, .02, .42]);
+      const sh = new THREE.Mesh(new THREE.TorusGeometry(.29, .05, 8, 24), DK); sh.position.set(0, .5, -.84); B.add(sh); const sh2 = new THREE.Mesh(new THREE.CylinderGeometry(.3, .27, .3, 20, 1, true), M2.clone()); sh2.material.side = THREE.DoubleSide; sh2.rotation.x = Math.PI / 2; sh2.position.set(0, .5, -.7); B.add(sh2);
+      const pr = new THREE.Group(); pr.position.set(0, .5, -.8); E(DK, [0, 0, 0], [.07, .07, .09], pr); for (let k = 0; k < (big ? 6 : 4); k++) { const a2 = k / (big ? 6 : 4) * Math.PI * 2; E(M2, [Math.cos(a2) * .16, Math.sin(a2) * .16, 0], [.18, .045, .025], pr, [0, 0, a2]); } B.add(pr); U.prop = pr;
+      for (const sd of [-1, 1]) { C(DK, [sd * .33, .5, -.58], [.035, .9, .035], [-Math.PI / 2, 0, 0]); E(DK, [sd * .33, .5, -1.0], [.055, .055, .13]); E(M1, [sd * .33, .5, -.93], [.06, .06, .05]); E(M1, [sd * .4, .5, .1], [.22, .04, .2]); E(GM, [sd * .12, .72, .02], [.03, .03, .03]); }
+      U.seatY = .5; U.seatZ = -1.0; break;
     }
     case 'sub': {
       const DK = mat(0x2a2a3a);
@@ -4067,7 +4073,7 @@ function renderEarl() {
     body.insertAdjacentHTML('beforeend', '<div class="sub">Dive (Z), aim (hold click) and spear fish! Better guns reach farther, fly faster, aim quicker and catch rarer fish. You can always use a worse gun you own.</div>');
     SPEARS.forEach((S, i) => { let b; const stats = `Range ${S.range}m · Speed ${S.speed} · Aim ${S.aim}s · Accuracy ${Math.round((1 - S.spread * 5) * 100)}% · Reload ${S.reload}s · Luck +${Math.round(S.luck * 100)}%`; if (save.spear >= i) b = curSpear() === i ? mkBtn('Equipped ✓', true) : mkBtn('Use this one', false, () => { save.spearSel = i; persist(); sfx.tick(); renderEarl(); }); else if (i === save.spear + 1) b = mkBtn(`Buy $${S.price.toLocaleString()}`, save.gold < S.price, () => { save.gold -= S.price; save.spear = i; save.spearSel = i; persist(); sfx.cash(); toast(`${S.e} New: ${S.n}!`, 2200, '#ffd43b'); renderEarl(); }); else b = mkBtn(`🔒 $${S.price.toLocaleString()}`, true); card(`<img src="${gunIcon(i)}" style="width:100%;max-width:180px;display:block;margin:0 auto"><b style="color:${S.col}">${S.e} ${S.n}</b><div class="small">${stats}</div>`, b); });
   } else if (earlTab === 'mega') {
-    body.insertAdjacentHTML('beforeend', '<div class="sub">Sea Scooters are the ONLY way underwater. Earl sells the Turbo Scooter, a faster 2-seater. (The basic Sea Scooter is sold at Fin\'s market on the surface.)</div>');
+    body.insertAdjacentHTML('beforeend', '<div class="sub">Sea Scooters are the ONLY way underwater. Earl sells the Turbo Scooter, a faster 2-seater. (The basic Sea Scooter is sold at Skipper\'s Boat Shop.)</div>');
     MEGAS.forEach((def, idx) => { if (!def.scooter || !def.earl) return; const owned = save.megas.some(m => m.sp === idx); card(`<b>${def.e} ${def.n}</b><div class="small">Speed ×${def.spd} · 2 seats · endless air · spear fish from the saddle</div>`, owned ? mkBtn('Owned ✓', true) : mkBtn(`Buy $${def.price.toLocaleString()}`, save.gold < def.price, () => { save.gold -= def.price; const rec = { id: 'm' + Date.now(), sp: idx, name: def.n, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'bubble' }; save.megas.push(rec); save.activeMega = rec.id; MEGA.summoned = false; persist(); buildMegaObj(); sfx.lvl(); toast(`${def.e} Your ${def.n} is ready! Press G near the water.`, 4200, '#ffd43b'); renderEarl(); })); });
   } else {
     if (!bucket.length) body.insertAdjacentHTML('beforeend', '<div class="sub">Your bucket is empty. Spear some fish!</div>'); else { const tot = bucket.reduce((s2, it) => s2 + sellPrice(it), 0); card(`<b>🐟 Sell your catch</b><div class="small">${bucket.length} fish in your bucket. Earl pays +15% for spear-caught fish.</div>`, mkBtn(`Sell all ($${Math.round(tot * 1.15).toLocaleString()})`, false, () => { const t2 = Math.round(bucket.reduce((s2, it) => s2 + sellPrice(it), 0) * 1.15); bucket.length = 0; selSlot = 0; save.gold += t2; persist(); sfx.cash(); toast(`Sold for $${t2.toLocaleString()}!`, 2000, '#ffd43b'); updateBucketUI(); renderEarl(); })); }
@@ -4078,10 +4084,11 @@ $('devClose').onclick = closeDev; $('earlClose').onclick = closeEarl; document.q
 MEGAS.push(
   { n: 'Dive Turtle', shape: 'turtle', c1: '#2f9e6a', c2: '#f2d27a', glow: '#7bffd0', size: 1.5, spd: 1.5, e: '🐢', w: 0, val: 60000, seats: 2, fish: true, area: 'dive', boat: true, hidden: true, price: 60000 },
   { n: 'Reef Manta', shape: 'fd', fd: { type: 'ray', L: .5, W: .95, tail: 'whip', pat: 'mottle', x: ['glow'], es: 1.2 }, fs: 2.6, c1: '#6ad7ff', c2: '#ffffff', glow: '#9fe6ff', size: 1.5, spd: 2.4, e: '🐟', w: 0, val: 300000, seats: 2, fish: true, area: 'dive', boat: true, hidden: true, price: 300000 },
-  { n: 'Sea Scooter', shape: 'scooter', c1: '#ffd43b', c2: '#2a2a3a', glow: '#ffffaa', size: 1.5, spd: 2.5, e: '🛴', w: 0, val: 30000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, price: 60000 },
-  { n: 'Turbo Scooter', shape: 'scooter', c1: '#ff5a3a', c2: '#2a2a3a', glow: '#ff9a6a', size: 1.7, spd: 3.8, e: '🚀', w: 0, val: 300000, seats: 2, fish: true, area: 'dive', boat: true, dive: true, scooter: true, earl: true, price: 600000 }
+  { n: 'Sea Scooter', shape: 'scooter', c1: '#ffd43b', c2: '#2a2a3a', glow: '#ffffaa', size: 1.25, spd: 2.5, e: '🛴', w: 0, val: 30000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, price: 60000 },
+  { n: 'Turbo Scooter', shape: 'scooter', c1: '#ff5a3a', c2: '#2a2a3a', glow: '#ff9a6a', size: 1.4, spd: 3.8, e: '🚀', w: 0, val: 300000, seats: 1, fish: true, area: 'dive', boat: true, dive: true, scooter: true, earl: true, price: 600000 }
 );
 Object.assign(AREA_NAMES, { dive: "Earl's Spear Shack" });
+save.megas.forEach(m => { if (MEGAS[m.sp] && MEGAS[m.sp].scooter && /^(mini sub|sea scooter)$/i.test(m.name)) m.name = MEGAS[m.sp].n; });   // old saves called it a Mini Sub
 
 /* ---------- DEV ACCOUNT (open the game with ?dev=1): a separate save with everything unlocked, plus a tools panel ---------- */
 function devInit() {
@@ -4115,7 +4122,7 @@ function buildBoatyard() {
   const dz0 = cz + edge - 3, dz1 = cz + edge + 16; walkRects.push({ x0: cx - 3, x1: cx + 3, z0: dz0, z1: dz1 }); plankTop(cx - 3, cx + 3, dz0, dz1, Y0);
   for (const zz of [dz0 + 3, dz0 + 8, dz0 + 13]) for (const sd of [-1, 1]) { gCy(tm('#6b4423'), [cx + sd * 2.8, Y0 - 1.4, zz], [cx + sd * 2.8, Y0 + 1.6, zz], .13); lantern(cx + sd * 2.8, Y0 + 1.8, zz); }
   bigSign("BOATS FOR SALE", '#0a6a8a', 5, 1, cx, Y0 + 3.6, dz1 - .6, 0);
-  const defs = []; MEGAS.forEach((def, idx) => { if (def.boat && !def.dive && !def.hidden) defs.push([def, idx]); });
+  const defs = []; MEGAS.forEach((def, idx) => { if (def.boat && !def.hidden && !def.earl) defs.push([def, idx]); });
   defs.forEach(([def, idx], i) => { const o = makeMega(def, def.c1, def.glow, 1), x = cx + (i % 2 ? 8 : -8), z = dz0 + 5 + Math.floor(i / 2) * 8; o.scale.setScalar(megaScaleOf(idx, 1)); o.position.set(x, 0, z); o.rotation.y = i % 2 ? Math.PI * .5 : -Math.PI * .5; scene.add(o); const t = tagSprite(`${def.e} ${def.n} · $${def.price.toLocaleString()}`); t.scale.set(4.2, 1.05, 1); t.position.set(x, 4.6, z); scene.add(t); BOATYARD.boats.push({ o, x, z, ph: i }); });
   BOATYARD.ch = makeCharFromAp(capAp, scene); const t2 = tagSprite('Captain Barnacle'); t2.position.set(sx, sy + 3.0, sz + .2); scene.add(t2);
   const buoy = tagSprite("⛵ Skipper's Boat Shop"); buoy.scale.set(5, 1.2, 1); buoy.position.set(cx, Y0 + 14, cz); scene.add(buoy);
@@ -4269,10 +4276,10 @@ function seaBonus() {
 }
 /* ---- boats ---- */
 MEGAS.push(
-  { n: 'Row Boat', shape: 'boat', c1: '#8a5a2e', c2: '#e8d8b0', glow: '#9fe6ff', size: 1.3, spd: 1.9, e: '🚣', w: 0, val: 250000, seats: 2, fish: true, area: 'boat', boat: true, price: 500000 },
-  { n: 'Speedboat', shape: 'boat', c1: '#e53935', c2: '#ffffff', glow: '#ffd43b', size: 1.3, spd: 3.3, e: '🚤', w: 0, val: 1500000, seats: 2, fish: true, area: 'boat', boat: true, price: 3000000 },
-  { n: 'Sail Yacht', shape: 'boat', c1: '#2f7bff', c2: '#fff7e0', glow: '#bfe3ff', size: 1.5, spd: 4.4, e: '⛵', w: 0, val: 7500000, seats: 2, fish: true, area: 'boat', boat: true, price: 15000000 },
-  { n: 'Hover Ship', shape: 'boat', c1: '#3a2a7a', c2: '#7bf0ff', glow: '#7bf0ff', size: 1.5, spd: 6.2, e: '🛸', w: 0, val: 35000000, seats: 2, fish: true, area: 'boat', boat: true, price: 75000000 }
+  { n: 'Row Boat', shape: 'boat', c1: '#8a5a2e', c2: '#e8d8b0', glow: '#9fe6ff', size: 1.3, spd: 1.9, e: '🚣', w: 0, val: 250000, seats: 2, fish: true, area: 'boat', boat: true, hidden: true, price: 500000 },
+  { n: 'Speedboat', shape: 'boat', c1: '#e53935', c2: '#ffffff', glow: '#ffd43b', size: 1.3, spd: 3.3, e: '🚤', w: 0, val: 1500000, seats: 2, fish: true, area: 'boat', boat: true, hidden: true, price: 3000000 },
+  { n: 'Sail Yacht', shape: 'boat', c1: '#2f7bff', c2: '#fff7e0', glow: '#bfe3ff', size: 1.5, spd: 4.4, e: '⛵', w: 0, val: 7500000, seats: 2, fish: true, area: 'boat', boat: true, hidden: true, price: 15000000 },
+  { n: 'Hover Ship', shape: 'boat', c1: '#3a2a7a', c2: '#7bf0ff', glow: '#7bf0ff', size: 1.5, spd: 6.2, e: '🛸', w: 0, val: 35000000, seats: 2, fish: true, area: 'boat', boat: true, hidden: true, price: 75000000 }
 );
 Object.assign(AREA_NAMES, { boat: 'the Boat Shop' });
 
@@ -4313,7 +4320,7 @@ for (const [n, o] of Object.entries(MEGA_FD)) { const d = MEGAS.find(m => m.n ==
 function shopSection(kind) {
   const wrap = document.createElement('div'), hdr = t => { const d = document.createElement('div'); d.className = 'sub'; d.style.marginTop = '8px'; d.innerHTML = t; wrap.appendChild(d); };
   const vehicle = (def, idx, line) => { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:480px'; d.innerHTML = `<b>${def.e} ${def.n}</b><div class="small">${line}</div>`; const owned = save.megas.some(m => m.sp === idx), b = document.createElement('button'); b.className = 'opt'; if (owned) { b.textContent = 'Owned ✓'; b.disabled = true; } else { b.textContent = `Buy $${def.price.toLocaleString()}`; b.disabled = save.gold < def.price; b.onclick = () => { if (save.gold < def.price) return; save.gold -= def.price; const rec = { id: 'm' + Date.now(), sp: idx, name: def.n, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'bubble' }; save.megas.push(rec); save.activeMega = rec.id; MEGA.summoned = false; persist(); buildMegaObj(); sfx.lvl(); toast(`${def.e} Your new ${def.n} is ready! Face the water and press G.`, 4200, '#ffd43b'); refreshShops(); }; } d.appendChild(b); wrap.appendChild(d); };
-  if (kind === 'boats') { hdr('<b>⛵ BOATS</b>: sail the giant sea fast, fish from the deck and carry a friend. Expensive, but they never get hungry. Buy one, then face the water and press <b>G</b> to call it.'); MEGAS.forEach((def, idx) => { if (def.boat && !def.dive && !def.hidden) vehicle(def, idx, `Speed ×${def.spd} · 2 seats · fish from the deck`); }); }
+  if (kind === 'boats') { hdr('<b>🛴 SEA SCOOTER</b>: the ONLY way to go underwater!<br>1) Buy it. 2) Face the water and press <b>G</b> to ride it. 3) Hold <b>Z</b> to dive, <b>Space</b> to rise. Underwater you can spear fish and find <b>Earl\'s Spear Shack</b> on the sea floor near the pier (a red buoy marks it, and it is on the map: <b>P</b>). Scooters have endless air.<br><span class="small">More boats are coming soon.</span>'); MEGAS.forEach((def, idx) => { if (def.boat && !def.hidden && !def.earl) vehicle(def, idx, `Speed ×${def.spd} · propeller drive · endless air · dive with Z`); }); }
   else if (kind === 'scooter') { hdr('<b>🛴 SEA SCOOTERS: the ONLY way to go underwater!</b><br>1) Buy a Sea Scooter. 2) Face the water and press <b>G</b> to ride it. 3) Hold <b>Z</b> to dive, <b>Space</b> to rise. Underwater you can spear fish and find <b>Earl\'s Spear Shack</b> on the sea floor near the pier (a red buoy marks it, and it is on the map: <b>P</b>). Scooters have endless air.'); MEGAS.forEach((def, idx) => { if (def.scooter && !def.earl) vehicle(def, idx, `Speed ×${def.spd} · propeller drive · endless air · dive with Z`); }); hdr('<span class="small">A faster Turbo Scooter is sold at Earl\'s shop underwater.</span>'); }
   else { hdr('<b>🔮 CHARMS</b>: buy them here, then equip them on a Mega in the Mega Stable (<b>M</b>). Slots: 2, +1 at level 5, +1 at level 10. You can also find charms in bottles, island chests and secret caves.'); for (const [id, c] of Object.entries(CHARMS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:480px'; d.innerHTML = `<b>${c.e} ${c.n}</b> (you have ${save.charms[id] || 0})<div class="small">${c.d}</div>`; const b = document.createElement('button'); b.className = 'opt'; b.textContent = `Buy $${c.price.toLocaleString()}`; b.disabled = save.gold < c.price; b.onclick = () => { if (save.gold < c.price) return; save.gold -= c.price; save.charms[id] = (save.charms[id] || 0) + 1; persist(); sfx.good(); toast(`${c.e} ${c.n} bought! Equip it in the Mega Stable (M).`, 2600, '#d9a8ff'); renderMarket(); }; d.appendChild(b); wrap.appendChild(d); } const sb = document.createElement('button'); sb.className = 'sec'; sb.textContent = '🐋 Open Mega Stable'; sb.onclick = () => { stableFrom = null; openStable(); }; wrap.appendChild(sb); }
   return wrap;
@@ -4499,7 +4506,7 @@ function updateFun(dt) {
 }
 
 /* ---------- extra character animations and facial expressions ---------- */
-const ANIM = { cheer: 0, sad: 0, idle: 0, stretch: 0, blink: 2.5, blinkT: 0, air: 0, landT: 0 }, ANIM_PHASE = ['lie', 'brace', 'dance', 'eat', 'juggle', 'cheer', 'flail', 'fan', 'cold', 'stretch'];
+const ANIM = { cheer: 0, sad: 0, idle: 0, stretch: 0, blink: 2.5, blinkT: 0, air: 0, landT: 0 }, ANIM_PHASE = ['prone', 'lie', 'brace', 'dance', 'eat', 'juggle', 'cheer', 'flail', 'fan', 'cold', 'stretch'];
 const coldHere = () => { const f = NEWW[0], I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps[f.id] && Math.hypot(me.x - f.x, me.z - f.z) < f.r + 70) || (I && I.biome === 'snow'); };
 const hotHere = () => { const I = typeof isleAt === 'function' ? isleAt(me.x, me.z) : null; return (save.maps.lava && Math.hypot(me.x - LAVA.x, me.z - LAVA.z) < LAVA.r + 55) || (I && I.biome === 'volcanic') || has('magma'); };
 function animTick(dt) {
@@ -4528,7 +4535,7 @@ function updateMeAvatar(dt) {
   if (!rodOut && (!bucket.length || !bucket[selSlot])) rodOut = true;
   curHold = (me.riding || me.passenger || me.swim) ? null : eatT > 0 && eatFx ? eatFx : F.state === 'show' && F.lastCatch ? F.lastCatch : !rodOut && bucket[selSlot] ? bucket[selSlot] : null;
   const mnt = me.riding || me.passenger, fishNow = mnt && (st === 'charge' || st === 'cast' || st === 'fight' || st === 'wait' || st === 'bite');
-  if (mnt && !fishNow) mode = 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight' && F.mega) mode = (F.G && F.G.time < 1.1) ? 'brace' : 'lie'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (digState) mode = 'fight'; else if (emote.t > 0) mode = emote.m; else if (has('disco')) mode = 'dance';
+  if (mnt && !fishNow) mode = (me.riding && MEGA.rec && MEGAS[MEGA.rec.sp].scooter) ? 'prone' : 'ride'; else if (me.swim && !mnt) mode = 'swim'; else if (eatT > 0) mode = 'eat'; else if (sleepLock > 0) mode = 'sleep'; else if (st === 'charge') mode = 'charge'; else if (st === 'cast') mode = 'cast'; else if (st === 'fight' && F.mega) mode = (F.G && F.G.time < 1.1) ? 'brace' : 'lie'; else if (st === 'fight') mode = 'fight'; else if (curHold) mode = 'show'; else if (digState) mode = 'fight'; else if (emote.t > 0) mode = emote.m; else if (has('disco')) mode = 'dance';
   animTick(dt);
   if (mode === 'lie' && F.G) { const dsp = (.35 + F.G.stress * 1.1) * dt, nx = me.x + F.dirx * dsp, nz = me.z + F.dirz * dsp; if (walkG(nx, nz) > .5) { me.x = nx; me.z = nz; if (Math.random() < .3) emitTrail(me.x, me.y + .1, me.z, 'sparkle', '#e8d8b0'); } }   // the Mega drags you along the ground, but never off the dock
   if (!mnt && !me.swim) {
@@ -4536,7 +4543,7 @@ function updateMeAvatar(dt) {
     else if (mode === 'hold' && me.spd > 7.5 && me.grounded) mode = 'sprint';
     else if (mode === 'hold' || mode === 'idle') { if (ANIM.stretch > 0) mode = 'stretch'; else if (coldHere() && me.spd < .5) mode = 'cold'; else if (hotHere() && me.spd < .5) mode = 'fan'; }
   }
-  if (SPX.down || SPX.aim > 0) mode = 'aim';
+  if ((SPX.down || SPX.aim > 0) && mode !== 'prone') mode = 'aim';
   // Gang-Beasts wobble: starting, stopping, casting and fighting make the whole body sway and lurch
   const dsp = (me.spd - (me.prevSpd || 0)) / Math.max(dt, 1e-3); me.prevSpd = me.spd;
   me.wob = clamp((me.wob || 0) + Math.min(.1, Math.abs(dsp) * .003) - 2.5 * dt, 0, 1.2);
