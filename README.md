@@ -73,3 +73,5 @@ Character model "Simple Guy" by jpraptor001 (https://sketchfab.com/3d-models/sim
 - **Spear fishing:** underwater, hold the mouse button to aim (the ring tightens), release to fire. You can always use a worse gun you own.
 - **Dev account:** open the game with `?dev=1` (for example `index.html?dev=1`) for a separate save with everything unlocked, plus a dev panel (press the backtick key) with teleports and cheats.
 - **Shop categories:** Fin's market now has separate Boats (very expensive), Sea Scooters and Charms tabs.
+- **Deep sea:** the water now gets gradually deeper away from every island, down to about 45 m. Warm-ocean reefs (tube, brain, bubble, fire and horn coral, towers, fans, sea pickles and kelp) grow in the clear, deeper water.
+- **Docks:** Megas can leap over docks or duck and swim right under them. Only Sea Scooters can dive underwater.
