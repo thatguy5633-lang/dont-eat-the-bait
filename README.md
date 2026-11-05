@@ -72,6 +72,6 @@ Character model "Simple Guy" by jpraptor001 (https://sketchfab.com/3d-models/sim
 - **Earl's Spear Shack:** a shop on the sea floor near the pier (look for the red buoy; it's on the map too). Press `F` near Earl to buy spears and spear guns (7 tiers), the Turbo Scooter, or to sell fish.
 - **Spear fishing:** underwater, hold the mouse button to aim (the ring tightens), release to fire. You can always use a worse gun you own.
 - **Dev account:** open the game with `?dev=1` (for example `index.html?dev=1`) for a separate save with everything unlocked, plus a dev panel (press the backtick key) with teleports and cheats.
-- **Shop categories:** Fin's market now has separate Boats (very expensive), Sea Scooters and Charms tabs.
+- **Shops:** Fin's market sells Sea Scooters and Charms. Boats have their own shop: **Skipper's Boat Shop** on its own island east of the pier (press `P` for the map, then the Warp to the Boat Shop button). Press `F` near Captain Barnacle to buy a boat.
 - **Deep sea:** the water now gets gradually deeper away from every island, down to about 45 m. Warm-ocean reefs (tube, brain, bubble, fire and horn coral, towers, fans, sea pickles and kelp) grow in the clear, deeper water.
 - **Docks:** Megas can leap over docks or duck and swim right under them. Only Sea Scooters can dive underwater.

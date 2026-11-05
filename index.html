@@ -138,6 +138,10 @@
 <div id="lids"></div><div id="tint"></div>
 
 <div class="ov" id="devOv" style="z-index:14"><div class="box" style="max-width:720px;width:95vw"><h2 class="stroke">🛠 DEV TOOLS</h2><div id="devBody"></div><div style="margin-top:10px"><button id="devClose">Back (`)</button></div></div></div>
+<div class="ov" id="boatOv"><div class="box" style="max-width:640px;width:95vw">
+  <h2 class="stroke">⛵ SKIPPER'S BOAT SHOP</h2><div id="boatGold" class="stroke" style="margin:4px"></div>
+  <div id="boatBody"></div><div style="margin-top:8px"><button id="boatClose">Back (F)</button></div>
+</div></div>
 <div class="ov" id="earlOv"><div class="box" style="max-width:660px;width:95vw">
   <h2 class="stroke">🤿 EARL'S SPEAR SHACK</h2><div id="earlGold" class="stroke" style="margin:4px"></div>
   <div class="tabs" id="earlTabs" style="margin:6px 0"><button class="sec" data-t="spear">🔱 Spears</button> <button class="sec" data-t="mega">🛴 Scooters</button> <button class="sec" data-t="sell">🐟 Sell fish</button></div>
@@ -146,7 +150,7 @@
 <div class="ov" id="mapOv"><div class="box" style="max-width:700px;width:96vw">
   <h2 class="stroke">🗺️ WORLD MAP</h2><canvas id="mapCv" width="640" height="640" style="width:min(86vw,60vh);height:min(86vw,60vh);border-radius:14px;border:3px solid #14213d"></canvas>
   <div class="small" id="mapInfo" style="margin:6px"></div><div class="small" style="opacity:.8">Discover islands and secrets to fill the map. Bottles hint where to look!</div>
-  <div style="margin-top:8px"><button id="mapHome" class="sec">🏠 Warp to the pier</button> <button id="mapClose">Back (P)</button></div>
+  <div style="margin-top:8px"><button id="mapHome" class="sec">🏠 Warp to the pier</button> <button id="mapBoat" class="sec">⛵ Warp to the Boat Shop</button> <button id="mapClose">Back (P)</button></div>
 </div></div>
 <div class="ov" id="accOv" style="z-index:12"><div class="box" style="max-width:480px;width:92vw">
   <h2 class="stroke">🔑 ACCOUNT</h2>
@@ -188,7 +192,7 @@
 <div class="ov" id="market"><div class="box" style="width:min(780px,96vw)">
   <h2>🐟 Fin's Fish Market</h2>
   <div class="stroke" style="font-size:26px;color:#ffd43b" id="mGold"></div>
-  <div class="tabs"><button class="sec" data-t="sell">Sell fish</button><button class="sec" data-t="rod">Rods</button><button class="sec" data-t="bait">Bait</button><button class="sec" data-t="mega">Mega food</button><button class="sec" data-t="boats">⛵ Boats</button><button class="sec" data-t="scooter">🛴 Sea Scooters</button><button class="sec" data-t="charms">🔮 Charms</button><button class="sec" data-t="map">Map</button></div>
+  <div class="tabs"><button class="sec" data-t="sell">Sell fish</button><button class="sec" data-t="rod">Rods</button><button class="sec" data-t="bait">Bait</button><button class="sec" data-t="mega">Mega food</button><button class="sec" data-t="scooter">🛴 Sea Scooters</button><button class="sec" data-t="charms">🔮 Charms</button><button class="sec" data-t="map">Map</button></div>
   <div id="mBody"></div>
   <button id="mClose">Back to fishing (F)</button>
 </div></div>
@@ -1569,7 +1573,7 @@ const sfx = {
 const me = { id: 'me', x: 0, y: Y0, z: 11.5, bodyYaw: Math.PI, vx: 0, vz: 0, vy: 0, yaw: Math.PI, pitch: 0.12, grounded: true, sc: 1, walk: 0, spd: 0, name: 'Player', bob: 0 };
 const effects = {};
 const has = id => (effects[id] || 0) > 0;
-const GAME_BUILD = '20261104172111';
+const GAME_BUILD = '20261104173527';
 const TOUCH = matchMedia('(pointer: coarse)').matches || (navigator.maxTouchPoints > 0 && /Android|iPhone|iPad|Mobi/i.test(navigator.userAgent)) || /[?&]touch=1/.test(location.search);
 const keys = {}, pressedQ = [];
 const mouse = { down: false, pressed: false, released: false, rdown: false, rpressed: false };
@@ -2318,7 +2322,7 @@ function toast(txt, ms = 1800, color = '#fff') {
   while ($('feed').children.length > 4) $('feed').firstChild.remove();
 }
 function setUI(s) {
-  ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills', map: 'mapOv', earl: 'earlOv', dev: 'devOv' };
+  ui = s; const ov = { menu: 'menu', pause: 'pause', market: 'market', book: 'book', closet: 'closet', namemega: 'namemega', stable: 'stable', skills: 'skills', map: 'mapOv', earl: 'earlOv', dev: 'devOv', boats: 'boatOv' };
   for (const k of Object.values(ov)) $(k).style.display = 'none';
   if (ov[s]) $(ov[s]).style.display = 'flex';
   if (s === 'pause') { $('menuAsk').style.display = 'none'; $('pauseMain').style.display = ''; renderDiff(); syncSoundBtn(); }
@@ -2540,7 +2544,7 @@ addEventListener('keydown', e => {
     if (/^Digit[1-9]$/.test(e.code)) hotSelect(+e.code.slice(5) - 1);
     if (e.code === 'KeyQ') hotCycle(1);
     if (e.code === 'KeyR') { const order = ['worm', 'shrimp', 'glitter', 'mega'].filter(k => k === 'worm' || save.bait[k] > 0); save.baitSel = order[(order.indexOf(save.baitSel) + 1) % order.length] || 'worm'; sfx.tick(); persist(); }
-    if (e.code === 'KeyF') { if (nearEarl()) openEarl(); else openMarket(); }
+    if (e.code === 'KeyF') { if (nearEarl()) openEarl(); else if (nearBoatShop()) openBoatShop(); else openMarket(); }
     if (e.code === 'KeyB') openBook();
     if (e.code === 'KeyC') openCloset();
     if (e.code === 'KeyG') toggleMega();
@@ -2558,6 +2562,7 @@ addEventListener('keydown', e => {
   else if (e.code === 'KeyT' && ui === 'skills') closeSkills();
   else if ((e.code === 'KeyP' || e.code === 'Escape') && ui === 'map') closeMap();
   else if ((e.code === 'KeyF' || e.code === 'Escape') && ui === 'earl') closeEarl();
+  else if ((e.code === 'KeyF' || e.code === 'Escape') && ui === 'boats') closeBoatShop();
 });
 addEventListener('keyup', e => { keys[e.code] = false; });
 addEventListener('blur', () => { for (const k in keys) keys[k] = false; mouse.down = false; });
@@ -3756,8 +3761,8 @@ function isleH(I, x, z) {
 function islandH(x, z, b) { const list = ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return b; let h = b; for (const I of list) { const v = isleH(I, x, z); if (v > h) h = v; } return h; }
 function isleAt(x, z) { const list = ISLE_GRID && ISLE_GRID.get(Math.floor(x / 400) + ',' + Math.floor(z / 400)); if (!list) return null; for (const I of list) if (isleH(I, x, z) > .3) return I; return null; }
 function genOpenSea() {
-  const PRESET_ISLES = [[-60, -50, 17, 'tropic', 'Pelican Cay'], [55, -70, 20, 'jungle', 'Parrot Hollow'], [-110, -120, 25, 'tropic', 'Driftwood Isle'], [95, -150, 28, 'rock', 'Gull Rock'], [0, -208, 30, 'tropic', 'Lantern Isle'], [-120, -10, 13, 'tropic', 'Little Palm'], [120, -20, 15, 'jungle', 'Fern Key']];
-  PRESET_ISLES.forEach(([x, z, r, biome, name], i) => OSEA.isles.push({ id: 'p' + i, x, z, r, biome, name, hill: 1.0 + (i % 3) * .5, seed: 11 + i * 7.3, secret: false, dig: [], g: null }));
+  const PRESET_ISLES = [[-60, -50, 17, 'tropic', 'Pelican Cay'], [55, -70, 20, 'jungle', 'Parrot Hollow'], [-110, -120, 25, 'tropic', 'Driftwood Isle'], [95, -150, 28, 'rock', 'Gull Rock'], [0, -208, 30, 'tropic', 'Lantern Isle'], [-120, -10, 13, 'tropic', 'Little Palm'], [120, -20, 15, 'jungle', 'Fern Key'], [175, -95, 27, 'tropic', "Skipper's Isle"]];
+  PRESET_ISLES.forEach(([x, z, r, biome, name], i) => OSEA.isles.push({ id: 'p' + i, x, z, r, biome, name, hill: name === "Skipper's Isle" ? .5 : 1.0 + (i % 3) * .5, seed: 11 + i * 7.3, secret: false, dig: [], g: null, boatyard: name === "Skipper's Isle" }));
   const R = mulberry(20261103), fixed = [[0, 0, 320], [ISL.x, ISL.z, 120], [COVE.x, COVE.z, 140], [LAVA.x, LAVA.z, 420], [STORM.x, STORM.z, 420]].concat(NEWW.map(w => [w.x, w.z, 420]));
   const clear = (x, z, m) => fixed.every(f => Math.hypot(x - f[0], z - f[1]) > f[2] + m);
   for (let tries = 0; OSEA.isles.length < 72 && tries < 6000; tries++) {
@@ -4047,13 +4052,43 @@ function closeDev() { setUI('play'); lockPointer(); }
 function renderDev() {
   const b = $('devBody'); b.innerHTML = ''; const row = (t, items) => { const d = document.createElement('div'); d.innerHTML = `<div class="lab" style="margin-top:8px">${t}</div>`; for (const [label, fn] of items) { const bt = document.createElement('button'); bt.className = 'opt'; bt.textContent = label; bt.onclick = () => { fn(); }; d.appendChild(bt); } b.appendChild(d); };
   const jungle = OSEA.isles.find(i => i.jungle), W = [...[['🌋 Lava', LAVA], ['⚡ Lightning', STORM]], ...NEWW.map(w => [w.e + ' ' + w.n.replace(' World', ''), w])];
-  row('Teleport', [['🏠 Pier', () => devTp(0, 14, false)], ["🤿 Earl's shack", () => devTp(EARL.x, EARL.z + 9, true)], ['🌴 Jungle isle', () => jungle && devTp(jungle.x - jungle.r * .3, jungle.z, false)], ['🏝️ Treasure Island', () => devTp(ISL.x, ISL.z + ISL.r + 6, false)], ['🌊 Mega Cove', () => devTp(COVE.x - 25, COVE.z + 10, true)], ...W.map(([n, w]) => [n, () => devTp(w.x + 4, w.z + 52, false)])]);
+  row('Teleport', [['🏠 Pier', () => devTp(0, 14, false)], ["🤿 Earl's shack", () => devTp(EARL.x, EARL.z + 9, true)], ['⛵ Boat shop', () => { const I = BOATYARD.I; if (I) devTp(I.x, I.z + shapeR(I, 0, 1) + 6, false); }], ['🌴 Jungle isle', () => jungle && devTp(jungle.x - jungle.r * .3, jungle.z, false)], ['🏝️ Treasure Island', () => devTp(ISL.x, ISL.z + ISL.r + 6, false)], ['🌊 Mega Cove', () => devTp(COVE.x - 25, COVE.z + 10, true)], ...W.map(([n, w]) => [n, () => devTp(w.x + 4, w.z + 52, false)])]);
   row('Money, gear, levels', [['💰 +$1,000,000,000', () => { save.gold += 1e9; persist(); toast('+$1B', 1200); }], ['⭐ +10 levels', () => { save.level += 10; persist(); toast('Level ' + save.level, 1400); }], ['🫧 Refill air', () => { me.air = maxAir(); toast('Air refilled', 1200); }], ['🪱 99 of every bait', () => { save.bait = { shrimp: 99, glitter: 99, mega: 99, worm: 0 }; persist(); }], ['🔮 3 of every charm', () => { for (const k in CHARMS) save.charms[k] = (save.charms[k] || 0) + 3; persist(); }]]);
   row('Underwater', [['🛴 Ride a Sea Scooter underwater', () => { const i = MEGAS.findIndex(m => m.n === 'Sea Scooter'), rec = save.megas.find(m => m.sp === i); if (!rec) return; closeDev(); if (me.riding) dismountMega(); save.activeMega = rec.id; buildMegaObj(); me.swim = true; me.y = 0; MEGA.x = me.x; MEGA.z = me.z; MEGA.y = 0; MEGA.vx = MEGA.vz = MEGA.vy = 0; MEGA.summoned = true; MEGA.obj.visible = true; MEGA.tag.visible = true; mountMega(rec); }], ['🐟 Respawn fish schools', () => { UWF.fish.forEach(f => scene.remove(f.m)); UWF.fish.length = 0; UWF.schools.forEach(s2 => { scene.remove(s2.mesh); }); UWF.schools.length = 0; closeDev(); }], ['🔱 Best spear gun', () => { save.spear = 6; save.spearSel = 6; persist(); toast('Trident Gun equipped', 1400); }]]);
   row('World', [['🗺 Discover every island', () => { for (const I of OSEA.isles) save.found[I.id] = 1; persist(); toast('Map revealed', 1400); }], ['🌀 Spawn a Mega near me', () => { MEGA.summoned = false; closeDev(); }], ['🍾 Spawn bottles', () => { for (let i = 0; i < 4; i++) spawnBottle(); closeDev(); }], ['🐋 Spawn sea creatures', () => { for (let i = 0; i < 4; i++) spawnCre(); closeDev(); }], ['🔄 Reset dev account', () => { if (confirm('Reset the dev account?')) { localStorage.removeItem(SAVE_KEY); location.reload(); } }]]);
   const inf = document.createElement('div'); inf.className = 'small'; inf.style.marginTop = '8px'; inf.textContent = 'Dev account: separate save (your real game is untouched). Everything unlocked: all worlds, rods, spear guns, Megas, boats, charms and a full fish dictionary.'; b.appendChild(inf);
 }
 if (DEV) { addEventListener('keydown', e => { if (e.code === 'Backquote' && !e.repeat) { if (ui === 'play') openDev(); else if (ui === 'dev') closeDev(); } }); const db = document.createElement('button'); db.className = 'sec'; db.textContent = '🛠 DEV TOOLS (`)'; db.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:7;opacity:.85'; db.onclick = () => { if (ui === 'play') openDev(); }; document.body.appendChild(db); const bn = document.createElement('div'); bn.className = 'stroke'; bn.style.cssText = 'position:fixed;left:8px;top:8px;z-index:7;font-size:13px;color:#ffd43b;pointer-events:none'; bn.textContent = '🛠 DEV ACCOUNT'; document.body.appendChild(bn); }
+
+/* ---- Skipper's Boat Shop: a boat dealer on its own island, with a dock full of boats for sale ---- */
+const BOATYARD = { I: null, ch: null, boats: [], prompt: 0, sx: 0, sz: 0 };
+const capAp = Object.assign({}, npcAp, { skin: '#c7864f', eyes: 0, mouth: 1, outfit: 7, shirt: '#1b3a8a', shirt2: '#ffffff', pants: '#f4f4f4', shoe: '#222222', hat: 8, hatCol: '#ffffff', stache: 2, stacheCol: '#9a9a9a', mask: 0 });
+function buildBoatyard() {
+  const I = OSEA.isles.find(q => q.boatyard); if (!I) return; BOATYARD.I = I; const cx = I.x, cz = I.z, edge = shapeR(I, 0, 1), gy = (x, z) => isleH(I, x, z), sx = cx - 6, sz = cz - 3, sy = gy(sx, sz); BOATYARD.sx = sx; BOATYARD.sz = sz;
+  deco(sx - 4, sx + 4, sy - .3, sy + .2, sz - 3, sz + 3, mat(0xa8763a)); deco(sx - 4, sx + 4, sy + .2, sy + 3.4, sz - 3, sz - 2.7, mat(0xc8975a)); deco(sx - 4.1, sx - 3.8, sy + .2, sy + 3.4, sz - 3, sz + 1.2, mat(0x8a5a2e)); deco(sx + 3.8, sx + 4.1, sy + .2, sy + 3.4, sz - 3, sz + 1.2, mat(0x8a5a2e)); deco(sx - 4.7, sx + 4.7, sy + 3.4, sy + 3.7, sz - 3.4, sz + 1.8, mat(0xb8412c)); deco(sx - 2.6, sx + 2.6, sy + .2, sy + 1.2, sz + .3, sz + .9, mat(0xc89a5a));
+  bigSign("SKIPPER'S BOAT SHOP", '#b8412c', 6.4, 1.1, sx, sy + 4.5, sz + 2.6, 0, sy);
+  for (const [bx, bz] of [[sx + 5.6, sz + 1], [sx - 5.6, sz + 2]]) { const by = gy(bx, bz); gCy(tm('#7a4a28'), [bx, by, bz], [bx, by + 1.1, bz], .5); gEl(tm('#5a3a1c'), [bx, by + 1.1, bz], [.52, .1, .52]); }
+  { const lb = new THREE.Mesh(new THREE.TorusGeometry(.5, .16, 8, 18), tm('#ff4a3a')); lb.position.set(sx + 3.2, sy + 2.2, sz + .95); scene.add(lb); }
+  const dz0 = cz + edge - 3, dz1 = cz + edge + 16; walkRects.push({ x0: cx - 3, x1: cx + 3, z0: dz0, z1: dz1 }); plankTop(cx - 3, cx + 3, dz0, dz1, Y0);
+  for (const zz of [dz0 + 3, dz0 + 8, dz0 + 13]) for (const sd of [-1, 1]) { gCy(tm('#6b4423'), [cx + sd * 2.8, Y0 - 1.4, zz], [cx + sd * 2.8, Y0 + 1.6, zz], .13); lantern(cx + sd * 2.8, Y0 + 1.8, zz); }
+  bigSign("BOATS FOR SALE", '#0a6a8a', 5, 1, cx, Y0 + 3.6, dz1 - .6, 0);
+  const defs = []; MEGAS.forEach((def, idx) => { if (def.boat && !def.dive && !def.hidden) defs.push([def, idx]); });
+  defs.forEach(([def, idx], i) => { const o = makeMega(def, def.c1, def.glow, 1), x = cx + (i % 2 ? 8 : -8), z = dz0 + 5 + Math.floor(i / 2) * 8; o.scale.setScalar(megaScaleOf(idx, 1)); o.position.set(x, 0, z); o.rotation.y = i % 2 ? Math.PI * .5 : -Math.PI * .5; scene.add(o); const t = tagSprite(`${def.e} ${def.n} · $${def.price.toLocaleString()}`); t.scale.set(4.2, 1.05, 1); t.position.set(x, 4.6, z); scene.add(t); BOATYARD.boats.push({ o, x, z, ph: i }); });
+  BOATYARD.ch = makeCharFromAp(capAp, scene); const t2 = tagSprite('Captain Barnacle'); t2.position.set(sx, sy + 3.0, sz + .2); scene.add(t2);
+  const buoy = tagSprite("⛵ Skipper's Boat Shop"); buoy.scale.set(5, 1.2, 1); buoy.position.set(cx, Y0 + 14, cz); scene.add(buoy);
+}
+const nearBoatShop = () => BOATYARD.ch && Math.hypot(me.x - BOATYARD.sx, me.z - BOATYARD.sz) < 10 && me.y > -.5 && !uwDiving();
+function updateBoatyard(dt) {
+  if (!BOATYARD.ch) return; const I = BOATYARD.I, sy = isleH(I, BOATYARD.sx, BOATYARD.sz);
+  const L = genPose({ amp: 0, phase: time * 1.1, mode: 'idle', breath: Math.sin(time * 1.3) * .012, lean: 0, sway: 0 }); BOATYARD.ch.setTargets(L, { x: BOATYARD.sx, y: sy + .2, z: BOATYARD.sz - .3 }, Math.PI * .05 + Math.sin(time * .4) * .2, 1.1); BOATYARD.ch.follow(true); BOATYARD.ch.sync(time); faceSet(BOATYARD.ch, pickFace({ cheer: nearBoatShop(), blink: ((time * .37) % 3.9) < .14 }));
+  for (const b of BOATYARD.boats) { b.o.position.y = waveH(b.x, b.z, time) + .12; animateMega(b.o, time, 0, 0); }
+  BOATYARD.prompt -= dt; if (nearBoatShop() && BOATYARD.prompt <= 0 && ui === 'play') { BOATYARD.prompt = 40; toast("⛵ Captain Barnacle: \"Boats for sale! Press F to shop.\"", 3600, '#ffd43b'); }
+}
+function refreshShops() { if (ui === 'boats') renderBoatShop(); else renderMarket(); }
+function openBoatShop() { if (F.state !== 'idle') resetFishing(); setUI('boats'); renderBoatShop(); }
+function closeBoatShop() { setUI('play'); lockPointer(); }
+function renderBoatShop() { $('boatGold').textContent = `💰 $${save.gold.toLocaleString()}`; const b = $('boatBody'); b.innerHTML = ''; b.appendChild(shopSection('boats')); }
+$('boatClose').onclick = closeBoatShop;
 function buildIsle(I) {
   const g = new THREE.Group(); g.position.set(I.x, 0, I.z); const R = mulberry((I.seed * 1000) | 0), rr = (a, b) => a + R() * (b - a), plat = Y0 + .012, A = Math.PI * I.r * I.r, jun = I.biome === 'jungle', big = !!I.jungle;
   const seg = Math.min(80, Math.max(30, Math.round(I.r / 1.2))), S = I.r * 2.7, geo = new THREE.PlaneGeometry(S, S, seg, seg); geo.rotateX(-Math.PI / 2); const P = geo.attributes.position, cols = new Float32Array(P.count * 3), tmp = new THREE.Color();
@@ -4146,7 +4181,7 @@ function initGulls() {
 const SPARKS = [];
 function initSparkles() { for (let i = 0; i < 110; i++) { const m = new THREE.Sprite(new THREE.SpriteMaterial({ map: glowTex, color: new THREE.Color(2.2, 2.2, 2.0), blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, opacity: 0 })); m.scale.setScalar(.45 + Math.random() * .5); scene.add(m); SPARKS.push({ m, x: (Math.random() - .5) * 90, z: (Math.random() - .5) * 90, ph: Math.random() * 6, sp: 1.5 + Math.random() * 2.5 }); } }
 function updateLife(dt) {
-  reefTick(dt); updateUnderwater(dt); updateUWLife(dt); updateSpear(dt); updateEarl(dt);
+  reefTick(dt); updateUnderwater(dt); updateUWLife(dt); updateSpear(dt); updateEarl(dt); updateBoatyard(dt);
   for (const q of SPARKS) { let dx = q.x - (me.x % 1000), dz = q.z; const wx = me.x + (((q.x - me.x) % 45) + 45) % 45 - 22.5, wz = me.z + (((q.z - me.z) % 45) + 45) % 45 - 22.5; q.m.position.set(wx, waveH(wx, wz, time) + .14, wz); q.m.material.opacity = Math.pow(Math.max(0, Math.sin(time * q.sp + q.ph)), 6) * .85; }
   if (me.swim && Math.random() < dt * 1.4) ripple(me.x + (Math.random() - .5) * 1.5, me.z + (Math.random() - .5) * 1.5);
   const t = time; for (const q of GULLS) { q.a += q.s * dt; const x = me.x + Math.cos(q.a) * q.r, z = me.z + Math.sin(q.a) * q.r; q.g.position.set(x, q.h + Math.sin(t * .7 + q.ph) * 2, z); q.g.rotation.y = -q.a + (q.s > 0 ? 0 : Math.PI); const f = Math.sin(t * 6 + q.ph) * .55; q.wl.rotation.z = -f; q.wr.rotation.z = f; q.g.rotation.z = q.s > 0 ? -.2 : .2; }
@@ -4234,8 +4269,8 @@ const MEGA_FD = {   // old name -> new look (and sometimes a new name)
 for (const [n, o] of Object.entries(MEGA_FD)) { const d = MEGAS.find(m => m.n === n); if (d) { d.shape = 'fd'; d.fd = o.fd; if (o.fs) d.fs = o.fs; if (o.name) d.n = o.name; } }
 function shopSection(kind) {
   const wrap = document.createElement('div'), hdr = t => { const d = document.createElement('div'); d.className = 'sub'; d.style.marginTop = '8px'; d.innerHTML = t; wrap.appendChild(d); };
-  const vehicle = (def, idx, line) => { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:480px'; d.innerHTML = `<b>${def.e} ${def.n}</b><div class="small">${line}</div>`; const owned = save.megas.some(m => m.sp === idx), b = document.createElement('button'); b.className = 'opt'; if (owned) { b.textContent = 'Owned ✓'; b.disabled = true; } else { b.textContent = `Buy $${def.price.toLocaleString()}`; b.disabled = save.gold < def.price; b.onclick = () => { if (save.gold < def.price) return; save.gold -= def.price; const rec = { id: 'm' + Date.now(), sp: idx, name: def.n, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'bubble' }; save.megas.push(rec); save.activeMega = rec.id; MEGA.summoned = false; persist(); buildMegaObj(); sfx.lvl(); toast(`${def.e} Your new ${def.n} is ready! Face the water and press G.`, 4200, '#ffd43b'); renderMarket(); }; } d.appendChild(b); wrap.appendChild(d); };
-  if (kind === 'boats') { hdr('<b>⛵ BOATS</b>: sail the giant sea fast, fish from the deck and carry a friend. Expensive, but they never get hungry. Buy one, face the water and press <b>G</b>.'); MEGAS.forEach((def, idx) => { if (def.boat && !def.dive && !def.hidden) vehicle(def, idx, `Speed ×${def.spd} · 2 seats · fish from the deck`); }); }
+  const vehicle = (def, idx, line) => { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:480px'; d.innerHTML = `<b>${def.e} ${def.n}</b><div class="small">${line}</div>`; const owned = save.megas.some(m => m.sp === idx), b = document.createElement('button'); b.className = 'opt'; if (owned) { b.textContent = 'Owned ✓'; b.disabled = true; } else { b.textContent = `Buy $${def.price.toLocaleString()}`; b.disabled = save.gold < def.price; b.onclick = () => { if (save.gold < def.price) return; save.gold -= def.price; const rec = { id: 'm' + Date.now(), sp: idx, name: def.n, hunger: 100, xp: 0, level: 1, c1: def.c1, glow: def.glow, trail: 'bubble' }; save.megas.push(rec); save.activeMega = rec.id; MEGA.summoned = false; persist(); buildMegaObj(); sfx.lvl(); toast(`${def.e} Your new ${def.n} is ready! Face the water and press G.`, 4200, '#ffd43b'); refreshShops(); }; } d.appendChild(b); wrap.appendChild(d); };
+  if (kind === 'boats') { hdr('<b>⛵ BOATS</b>: sail the giant sea fast, fish from the deck and carry a friend. Expensive, but they never get hungry. Buy one, then face the water and press <b>G</b> to call it.'); MEGAS.forEach((def, idx) => { if (def.boat && !def.dive && !def.hidden) vehicle(def, idx, `Speed ×${def.spd} · 2 seats · fish from the deck`); }); }
   else if (kind === 'scooter') { hdr('<b>🛴 SEA SCOOTERS: the ONLY way to go underwater!</b><br>1) Buy a Sea Scooter. 2) Face the water and press <b>G</b> to ride it. 3) Hold <b>Z</b> to dive, <b>Space</b> to rise. Underwater you can spear fish and find <b>Earl\'s Spear Shack</b> on the sea floor near the pier (a red buoy marks it, and it is on the map: <b>P</b>). Scooters have endless air.'); MEGAS.forEach((def, idx) => { if (def.scooter && !def.earl) vehicle(def, idx, `Speed ×${def.spd} · propeller drive · endless air · dive with Z`); }); hdr('<span class="small">A faster Turbo Scooter is sold at Earl\'s shop underwater.</span>'); }
   else { hdr('<b>🔮 CHARMS</b>: buy them here, then equip them on a Mega in the Mega Stable (<b>M</b>). Slots: 2, +1 at level 5, +1 at level 10. You can also find charms in bottles, island chests and secret caves.'); for (const [id, c] of Object.entries(CHARMS)) { const d = document.createElement('div'); d.className = 'card'; d.style.cssText = 'margin:8px auto;max-width:480px'; d.innerHTML = `<b>${c.e} ${c.n}</b> (you have ${save.charms[id] || 0})<div class="small">${c.d}</div>`; const b = document.createElement('button'); b.className = 'opt'; b.textContent = `Buy $${c.price.toLocaleString()}`; b.disabled = save.gold < c.price; b.onclick = () => { if (save.gold < c.price) return; save.gold -= c.price; save.charms[id] = (save.charms[id] || 0) + 1; persist(); sfx.good(); toast(`${c.e} ${c.n} bought! Equip it in the Mega Stable (M).`, 2600, '#d9a8ff'); renderMarket(); }; d.appendChild(b); wrap.appendChild(d); } const sb = document.createElement('button'); sb.className = 'sec'; sb.textContent = '🐋 Open Mega Stable'; sb.onclick = () => { stableFrom = null; openStable(); }; wrap.appendChild(sb); }
   return wrap;
@@ -4250,7 +4285,7 @@ function charmBox(rec) {
 function drawMap() {
   const c = $('mapCv'), g = c.getContext('2d'), N = c.width, sc = N / (WORLD_H * 2), px = x => (x + WORLD_H) * sc, pz = z => (z + WORLD_H) * sc;
   g.fillStyle = '#0d5a8c'; g.fillRect(0, 0, N, N); g.strokeStyle = 'rgba(255,255,255,.08)'; g.lineWidth = 1; for (let i = 1; i < 10; i++) { g.beginPath(); g.moveTo(i * N / 10, 0); g.lineTo(i * N / 10, N); g.moveTo(0, i * N / 10); g.lineTo(N, i * N / 10); g.stroke(); }
-  g.fillStyle = '#ffe39a'; g.beginPath(); g.arc(px(0), pz(30), 6, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('🏠 Pier', px(0), pz(30) - 9); g.fillStyle = '#1fe0ff'; g.beginPath(); g.arc(px(EARL.x), pz(EARL.z), 4, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText('🤿 Earl', px(EARL.x), pz(EARL.z) - 7);
+  g.fillStyle = '#ffe39a'; g.beginPath(); g.arc(px(0), pz(30), 6, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center'; g.fillText('🏠 Pier', px(0), pz(30) - 9); if (BOATYARD.I) { g.fillStyle = '#ff7a4a'; g.beginPath(); g.arc(px(BOATYARD.I.x), pz(BOATYARD.I.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText('⛵ Boats', px(BOATYARD.I.x), pz(BOATYARD.I.z) - 8); } g.fillStyle = '#1fe0ff'; g.beginPath(); g.arc(px(EARL.x), pz(EARL.z), 4, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText('🤿 Earl', px(EARL.x), pz(EARL.z) - 7);
   const wl = [[LAVA, 'lava', '🌋', 'Lava'], [STORM, 'storm', '⚡', 'Lightning']].concat(NEWW.map(w => [w, w.id, w.e, w.n.replace(' World', '')])); for (const [w, id, e, n] of wl) { const own = save.maps[id]; g.fillStyle = own ? '#ffd43b' : '#5a7a99'; g.beginPath(); g.arc(px(w.x), pz(w.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.fillText(own ? `${e} ${n}` : '?', px(w.x), pz(w.z) - 8); }
   if (save.maps.island) { g.fillStyle = '#ffd43b'; g.beginPath(); g.arc(px(ISL.x), pz(ISL.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.fillText('🏝️ Treasure', px(ISL.x), pz(ISL.z) - 8); }
   if (save.maps.cove) { g.fillStyle = '#2fe8e8'; g.beginPath(); g.arc(px(COVE.x), pz(COVE.z), 5, 0, TAU); g.fill(); g.fillStyle = '#fff'; g.font = 'bold 11px sans-serif'; g.fillText('🌊 Mega Cove', px(COVE.x), pz(COVE.z) - 8); }
@@ -4265,7 +4300,7 @@ function warpHome() {
   if (me.riding) dismountMega(); if (me.passenger) leavePassenger(); MEGA.summoned = false; if (MEGA.obj) MEGA.obj.visible = false; if (MEGA.tag) MEGA.tag.visible = false; if (F.state !== 'idle') resetFishing();
   worldFx.portalCool = 0; setUI('play'); lockPointer(); warpTo({ x: 0, z: 14, yaw: Math.PI }, 'the pier');
 }
-$('mapClose').onclick = closeMap; $('mapHome').onclick = warpHome;
+$('mapClose').onclick = closeMap; $('mapHome').onclick = warpHome; $('mapBoat').onclick = () => { const I = BOATYARD.I; if (!I) return; if (me.riding) dismountMega(); if (me.passenger) leavePassenger(); MEGA.summoned = false; if (MEGA.obj) MEGA.obj.visible = false; if (MEGA.tag) MEGA.tag.visible = false; if (F.state !== 'idle') resetFishing(); worldFx.portalCool = 0; setUI('play'); lockPointer(); warpTo({ x: I.x, z: I.z + shapeR(I, 0, 1) + 6, yaw: Math.PI }, "Skipper's Boat Shop"); };
 function isleDigHit(x, z) { const I = isleAt(x, z); if (!I) return false; for (const d of I.dig) { const k = I.id + d.x.toFixed(0); if (!save.isles[k] && Math.hypot(d.x - x, d.z - z) < 3.4) { save.isles[k] = 1; openChest({ x, z }); const g = Math.round(I.r * 140); save.gold += g; toast(`🏝️ Island treasure! +$${g.toLocaleString()} extra`, 3600, '#ffd43b'); if (Math.random() < .4) grantCharm(); persist(); return true; } } return false; }
 
 function makeRidge(rad, base, amp, col, seed) {
@@ -4298,7 +4333,7 @@ function initHorizon() {   // hazy layered ridges, a low cloud bank and sky refl
   try { const pm = new THREE.PMREMGenerator(renderer), es = new THREE.Scene(); es.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), new THREE.MeshBasicMaterial({ map: SKYOBJ.tex, side: THREE.BackSide }))); scene.environment = pm.fromScene(es, .02).texture; pm.dispose(); } catch (e) { }
 }
 const megaSurf = (x, z) => megaHas('land') ? Math.max(waveH(x, z, time), walkG(x, z)) : waveH(x, z, time);
-genOpenSea(); initHorizon(); initGulls(); initStyles(); initUW(); initSparkles(); initSpear(); buildEarl();
+genOpenSea(); initHorizon(); initGulls(); initStyles(); initUW(); initSparkles(); initSpear(); buildEarl(); buildBoatyard();
 const emojiFly = []; let emoteI = 0, emote = { t: 0, m: 'wave' };
 function spawnEmoji(e, who) { const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: emojiTex(e), transparent: true, depthTest: false })); sp.scale.setScalar(1.5); scene.add(sp); emojiFly.push({ sp, who, t: 0 }); }
 function doEmote() { if (me.riding || me.passenger || me.swim || ui !== 'play') return; const em = EMOTES[emoteI++ % EMOTES.length]; emote = { t: 2.6, m: em.m }; spawnEmoji(em.e, null); netEvent({ k: 'emote', id: NET.myId, i: (emoteI - 1) % EMOTES.length }); sfx.pop(); }
@@ -4494,7 +4529,7 @@ function loop(now) {
   stylePass.uniforms.uTime.value = performance.now() / 1000; composer.render(); if (ui === 'closet') renderPreview(now / 1000); if (ui === 'stable' && stRig) stRig.render(now / 1000); if (ui === 'namemega' && nmRig) nmRig.render(now / 1000);
 }
 renderStreak(); frInit(); accInit(); buildDetail(); buildShore(); buildPlaza(); buildIsland360(); renderDiff(); addFun(); buildPlayground(); buildMegaObj(); devInit(); for (const m of MAPS) if (save.maps[m.id]) m.build(); loadGuy(); setUI('menu'); requestAnimationFrame(loop);
-window.__game = { DEV, openDev, UWF, SPX, SPEARS, EARL, floorY, uwDiving, openEarl, curSpear, terrainH, setStyle, ART, stylePass, paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
+window.__game = { BOATYARD, openBoatShop, DEV, openDev, UWF, SPX, SPEARS, EARL, floorY, uwDiving, openEarl, curSpear, terrainH, setStyle, ART, stylePass, paintFaceTex, ANIM, OSEA, spotAt, isleAt, CHARMS, grantCharm, bottleReward, spawnCre, spawnBottle, buildIsle, drawMap, ICON, ICON_SIL, makeFish3D, accDerive, accSeal, accOpen, accFetch, accPush, ACC, FR, frStatus, NEWW, buildWorld, sfx, pickMegaSp, megaArea, buried, startDig, isDiggable, fishZone, pickFish, makeBolt, bolts, worldFx, makeFish3D, buildHat, runChaos, chaos, TRADE, sellMega, offerTrade, answerTrade, megaValue,  fun, plaza, fin3, kickAction, finSay, colliders, walkRects, get eatT() { return eatT; }, get sleepLock() { return sleepLock; }, GUY, MEGA, MAPS, MEGAS, makeMega, showMegaCatch, toggleMega, feedMega, openStable, buyMap, renderMarket, me, F, save, effects, bucket, update, FISH, NET, remotes, keys, mouse, THREE, scene, camera, get ui() { return ui; }, setUI, startFight, endFight, applyFx, addToBucket, openCloset, openBook, openMarket, hostRoom, joinRoom, enterWorld, eatSelected, drawSign };
 </script>
 </body>
 </html>
